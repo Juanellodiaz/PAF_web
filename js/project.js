@@ -140,15 +140,15 @@ function renderAdminView(p) {
       <div id="estimations-editor" class="estimations-editor">${estimationsBootstrap}</div>
     </section>
 
-    <section id="workspace-section" class="admin-section project-collapsible-section is-collapsed" style="margin-top:2rem">
-      <div class="section-collapse-head">
-        <button type="button" class="concept-toggle" id="toggle-workspace-section" aria-expanded="false">
+    <section id="workspace-section" class="concept-row project-workspace-section is-collapsed">
+      <div class="concept-row-top">
+        <button type="button" class="concept-toggle" id="toggle-workspace-section" onclick="pafToggleWorkspaceSection()" aria-expanded="false">
           <span class="concept-chevron" aria-hidden="true"></span>
-          <span class="admin-section-label section-collapse-title">Zona de trabajo y documentos</span>
+          <span class="concept-row-num">ZONA</span>
           <span class="concept-summary" id="workspace-section-summary">Vista 3D · ${(p.documents || []).filter((d) => d.title !== "_PAF_INTERNAL" && !String(d.id || "").startsWith("_paf_meta_")).length} documento(s)</span>
         </button>
       </div>
-      <div class="section-collapse-body">
+      <div class="concept-row-body">
         <div class="dashboard-grid">
           <div class="dashboard-panel">
             <p class="panel-label">Zona de trabajo — Vista 3D</p>

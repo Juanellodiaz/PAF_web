@@ -887,16 +887,16 @@ function updateWorkspaceSectionSummary() {
   if (el) el.textContent = workspaceSectionSummary();
 }
 
-function bindWorkspaceSectionToggle() {
+window.pafToggleWorkspaceSection = function () {
   const section = document.getElementById("workspace-section");
   const btn = document.getElementById("toggle-workspace-section");
-  if (!section || !btn || btn.dataset.bound === "1") return;
-  btn.dataset.bound = "1";
-  btn.addEventListener("click", () => {
-    section.classList.toggle("is-collapsed");
-    const collapsed = section.classList.contains("is-collapsed");
-    btn.setAttribute("aria-expanded", String(!collapsed));
-  });
+  if (!section) return;
+  section.classList.toggle("is-collapsed");
+  const collapsed = section.classList.contains("is-collapsed");
+  if (btn) btn.setAttribute("aria-expanded", String(!collapsed));
+};
+
+function bindWorkspaceSectionToggle() {
   updateWorkspaceSectionSummary();
 }
 
