@@ -826,6 +826,14 @@ body.page-enter {
   border: 1px solid var(--border);
 }
 
+.advance-amount-preview {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: var(--accent);
+  font-weight: 500;
+  min-height: 1.1em;
+}
+
 .advance-pending {
   font-size: 0.8rem;
   color: var(--text-dim);

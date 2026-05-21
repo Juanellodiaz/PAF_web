@@ -341,6 +341,13 @@ function renderConceptsEditor() {
       void addConceptAdvance(Number(btn.dataset.addAdvance));
     });
   });
+  el.querySelectorAll("[data-advance-m2]").forEach((input) => {
+    const i = Number(input.dataset.advanceM2);
+    const refresh = () => updateAdvanceAmountPreview(i);
+    input.addEventListener("input", refresh);
+    input.addEventListener("change", refresh);
+    refresh();
+  });
   el.querySelectorAll("[data-remove-advance]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const ci = Number(btn.dataset.removeAdvance);
@@ -378,6 +385,21 @@ function estimationSelectOptions(selectedId) {
   return `${opts}<option value="__new__">+ Crear nueva estimación</option>`;
 }
 
+function advanceAmountFromM2(m2, unitPrice) {
+  return Math.round((Number(m2) || 0) * (Number(unitPrice) || 0));
+}
+
+function updateAdvanceAmountPreview(conceptIndex) {
+  const c = editorConcepts[conceptIndex];
+  const m2Input = document.querySelector(`[data-advance-m2="${conceptIndex}"]`);
+  const preview = document.querySelector(`[data-advance-preview="${conceptIndex}"]`);
+  if (!c || !m2Input || !preview) return;
+  const m2 = Number(m2Input.value) || 0;
+  const amount = advanceAmountFromM2(m2, c.unitPrice);
+  preview.textContent =
+    m2 > 0 ? `Importe del avance: ${formatMoney(amount)}` : "";
+}
+
 function conceptAdvancesBlock(c, i) {
   const advances = parseAdvances(c);
   const pending = conceptAdvancePendingM2(c);
@@ -413,6 +435,7 @@ function conceptAdvancesBlock(c, i) {
         <div class="form-group">
           <label>m² de avance</label>
           <input type="number" min="0" step="0.01" data-advance-m2="${i}" placeholder="Ej. 200">
+          <p class="advance-amount-preview" data-advance-preview="${i}" aria-live="polite"></p>
         </div>
         <div class="form-group">
           <label>Fecha</label>
@@ -505,6 +528,7 @@ function onConceptFieldChange(e) {
   const field = e.target.dataset.field;
   if (field === "m2" || field === "unitPrice") {
     editorConcepts[i][field] = Number(e.target.value) || 0;
+    if (field === "unitPrice") updateAdvanceAmountPreview(i);
   } else {
     editorConcepts[i][field] = e.target.value;
   }
