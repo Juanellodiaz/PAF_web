@@ -116,7 +116,7 @@ window.pafRemoveEstimation = function (idx) {
   void persistProjectAdvances();
 };
 
-window.pafEstPaidChange = function (idx, checked) {
+window.pafEstPaidChange = async function (idx, checked) {
   if (!editorEstimations[idx]) return;
   editorEstimations[idx].paid = checked;
   editorEstimations[idx].paidAt = checked
@@ -127,7 +127,22 @@ window.pafEstPaidChange = function (idx, checked) {
   if (typeof window.refreshProjectMetrics === "function") {
     window.refreshProjectMetrics();
   }
-  void persistProjectAdvances();
+  if (window.__pafProjectData) {
+    window.__pafProjectData.estimations = collectEstimations();
+  }
+  const status = document.getElementById("save-status");
+  if (status) {
+    status.textContent = "Guardando estado de pago…";
+    status.className = "save-status is-saving";
+  }
+  const ok = await persistProjectAdvances();
+  if (!ok) {
+    const errEl = document.getElementById("save-error");
+    if (errEl) {
+      errEl.textContent =
+        "No se pudo guardar el estado de pago. Pulsa Guardar cambios.";
+    }
+  }
 };
 
 window.pafEstFieldChange = function (idx, field, value) {
@@ -219,16 +234,47 @@ function collectConcepts() {
     .filter((c) => c.name);
 }
 
+function readPaidStateFromEditor() {
+  const byId = new Map();
+  editorEstimations.forEach((e) => {
+    if (e?.id) {
+      byId.set(e.id, { paid: !!e.paid, paidAt: e.paidAt || null });
+    }
+  });
+  document
+    .querySelectorAll("#estimations-editor [data-est-index]")
+    .forEach((row) => {
+      const idx = Number(row.dataset.estIndex);
+      const est = editorEstimations[idx];
+      if (!est?.id) return;
+      const cb = row.querySelector(".estimation-paid input[type=checkbox]");
+      if (!cb) return;
+      byId.set(est.id, {
+        paid: cb.checked,
+        paidAt: cb.checked
+          ? est.paidAt || new Date().toISOString().slice(0, 10)
+          : null,
+      });
+    });
+  return byId;
+}
+
 function collectEstimations() {
+  const paidById = readPaidStateFromEditor();
   syncEditorEstimations();
   return editorEstimations.map((e) => {
+    const paidState = paidById.get(e.id);
+    const paid = paidState ? paidState.paid : !!e.paid;
+    const paidAt = paid
+      ? paidState?.paidAt || e.paidAt || new Date().toISOString().slice(0, 10)
+      : null;
     const { expanded: _u, collapsed: _c, ...rest } = e;
     return {
       ...rest,
       label: (e.label || "").trim(),
       date: e.date || new Date().toISOString().slice(0, 10),
-      paid: !!e.paid,
-      paidAt: e.paid ? e.paidAt || new Date().toISOString().slice(0, 10) : null,
+      paid,
+      paidAt,
       notes: (e.notes || "").trim(),
     };
   });

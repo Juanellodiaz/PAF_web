@@ -71,16 +71,46 @@ function mergeEstimationsFromConcepts(stored, concepts) {
   return Array.from(byId.values());
 }
 
+function buildPaidByEstimationId(estimations) {
+  const paidByEstimationId = {};
+  (estimations || []).forEach((e) => {
+    if (e?.id && e.paid) {
+      paidByEstimationId[e.id] = {
+        paid: true,
+        paidAt: e.paidAt || null,
+      };
+    }
+  });
+  return paidByEstimationId;
+}
+
+function applyPaidFromMeta(estimations, paidByEstimationId) {
+  if (!paidByEstimationId || typeof paidByEstimationId !== "object") {
+    return estimations;
+  }
+  return (estimations || []).map((e) => {
+    const flags = paidByEstimationId[e.id];
+    if (!flags?.paid) return e;
+    return {
+      ...e,
+      paid: true,
+      paidAt: e.paidAt || flags.paidAt || null,
+    };
+  });
+}
+
 function buildMetaPayload(project) {
   const advancesByConceptId = {};
   (project.concepts || []).forEach((c) => {
     const adv = Array.isArray(c.advances) ? c.advances : [];
     if (adv.length) advancesByConceptId[c.id] = adv;
   });
+  const estimations = project.estimations || [];
   return {
-    v: 1,
-    estimations: project.estimations || [],
+    v: 2,
+    estimations,
     advancesByConceptId,
+    paidByEstimationId: buildPaidByEstimationId(estimations),
   };
 }
 
@@ -132,7 +162,8 @@ function applyMetaToProject(project) {
     project.estimations,
     meta.estimations
   );
-  const estimations = mergeEstimationsFromConcepts(storedEstimations, concepts);
+  let estimations = mergeEstimationsFromConcepts(storedEstimations, concepts);
+  estimations = applyPaidFromMeta(estimations, meta.paidByEstimationId);
 
   return {
     ...project,

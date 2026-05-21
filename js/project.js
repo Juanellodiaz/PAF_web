@@ -1,6 +1,13 @@
 let projectData = null;
 let isAdmin = false;
 let clientDisplayName = "";
+let saveQueue = Promise.resolve();
+
+function enqueueSave(task) {
+  const run = saveQueue.then(() => task());
+  saveQueue = run.catch(() => false);
+  return run;
+}
 
 (async () => {
   const user = await requireAuth();
@@ -58,7 +65,7 @@ let clientDisplayName = "";
   }
 
   if (isAdmin) {
-    window.autoSaveProject = () => saveProject({ silent: true });
+    window.autoSaveProject = () => enqueueSave(() => saveProject({ silent: true }));
     window.refreshProjectMetrics = refreshMetricsFromEditors;
     window.exportEstimation = (est) => {
       downloadEstimation(
@@ -442,12 +449,13 @@ function stripComputedFields(project) {
 
 function buildSaveBody() {
   const zoneInput = document.getElementById("zone3dImage");
+  const estimations = collectEstimations();
   return {
     ...stripComputedFields(projectData),
     zone3dImage: zoneInput?.value.trim() || projectData.zone3dImage,
     concepts: collectConcepts(),
     documents: collectDocuments(),
-    estimations: collectEstimations(),
+    estimations,
   };
 }
 
@@ -470,7 +478,7 @@ async function saveProject(options = {}) {
       body: JSON.stringify(buildSaveBody()),
     });
     projectData = project;
-    window.__pafProjectData = project;
+    window.__pafProjectData = projectData;
     setEditorData(project.concepts, project.documents, project.estimations);
     if (typeof hydrateEstimationsFromProject === "function") {
       hydrateEstimationsFromProject(project);
