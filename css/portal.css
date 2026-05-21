@@ -462,11 +462,7 @@ body.page-enter {
 }
 
 .admin-list-item-start {
-  display: flex;
-  align-items: center;
-  gap: 1.25rem;
-  flex: 1;
-  min-width: 0;
+  display: contents;
 }
 
 .admin-list-item-info {
@@ -474,12 +470,35 @@ body.page-enter {
   flex-direction: column;
   gap: 0.35rem;
   min-width: 0;
+  grid-column: 2;
+  grid-row: 1;
 }
 
 .admin-list-item-info strong {
   font-family: var(--font-display);
   font-size: 1rem;
   font-weight: 500;
+  line-height: 1.35;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.admin-list-item-info .portal-user {
+  line-height: 1.45;
+  overflow-wrap: break-word;
+}
+
+.admin-list-item .progress-ring-card {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+}
+
+.admin-list-item > .portal-actions {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-content: flex-start;
+  gap: 0.5rem;
 }
 
 .metric-value {
@@ -603,9 +622,13 @@ body.page-enter {
 /* Admin */
 .admin-layout {
   display: grid;
-  grid-template-columns: 1.35fr 1fr;
+  grid-template-columns: minmax(280px, 1.2fr) minmax(0, 1fr);
   gap: 2rem;
   align-items: start;
+}
+
+.admin-projects-panel {
+  min-width: 0;
 }
 
 .admin-form {
@@ -1231,12 +1254,13 @@ body.page-enter {
 }
 
 .admin-list-item {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 1.25rem;
+  column-gap: 1.25rem;
+  row-gap: 1rem;
+  padding: 1.25rem;
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
 }
@@ -1254,9 +1278,14 @@ body.page-enter {
   background: var(--bg-card);
 }
 
-@media (max-width: 900px) {
-  .dashboard-grid,
+@media (max-width: 1100px) {
   .admin-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .dashboard-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1277,6 +1306,42 @@ body.page-enter {
 @media (max-width: 520px) {
   .metrics-row {
     grid-template-columns: 1fr;
+  }
+
+  .admin-list-item {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    justify-items: start;
+  }
+
+  .admin-list-item .progress-ring-card {
+    grid-column: 1;
+    grid-row: 1;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .admin-list-item-info {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .admin-list-item > .portal-actions {
+    grid-column: 1;
+    grid-row: 3;
+    width: 100%;
+  }
+
+  .admin-list-item > .portal-actions .btn {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: center;
+  }
+
+  .project-card-layout {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 
