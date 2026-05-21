@@ -199,7 +199,6 @@ function refreshMetricsFromEditors() {
 function renderClientView(p) {
   const payload = projectPayload(p);
   document.getElementById("project-root").innerHTML = buildReadonlyHtml(payload);
-  bindClientEstimationActions(p);
 }
 
 function renderAdminView(p) {
