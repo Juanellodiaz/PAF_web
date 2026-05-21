@@ -49,20 +49,26 @@ function syncConceptTotals() {
 }
 
 function setEditorData(concepts, documents) {
-  editorConcepts = (concepts || []).map((c) => ({ ...c }));
+  editorConcepts = (concepts || []).map((c) => {
+    const { collapsed: _ui, ...rest } = c;
+    return { ...rest, collapsed: true };
+  });
   editorDocuments = (documents || []).map((d) => ({ ...d }));
 }
 
 function collectConcepts() {
   syncConceptTotals();
   return editorConcepts
-    .map((c) => ({
-      ...c,
-      name: c.name.trim(),
-      m2: Number(c.m2) || 0,
-      unitPrice: Number(c.unitPrice) || 0,
-      totalPrice: calcConceptTotal(c),
-    }))
+    .map((c) => {
+      const { collapsed: _ui, ...rest } = c;
+      return {
+        ...rest,
+        name: c.name.trim(),
+        m2: Number(c.m2) || 0,
+        unitPrice: Number(c.unitPrice) || 0,
+        totalPrice: calcConceptTotal(c),
+      };
+    })
     .filter((c) => c.name);
 }
 
