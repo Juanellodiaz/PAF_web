@@ -76,10 +76,16 @@ async function loadEstimationContext() {
     if (projectData && estimations?.length) {
       projectData.estimations = estimations;
     }
+    if (projectData?.id) {
+      syncProjectsForEstimations(projectData);
+    }
   } catch {
     if (projectData?.estimations?.length) {
       window.__pafGlobalEstimations = projectData.estimations;
-      refreshEstimationBreakdowns(projectData.estimations);
+    }
+    if (projectData?.id) {
+      syncProjectsForEstimations(projectData);
+      refreshEstimationBreakdowns(projectData.estimations || []);
     }
   }
 }
@@ -443,7 +449,9 @@ function buildReadonlyHtml(p) {
 
 function estimationsReadonlyHtml(p, allowPaidToggle) {
   const list = mergeEstimationsFromConcepts(p.estimations, p.concepts);
+  syncProjectsForEstimations(p);
   refreshEstimationBreakdowns(list);
+  window.__pafProjectEstimationsList = list;
   if (!list.length) {
     return '<p class="portal-user">Sin estimaciones generadas.</p>';
   }
@@ -484,9 +492,11 @@ function bindClientEstimationActions(p) {
   document.querySelectorAll("[data-client-download-est]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const idx = Number(btn.dataset.clientDownloadEst);
-      const est = (p.estimations || [])[idx];
+      const list = window.__pafProjectEstimationsList || p.estimations || [];
+      const est = list[idx];
       if (est) {
-        refreshEstimationBreakdowns(p.estimations);
+        syncProjectsForEstimations(p);
+        refreshEstimationBreakdowns(list);
         downloadEstimation(est, clientDisplayName);
       }
     });

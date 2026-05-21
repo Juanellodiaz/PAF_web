@@ -49,7 +49,27 @@ function getEstimationTotal(estimationId, concepts) {
   );
 }
 
+function syncProjectsForEstimations(currentProject) {
+  if (!currentProject?.id) {
+    return window.__pafProjectsForEstimations || [];
+  }
+  const list = [...(window.__pafProjectsForEstimations || [])];
+  const idx = list.findIndex((p) => p.id === currentProject.id);
+  const merged = {
+    ...(idx >= 0 ? list[idx] : {}),
+    ...currentProject,
+    concepts: currentProject.concepts || [],
+  };
+  if (idx >= 0) list[idx] = merged;
+  else list.push(merged);
+  window.__pafProjectsForEstimations = list;
+  return list;
+}
+
 function projectsForEstimationBreakdown() {
+  if (window.__pafProjectData?.id) {
+    syncProjectsForEstimations(window.__pafProjectData);
+  }
   const list = window.__pafProjectsForEstimations || [];
   const projectId = window.__pafProjectId;
   if (!projectId || typeof collectConcepts !== "function") return list;
@@ -89,6 +109,9 @@ function getEstimationBreakdown(estimationId, projects) {
 }
 
 function refreshEstimationBreakdowns(estimations) {
+  if (window.__pafProjectData?.id) {
+    syncProjectsForEstimations(window.__pafProjectData);
+  }
   const list =
     estimations ||
     (typeof editorEstimations !== "undefined" ? editorEstimations : []) ||
