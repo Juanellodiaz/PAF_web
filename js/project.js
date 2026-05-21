@@ -85,15 +85,24 @@ function renderAdminView(p) {
           <img src="${escapeAttr(p.zone3dImage)}" alt="Vista 3D" id="zone-3d-img">
         </div>
         <div class="form-group" style="margin-top:1rem">
-          <label for="zone3dImage">URL imagen 3D</label>
-          <input type="text" id="zone3dImage" value="${escapeAttr(p.zone3dImage || "")}">
+          <label for="zone3dImage">Imagen zona 3D</label>
+          <div class="upload-row">
+            <input type="file" id="zone3d-upload" accept="image/*">
+            <span class="upload-hint">Subir archivo o pegar URL</span>
+          </div>
+          <input type="text" id="zone3dImage" value="${escapeAttr(p.zone3dImage || "")}" placeholder="https://…">
+          <p class="form-error" id="zone3d-upload-error"></p>
         </div>
       </div>
 
       <div class="dashboard-panel">
         <div class="admin-section-head">
-          <p class="panel-label" style="margin:0">Documentos y notificaciones</p>
-          <button type="button" class="btn btn-ghost btn-sm" id="add-document">+ Documento</button>
+          <p class="panel-label" style="margin:0">Documentos e imágenes</p>
+          <div class="portal-actions">
+            <button type="button" class="btn btn-ghost btn-sm" id="collapse-all-docs">Colapsar</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="expand-all-docs">Expandir</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="add-document">+ Documento</button>
+          </div>
         </div>
         <div id="documents-editor" class="documents-editor" style="margin-top:1rem"></div>
       </div>
@@ -104,6 +113,36 @@ function renderAdminView(p) {
 
   renderConceptsEditor();
   renderDocumentsEditor();
+  bindZone3dUpload();
+}
+
+function bindZone3dUpload() {
+  const fileInput = document.getElementById("zone3d-upload");
+  const urlInput = document.getElementById("zone3dImage");
+  const errEl = document.getElementById("zone3d-upload-error");
+  const img = document.getElementById("zone-3d-img");
+  if (!fileInput || !urlInput) return;
+
+  fileInput.addEventListener("change", async () => {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+    if (errEl) errEl.textContent = "";
+    fileInput.disabled = true;
+    try {
+      const url = await uploadFile(file);
+      urlInput.value = url;
+      if (img) img.src = url;
+    } catch (ex) {
+      if (errEl) errEl.textContent = ex.message;
+    } finally {
+      fileInput.disabled = false;
+      fileInput.value = "";
+    }
+  });
+
+  urlInput.addEventListener("input", () => {
+    if (img) img.src = urlInput.value.trim() || img.src;
+  });
 }
 
 function metricsHtml(p) {
@@ -171,7 +210,7 @@ function buildReadonlyHtml(p) {
         <div class="zone-3d"><img src="${escapeAttr(p.zone3dImage)}" alt="Vista 3D"></div>
       </div>
       <div class="dashboard-panel">
-        <p class="panel-label">Documentos y notificaciones</p>
+        <p class="panel-label">Documentos e imágenes</p>
         <div class="doc-list">${documentsReadonlyHtml(p.documents)}</div>
       </div>
     </div>
@@ -183,14 +222,22 @@ function documentsReadonlyHtml(docs) {
     return '<p class="portal-user">Sin documentos por el momento.</p>';
   }
   return docs
-    .map(
-      (d) => `
+    .map((d) => {
+      if (d.type === "image") {
+        return `
+    <div class="doc-item doc-item-image">
+      <p class="doc-type">Imagen</p>
+      <h4>${escapeHtml(d.title)}</h4>
+      <img src="${escapeAttr(d.content)}" alt="${escapeAttr(d.title)}" class="doc-image-preview" loading="lazy">
+    </div>`;
+      }
+      return `
     <div class="doc-item ${d.type === "notification" ? "notification" : ""}">
       <p class="doc-type">${d.type === "notification" ? "Notificación" : "Consideración"}</p>
       <h4>${escapeHtml(d.title)}</h4>
       <p>${escapeHtml(d.content)}</p>
-    </div>`
-    )
+    </div>`;
+    })
     .join("");
 }
 

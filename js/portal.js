@@ -1,5 +1,22 @@
 const API = "/api";
 
+async function uploadFile(file) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch(`${API}/upload`, {
+    method: "POST",
+    credentials: "same-origin",
+    body: fd,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401) {
+    window.location.href = "/login.html";
+    throw new Error(data.error || "No autenticado");
+  }
+  if (!res.ok) throw new Error(data.error || "Error al subir imagen");
+  return data.url;
+}
+
 async function api(path, options = {}) {
   const { redirectOn401 = true, ...fetchOptions } = options;
   const res = await fetch(`${API}${path}`, {

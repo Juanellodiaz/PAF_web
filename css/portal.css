@@ -609,6 +609,62 @@ body.page-enter {
   margin-top: 0;
 }
 
+.document-row .concept-row-body {
+  max-height: 520px;
+}
+
+.upload-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.upload-row input[type="file"] {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  max-width: 100%;
+}
+
+.upload-hint {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+.upload-url-label {
+  display: block;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-top: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.doc-image-preview-wrap {
+  margin: 0.75rem 0;
+}
+
+.doc-image-preview {
+  display: block;
+  max-width: 100%;
+  max-height: 200px;
+  width: auto;
+  border: 1px solid var(--border);
+  object-fit: contain;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.doc-item-image {
+  border-left-color: var(--text-muted);
+}
+
+.doc-item-image .doc-image-preview {
+  margin-top: 0.5rem;
+  max-height: 280px;
+}
+
 .btn-remove {
   background: none;
   border: none;

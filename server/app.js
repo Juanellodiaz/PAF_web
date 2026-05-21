@@ -1,7 +1,9 @@
 const express = require("express");
 const crypto = require("crypto");
 const cookieParser = require("cookie-parser");
+const multer = require("multer");
 const db = require("./db");
+const { saveUploadedImage, MAX_BYTES } = require("./uploads");
 const {
   signSession,
   parseSession,
@@ -17,6 +19,11 @@ const app = express();
 
 app.use(express.json());
 app.use(cookieParser());
+
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_BYTES },
+});
 
 function requireAuth(req, res, next) {
   const session = parseSession(req);
@@ -172,6 +179,24 @@ app.get("/api/health", (_req, res) => {
     hasKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
   });
 });
+
+app.post(
+  "/api/upload",
+  requireAuth,
+  requireAdmin,
+  imageUpload.single("file"),
+  async (req, res) => {
+    try {
+      const url = await saveUploadedImage(req.file);
+      res.json({ url });
+    } catch (err) {
+      if (err?.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({ error: "La imagen no puede superar 5 MB" });
+      }
+      handleError(res, err);
+    }
+  }
+);
 
 app.get("/api/users", requireAuth, requireAdmin, async (req, res) => {
   try {

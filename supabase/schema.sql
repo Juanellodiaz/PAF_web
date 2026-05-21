@@ -30,7 +30,7 @@ create table if not exists project_concepts (
 create table if not exists project_documents (
   id text primary key,
   project_id text not null references projects (id) on delete cascade,
-  type text not null check (type in ('consideration', 'notification')),
+  type text not null check (type in ('consideration', 'notification', 'image')),
   title text not null,
   content text not null
 );
@@ -58,3 +58,8 @@ insert into project_documents (id, project_id, type, title, content) values
   ('d2', 'proj-polanco-2026', 'notification', 'Visita técnica programada',
    'Inspección de avance en baños principales — 28 de junio, 10:00 h.')
 on conflict (id) do nothing;
+
+-- Migración (tablas ya existentes): permitir tipo "image" en documentos
+-- alter table project_documents drop constraint if exists project_documents_type_check;
+-- alter table project_documents add constraint project_documents_type_check
+--   check (type in ('consideration', 'notification', 'image'));

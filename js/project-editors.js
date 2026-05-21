@@ -23,7 +23,17 @@ function newDocument() {
     type: "consideration",
     title: "",
     content: "",
+    collapsed: false,
   };
+}
+
+function documentTypeLabel(type) {
+  const map = {
+    consideration: "Consideración",
+    notification: "Notificación",
+    image: "Imagen",
+  };
+  return map[type] || type;
 }
 
 function calcConceptTotal(c) {
@@ -61,7 +71,7 @@ function collectDocuments() {
     .map((d) => ({
       ...d,
       title: d.title.trim(),
-      content: d.content.trim(),
+      content: (d.content || "").trim(),
     }))
     .filter((d) => d.title && d.content);
 }
@@ -200,6 +210,63 @@ function onConceptFieldChange(e) {
   updateConceptsPreview();
 }
 
+function documentSummary(d) {
+  const title = d.title.trim() || "Sin título";
+  return `${documentTypeLabel(d.type)} · ${title}`;
+}
+
+function documentRowHtml(d, i) {
+  const collapsed = !!d.collapsed;
+  const isImage = d.type === "image";
+  return `
+    <div class="document-row concept-row ${collapsed ? "is-collapsed" : ""}" data-doc-index="${i}">
+      <div class="concept-row-top">
+        <button type="button" class="concept-toggle" data-toggle-doc="${i}" aria-expanded="${!collapsed}">
+          <span class="concept-chevron" aria-hidden="true"></span>
+          <span class="concept-row-num">DOC ${String(i + 1).padStart(2, "0")}</span>
+          <span class="concept-summary" data-doc-summary="${i}">${escapeHtml(documentSummary(d))}</span>
+        </button>
+        <button type="button" class="btn-remove" data-remove-doc="${i}" aria-label="Eliminar documento">×</button>
+      </div>
+      <div class="concept-row-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Tipo</label>
+            <select data-doc-field="type" data-index="${i}">
+              <option value="consideration" ${d.type === "consideration" ? "selected" : ""}>Consideración</option>
+              <option value="notification" ${d.type === "notification" ? "selected" : ""}>Notificación</option>
+              <option value="image" ${d.type === "image" ? "selected" : ""}>Imagen</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Título</label>
+            <input type="text" data-doc-field="title" data-index="${i}" value="${escapeAttr(d.title)}">
+          </div>
+        </div>
+        ${
+          isImage
+            ? `
+        <div class="form-group doc-image-upload">
+          <label>Archivo de imagen</label>
+          <div class="upload-row">
+            <input type="file" accept="image/*" data-doc-upload="${i}">
+            <span class="upload-hint">JPG, PNG o WebP · máx. 5 MB</span>
+          </div>
+          ${d.content ? `<div class="doc-image-preview-wrap"><img src="${escapeAttr(d.content)}" alt="" data-doc-preview="${i}" class="doc-image-preview"></div>` : `<div class="doc-image-preview-wrap" data-doc-preview-wrap="${i}" hidden></div>`}
+          <label class="upload-url-label">o URL de imagen</label>
+          <input type="text" data-doc-field="content" data-index="${i}" value="${escapeAttr(d.content)}" placeholder="https://… o sube un archivo">
+        </div>`
+            : `
+        <div class="form-group">
+          <label>Contenido</label>
+          <textarea rows="2" data-doc-field="content" data-index="${i}">${escapeHtml(d.content)}</textarea>
+        </div>`
+        }
+      </div>
+    </div>
+  `;
+}
+
 function renderDocumentsEditor() {
   const el = document.getElementById("documents-editor");
   if (!el) return;
@@ -209,39 +276,14 @@ function renderDocumentsEditor() {
     return;
   }
 
-  el.innerHTML = editorDocuments
-    .map(
-      (d, i) => `
-    <div class="document-row" data-index="${i}">
-      <div class="concept-row-top">
-        <span class="concept-row-num">DOC ${i + 1}</span>
-        <button type="button" class="btn-remove" data-remove-doc="${i}">×</button>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Tipo</label>
-          <select data-doc-field="type" data-index="${i}">
-            <option value="consideration" ${d.type === "consideration" ? "selected" : ""}>Consideración</option>
-            <option value="notification" ${d.type === "notification" ? "selected" : ""}>Notificación</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Título</label>
-          <input type="text" data-doc-field="title" data-index="${i}" value="${escapeAttr(d.title)}">
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Contenido</label>
-        <textarea rows="2" data-doc-field="content" data-index="${i}">${escapeHtml(d.content)}</textarea>
-      </div>
-    </div>
-  `
-    )
-    .join("");
+  el.innerHTML = editorDocuments.map((d, i) => documentRowHtml(d, i)).join("");
 
   el.querySelectorAll("[data-doc-field]").forEach((input) => {
     input.addEventListener("input", onDocumentFieldChange);
     input.addEventListener("change", onDocumentFieldChange);
+  });
+  el.querySelectorAll("[data-toggle-doc]").forEach((btn) => {
+    btn.addEventListener("click", () => toggleDocumentRow(Number(btn.dataset.toggleDoc)));
   });
   el.querySelectorAll("[data-remove-doc]").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -249,11 +291,97 @@ function renderDocumentsEditor() {
       renderDocumentsEditor();
     });
   });
+  el.querySelectorAll("[data-doc-upload]").forEach((input) => {
+    input.addEventListener("change", onDocumentImageUpload);
+  });
+}
+
+function toggleDocumentRow(i) {
+  editorDocuments[i].collapsed = !editorDocuments[i].collapsed;
+  const row = document.querySelector(`[data-doc-index="${i}"]`);
+  if (!row) {
+    renderDocumentsEditor();
+    return;
+  }
+  row.classList.toggle("is-collapsed", editorDocuments[i].collapsed);
+  const btn = row.querySelector("[data-toggle-doc]");
+  if (btn) btn.setAttribute("aria-expanded", String(!editorDocuments[i].collapsed));
+}
+
+function updateDocumentSummaryLine(i) {
+  const el = document.querySelector(`[data-doc-summary="${i}"]`);
+  if (el) el.textContent = documentSummary(editorDocuments[i]);
+}
+
+function setAllDocumentsCollapsed(collapsed) {
+  editorDocuments.forEach((d) => {
+    d.collapsed = collapsed;
+  });
+  renderDocumentsEditor();
 }
 
 function onDocumentFieldChange(e) {
   const i = Number(e.target.dataset.index);
-  editorDocuments[i][e.target.dataset.docField] = e.target.value;
+  const field = e.target.dataset.docField;
+  editorDocuments[i][field] = e.target.value;
+  if (field === "type") {
+    renderDocumentsEditor();
+    return;
+  }
+  updateDocumentSummaryLine(i);
+  if (field === "content" && editorDocuments[i].type === "image") {
+    const preview = document.querySelector(`[data-doc-preview="${i}"]`);
+    if (preview) preview.src = e.target.value;
+  }
+}
+
+async function onDocumentImageUpload(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const i = Number(e.target.dataset.docUpload);
+  const row = e.target.closest("[data-doc-index]");
+  const errEl = row?.querySelector("[data-upload-error]");
+  if (errEl) errEl.textContent = "";
+
+  e.target.disabled = true;
+  try {
+    const url = await uploadFile(file);
+    editorDocuments[i].content = url;
+    const urlInput = document.querySelector(
+      `[data-doc-field="content"][data-index="${i}"]`
+    );
+    if (urlInput) urlInput.value = url;
+    let wrap = document.querySelector(`[data-doc-preview-wrap="${i}"]`);
+    let img = document.querySelector(`[data-doc-preview="${i}"]`);
+    if (!img && wrap) {
+      wrap.hidden = false;
+      img = document.createElement("img");
+      img.className = "doc-image-preview";
+      img.dataset.docPreview = String(i);
+      img.alt = "";
+      wrap.appendChild(img);
+    }
+    if (img) {
+      img.src = url;
+      if (wrap) wrap.hidden = false;
+    }
+    updateDocumentSummaryLine(i);
+  } catch (ex) {
+    const msg = ex.message || "Error al subir";
+    if (row) {
+      let err = row.querySelector("[data-upload-error]");
+      if (!err) {
+        err = document.createElement("p");
+        err.className = "form-error";
+        err.dataset.uploadError = "";
+        e.target.closest(".doc-image-upload")?.appendChild(err);
+      }
+      err.textContent = msg;
+    }
+  } finally {
+    e.target.disabled = false;
+    e.target.value = "";
+  }
 }
 
 function escapeHtml(s) {
@@ -280,5 +408,11 @@ function bindEditorActions() {
   document.getElementById("add-document")?.addEventListener("click", () => {
     editorDocuments.push(newDocument());
     renderDocumentsEditor();
+  });
+  document.getElementById("collapse-all-docs")?.addEventListener("click", () => {
+    setAllDocumentsCollapsed(true);
+  });
+  document.getElementById("expand-all-docs")?.addEventListener("click", () => {
+    setAllDocumentsCollapsed(false);
   });
 }
