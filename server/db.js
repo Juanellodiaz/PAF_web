@@ -31,4 +31,5 @@ module.exports = {
   getProject: wrap("getProject"),
   saveProject: wrap("saveProject"),
   deleteProject: wrap("deleteProject"),
+  loadGlobalEstimations: wrap("loadGlobalEstimations"),
 };

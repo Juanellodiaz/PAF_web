@@ -4,6 +4,10 @@ const {
   applyMetaToProject,
   documentsForSave,
 } = require("./project-meta");
+const {
+  enrichProjectWithGlobalEstimations,
+  persistGlobalEstimationsFromProject,
+} = require("./estimation-store");
 
 const DB_PATH = path.join(__dirname, "..", "data", "db.json");
 
@@ -38,28 +42,77 @@ function listUsers() {
   return readDb().users.map(({ password, ...u }) => u);
 }
 
-function listProjectsForUser(user) {
+function loadGlobalEstimations() {
   const db = readDb();
-  if (user.role === "admin") return db.projects;
-  return db.projects.filter((p) => p.clientId === user.id);
+  return Promise.resolve(db.globalEstimations || []);
 }
 
-function getProject(id) {
+function saveGlobalEstimations(estimations) {
+  const db = readDb();
+  db.globalEstimations = estimations;
+  writeDb(db);
+  return Promise.resolve(estimations);
+}
+
+function listAllProjectsForBootstrap() {
+  return Promise.resolve(readDb().projects.map((p) => applyMetaToProject(p)));
+}
+
+async function listProjectsForUser(user) {
+  const db = readDb();
+  const list =
+    user.role === "admin"
+      ? db.projects
+      : db.projects.filter((p) => p.clientId === user.id);
+  const enriched = [];
+  for (const p of list) {
+    enriched.push(
+      await enrichProjectWithGlobalEstimations(
+        applyMetaToProject(p),
+        loadGlobalEstimations,
+        saveGlobalEstimations,
+        listAllProjectsForBootstrap
+      )
+    );
+  }
+  return enriched;
+}
+
+async function getProject(id) {
   const p = readDb().projects.find((pr) => pr.id === id) || null;
-  return p ? applyMetaToProject(p) : null;
+  if (!p) return null;
+  const withMeta = applyMetaToProject(p);
+  return enrichProjectWithGlobalEstimations(
+    withMeta,
+    loadGlobalEstimations,
+    saveGlobalEstimations,
+    listAllProjectsForBootstrap
+  );
 }
 
-function saveProject(project) {
+async function saveProject(project) {
+  await persistGlobalEstimationsFromProject(
+    project,
+    loadGlobalEstimations,
+    saveGlobalEstimations
+  );
   const stored = {
     ...project,
-    documents: documentsForSave(project),
+    estimations: [],
+    documents: documentsForSave({ ...project, estimations: [] }),
   };
   const db = readDb();
   const idx = db.projects.findIndex((p) => p.id === project.id);
   if (idx >= 0) db.projects[idx] = stored;
   else db.projects.push(stored);
   writeDb(db);
-  return applyMetaToProject(stored);
+  const withMeta = applyMetaToProject(stored);
+  return enrichProjectWithGlobalEstimations(
+    withMeta,
+    loadGlobalEstimations,
+    saveGlobalEstimations,
+    listAllProjectsForBootstrap
+  );
 }
 
 function deleteProject(id) {
@@ -76,4 +129,5 @@ module.exports = {
   getProject,
   saveProject,
   deleteProject,
+  loadGlobalEstimations,
 };

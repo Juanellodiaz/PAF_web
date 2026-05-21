@@ -61,6 +61,29 @@ window.markProjectDirty = markProjectDirty;
 window.markProjectSaved = markProjectSaved;
 window.isProjectDirty = isProjectDirty;
 
+function projectsForMetrics() {
+  return window.__pafProjectsForEstimations || [];
+}
+
+async function loadEstimationContext() {
+  try {
+    const { projects, estimations, breakdowns } = await api(
+      "/estimations/breakdowns"
+    );
+    window.__pafProjectsForEstimations = projects || [];
+    window.__pafGlobalEstimations = estimations || [];
+    window.__pafEstimationBreakdowns = breakdowns || {};
+    if (projectData && estimations?.length) {
+      projectData.estimations = estimations;
+    }
+  } catch {
+    if (projectData?.estimations?.length) {
+      window.__pafGlobalEstimations = projectData.estimations;
+      refreshEstimationBreakdowns(projectData.estimations);
+    }
+  }
+}
+
 (async () => {
   const user = await requireAuth();
   isAdmin = user.role === "admin";
@@ -103,6 +126,8 @@ window.isProjectDirty = isProjectDirty;
   projectData = p;
   window.__pafProjectId = id;
   window.__pafProjectData = p;
+  await loadEstimationContext();
+  p = projectData;
 
   if (user.role === "client") {
     clientDisplayName = user.name || "";
@@ -123,12 +148,8 @@ window.isProjectDirty = isProjectDirty;
     };
     window.refreshProjectMetrics = refreshMetricsFromEditors;
     window.exportEstimation = (est) => {
-      downloadEstimation(
-        { ...projectData, concepts: collectConcepts(), estimations: collectEstimations() },
-        est,
-        collectConcepts(),
-        clientDisplayName
-      );
+      refreshEstimationBreakdowns(collectEstimations());
+      downloadEstimation(est, clientDisplayName);
     };
     renderAdminView(p);
     bindEditorActions();
@@ -138,7 +159,8 @@ window.isProjectDirty = isProjectDirty;
       ?.addEventListener("click", () => saveProject({ silent: false }));
   } else {
     window.exportEstimation = (est) => {
-      downloadEstimation(projectData, est, projectData.concepts || [], clientDisplayName);
+      refreshEstimationBreakdowns(projectData.estimations);
+      downloadEstimation(est, clientDisplayName);
     };
     renderClientView(p);
   }
@@ -148,7 +170,8 @@ function refreshMetricsFromEditors() {
   syncConceptTotals();
   const totalM2 = editorConcepts.reduce((s, c) => s + (Number(c.m2) || 0), 0);
   const totalMoney = editorConcepts.reduce((s, c) => s + c.totalPrice, 0);
-  const totalPaid = calcTotalPaid(editorEstimations, editorConcepts);
+  refreshEstimationBreakdowns(editorEstimations);
+  const totalPaid = calcTotalPaid(editorEstimations, projectsForMetrics());
   const m2El = document.getElementById("metric-m2");
   const totalEl = document.getElementById("metric-total");
   const paidEl = document.getElementById("metric-paid");
@@ -204,7 +227,7 @@ function renderAdminView(p) {
         <p class="admin-section-label">Estimaciones${estimationCount ? ` (${estimationCount})` : ""}</p>
         <button type="button" class="btn btn-ghost btn-sm" id="add-estimation">+ Estimación</button>
       </div>
-      <p class="portal-user" style="margin:0 0 1rem">Los avances de cada concepto se asignan a una estimación. Descarga el PDF/HTML para cobro semanal y marca como pagada.</p>
+      <p class="portal-user" style="margin:0 0 1rem">Las estimaciones son globales: puedes usar la misma en varios proyectos. El detalle y la descarga muestran el desglose por proyecto y el total global.</p>
       <div id="estimations-editor" class="estimations-editor">${estimationsBootstrap}</div>
     </section>
 
@@ -352,7 +375,10 @@ function projectPayload(project) {
   const conceptsTotal = concepts.reduce((s, c) => s + c.totalPrice, 0);
   const m2Total = concepts.reduce((s, c) => s + (Number(c.m2) || 0), 0);
   const progress = calcProjectProgress(concepts);
-  const totalPaid = calcTotalPaid(project.estimations, concepts);
+  const totalPaid = calcTotalPaid(
+    project.estimations,
+    window.__pafProjectsForEstimations || [{ ...project, concepts }]
+  );
   return {
     ...project,
     daysRemaining: daysLeft,
@@ -417,40 +443,34 @@ function buildReadonlyHtml(p) {
 
 function estimationsReadonlyHtml(p, allowPaidToggle) {
   const list = mergeEstimationsFromConcepts(p.estimations, p.concepts);
+  refreshEstimationBreakdowns(list);
   if (!list.length) {
     return '<p class="portal-user">Sin estimaciones generadas.</p>';
   }
   return `<div class="estimations-readonly">${list
     .map((est, idx) => {
-      const lines = getEstimationLines(est.id, p.concepts || []);
-      const total = lines.reduce((s, l) => s + l.amount, 0);
+      const breakdown = estimationBreakdownFor(est.id, list);
+      const total = breakdown.grandTotal || 0;
+      const lineCount = breakdown.lineCount || 0;
+      const projectCount = breakdown.groups?.length || 0;
       const label = estimationDisplayLabel(est, idx);
-      const rows = lines
-        .map(
-          (l) => `
-        <tr>
-          <td>${escapeHtml(l.conceptName)}</td>
-          <td>${l.m2}</td>
-          <td>${formatMoney(l.unitPrice)}</td>
-          <td>${formatMoney(l.amount)}</td>
-        </tr>`
-        )
-        .join("");
+      const projectsNote =
+        projectCount > 1
+          ? ` · ${projectCount} proyectos`
+          : projectCount === 1
+            ? ""
+            : "";
       return `
       <div class="estimation-card ${est.paid ? "is-paid" : ""}">
         <div class="estimation-card-head">
           <div>
             <strong>${escapeHtml(label)}</strong>
-            <p class="estimation-meta">${lines.length} partida(s) · ${formatDate(est.date)} · ${est.paid ? "Pagada" : "Pendiente"}</p>
+            <p class="estimation-meta">${lineCount} partida(s)${projectsNote} · ${formatDate(est.date)} · ${est.paid ? "Pagada" : "Pendiente"}</p>
             ${est.notes ? `<p class="estimation-notes-readonly">${escapeHtml(est.notes)}</p>` : ""}
           </div>
           <span class="estimation-total">${formatMoney(total)}</span>
         </div>
-        ${
-          lines.length
-            ? `<table class="estimation-lines-table"><thead><tr><th>Concepto</th><th>m²</th><th>P. unit.</th><th>Importe</th></tr></thead><tbody>${rows}</tbody></table>`
-            : ""
-        }
+        ${estimationLinesGroupedHtml(breakdown)}
         <div class="estimation-card-actions">
           <span class="estimation-status-badge ${est.paid ? "paid" : ""}">${est.paid ? "Pagada" : "Pendiente de pago"}</span>
           <button type="button" class="btn btn-ghost btn-sm" data-client-download-est="${idx}">Descargar</button>
@@ -465,7 +485,10 @@ function bindClientEstimationActions(p) {
     btn.addEventListener("click", () => {
       const idx = Number(btn.dataset.clientDownloadEst);
       const est = (p.estimations || [])[idx];
-      if (est) downloadEstimation(p, est, p.concepts || [], clientDisplayName);
+      if (est) {
+        refreshEstimationBreakdowns(p.estimations);
+        downloadEstimation(est, clientDisplayName);
+      }
     });
   });
 }
@@ -541,6 +564,7 @@ async function saveProject(options = {}) {
     });
     projectData = project;
     window.__pafProjectData = projectData;
+    await loadEstimationContext();
     setEditorData(project.concepts, project.documents, project.estimations);
     if (typeof hydrateEstimationsFromProject === "function") {
       hydrateEstimationsFromProject(project);

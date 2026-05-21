@@ -6,6 +6,16 @@ const {
   metaDocumentFromProject,
   metaDocId,
 } = require("./project-meta");
+const {
+  GLOBAL_PROJECT_ID,
+  GLOBAL_DOC_ID,
+  GLOBAL_TITLE,
+  normalizeEstimation,
+} = require("./global-estimations");
+const {
+  enrichProjectWithGlobalEstimations,
+  persistGlobalEstimationsFromProject,
+} = require("./estimation-store");
 
 let client;
 
@@ -176,6 +186,78 @@ async function listUsers() {
   return data;
 }
 
+async function ensureGlobalProjectRow() {
+  const row = {
+    id: GLOBAL_PROJECT_ID,
+    name: "PAF Sistema",
+    client_id: null,
+    status: "active",
+    completion_date: "2099-12-31",
+    zone3d_image: null,
+  };
+  let { error } = await getClient().from("projects").upsert(row, {
+    onConflict: "id",
+  });
+  if (error && isSchemaColumnError(error)) {
+    ({ error } = await getClient().from("projects").upsert(
+      {
+        id: row.id,
+        name: row.name,
+        client_id: row.client_id,
+        status: row.status,
+        completion_date: row.completion_date,
+        zone3d_image: row.zone3d_image,
+      },
+      { onConflict: "id" }
+    ));
+  }
+  if (error) throw error;
+}
+
+async function loadGlobalEstimations() {
+  const { data, error } = await getClient()
+    .from("project_documents")
+    .select("content")
+    .eq("id", GLOBAL_DOC_ID)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data?.content) return [];
+  try {
+    const parsed = JSON.parse(data.content);
+    return Array.isArray(parsed) ? parsed.map(normalizeEstimation) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveGlobalEstimations(estimations) {
+  await ensureGlobalProjectRow();
+  const payload = (estimations || []).map(normalizeEstimation);
+  const { error } = await getClient()
+    .from("project_documents")
+    .upsert(
+      {
+        id: GLOBAL_DOC_ID,
+        project_id: GLOBAL_PROJECT_ID,
+        type: "consideration",
+        title: GLOBAL_TITLE,
+        content: JSON.stringify(payload),
+      },
+      { onConflict: "id" }
+    );
+  if (error) throw error;
+  return payload;
+}
+
+async function listAllProjectsForBootstrap() {
+  const { data, error } = await getClient()
+    .from("projects")
+    .select(PROJECT_SELECT)
+    .neq("id", GLOBAL_PROJECT_ID);
+  if (error) throw error;
+  return (data || []).map(mapProject);
+}
+
 async function listProjectsForUser(user) {
   let query = getClient().from("projects").select(PROJECT_SELECT);
 
@@ -185,10 +267,25 @@ async function listProjectsForUser(user) {
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data || []).map(mapProject);
+  const mapped = (data || [])
+    .filter((row) => row.id !== GLOBAL_PROJECT_ID)
+    .map(mapProject);
+  const enriched = [];
+  for (const p of mapped) {
+    enriched.push(
+      await enrichProjectWithGlobalEstimations(
+        p,
+        loadGlobalEstimations,
+        saveGlobalEstimations,
+        listAllProjectsForBootstrap
+      )
+    );
+  }
+  return enriched;
 }
 
 async function getProject(id) {
+  if (id === GLOBAL_PROJECT_ID) return null;
   const { data, error } = await getClient()
     .from("projects")
     .select(PROJECT_SELECT)
@@ -196,35 +293,48 @@ async function getProject(id) {
     .maybeSingle();
 
   if (error) throw error;
-  return data ? mapProject(data) : null;
+  if (!data) return null;
+  const mapped = mapProject(data);
+  return enrichProjectWithGlobalEstimations(
+    mapped,
+    loadGlobalEstimations,
+    saveGlobalEstimations,
+    listAllProjectsForBootstrap
+  );
 }
 
 async function saveProject(project) {
-  await upsertProjectRow(project);
+  await persistGlobalEstimationsFromProject(
+    project,
+    loadGlobalEstimations,
+    saveGlobalEstimations
+  );
+  const projectToStore = { ...project, estimations: [] };
+  await upsertProjectRow(projectToStore);
 
-  // Persist avances/estimaciones primero (no se borra en el delete de documentos)
-  await upsertMetaDocument(project);
+  // Persist avances (estimaciones globales ya guardadas)
+  await upsertMetaDocument(projectToStore);
 
   await getClient()
     .from("project_concepts")
     .delete()
-    .eq("project_id", project.id);
+    .eq("project_id", projectToStore.id);
 
-  await insertConcepts(project);
+  await insertConcepts(projectToStore);
 
-  const metaId = metaDocId(project.id);
+  const metaId = metaDocId(projectToStore.id);
   await getClient()
     .from("project_documents")
     .delete()
-    .eq("project_id", project.id)
+    .eq("project_id", projectToStore.id)
     .neq("id", metaId);
 
-  const docs = userDocuments(project);
+  const docs = userDocuments(projectToStore);
   if (docs.length) {
     const { error } = await getClient().from("project_documents").insert(
       docs.map((d) => ({
         id: d.id,
-        project_id: project.id,
+        project_id: projectToStore.id,
         type: d.type,
         title: d.title,
         content: d.content,
@@ -233,23 +343,28 @@ async function saveProject(project) {
     if (error) throw error;
   }
 
-  // Refrescar meta con el estado más reciente
-  await upsertMetaDocument(project);
+  await upsertMetaDocument(projectToStore);
 
-  const loaded = await getProject(project.id);
+  const loaded = await getProject(projectToStore.id);
   if (loaded) return loaded;
 
-  return applyMetaToProject({
-    id: project.id,
-    name: project.name,
-    clientId: project.clientId || null,
-    status: project.status,
-    completionDate: project.completionDate,
-    zone3dImage: project.zone3dImage,
-    estimations: project.estimations || [],
-    concepts: project.concepts || [],
+  const fallback = applyMetaToProject({
+    id: projectToStore.id,
+    name: projectToStore.name,
+    clientId: projectToStore.clientId || null,
+    status: projectToStore.status,
+    completionDate: projectToStore.completionDate,
+    zone3dImage: projectToStore.zone3dImage,
+    estimations: [],
+    concepts: projectToStore.concepts || [],
     documents: [],
   });
+  return enrichProjectWithGlobalEstimations(
+    fallback,
+    loadGlobalEstimations,
+    saveGlobalEstimations,
+    listAllProjectsForBootstrap
+  );
 }
 
 async function deleteProject(id) {
@@ -265,4 +380,5 @@ module.exports = {
   getProject,
   saveProject,
   deleteProject,
+  loadGlobalEstimations,
 };

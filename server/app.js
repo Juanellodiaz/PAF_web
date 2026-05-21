@@ -3,6 +3,9 @@ const crypto = require("crypto");
 const cookieParser = require("cookie-parser");
 const multer = require("multer");
 const db = require("./db");
+const {
+  buildAllEstimationBreakdowns,
+} = require("./global-estimations");
 const { saveUploadedImage, MAX_BYTES } = require("./uploads");
 const {
   signSession,
@@ -216,6 +219,17 @@ app.post(
     }
   }
 );
+
+app.get("/api/estimations/breakdowns", requireAuth, async (req, res) => {
+  try {
+    const projects = await db.listProjectsForUser(req.user);
+    const estimations = await db.loadGlobalEstimations();
+    const breakdowns = buildAllEstimationBreakdowns(estimations, projects);
+    res.json({ estimations, breakdowns, projects });
+  } catch (err) {
+    handleError(res, err);
+  }
+});
 
 app.get("/api/users", requireAuth, requireAdmin, async (req, res) => {
   try {

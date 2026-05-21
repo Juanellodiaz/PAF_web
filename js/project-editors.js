@@ -54,15 +54,20 @@ function syncEditorEstimations() {
 function updateEstimationRowUi(idx) {
   const est = editorEstimations[idx];
   if (!est) return;
+  refreshEstimationBreakdowns(editorEstimations);
+  const breakdown = estimationBreakdownFor(est.id);
   const row = document.querySelector(
     `#estimations-editor [data-est-index="${idx}"]`
   );
   if (!row) return;
   const expanded = !!est.expanded;
-  const lines = getEstimationLines(est.id, editorConcepts);
-  const total = lines.reduce((s, l) => s + l.amount, 0);
+  const total = breakdown.grandTotal || 0;
+  const lineCount = breakdown.lineCount || 0;
+  const projectCount = breakdown.groups?.length || 0;
   const label = estimationDisplayLabel(est, idx);
-  const summary = `${label} · ${lines.length} partida(s) · ${formatMoney(total)} · ${est.paid ? "Pagada" : "Pendiente"}`;
+  const projectsNote =
+    projectCount > 1 ? ` · ${projectCount} proyectos` : projectCount === 1 ? "" : "";
+  const summary = `${label} · ${lineCount} partida(s)${projectsNote} · ${formatMoney(total)} · ${est.paid ? "Pagada" : "Pendiente"}`;
   row.classList.toggle("is-collapsed", !expanded);
   row.classList.toggle("is-paid", !!est.paid);
   const summaryEl = row.querySelector(".concept-summary");
@@ -112,6 +117,7 @@ window.pafRemoveEstimation = function (idx) {
     return;
   }
   editorEstimations.splice(idx, 1);
+  refreshEstimationBreakdowns(editorEstimations);
   editorConcepts.forEach((c) => {
     c.advances = parseAdvances(c).map((a) =>
       a.estimationId === estId ? { ...a, estimationId: "" } : a
@@ -672,39 +678,17 @@ function updateProgressChart() {
   if (sub) sub.textContent = `${prog.doneM2} / ${prog.totalM2} m²`;
 }
 
-function estimationLinesTableHtml(lines) {
-  if (!lines.length) {
-    return '<p class="admin-empty admin-empty-inline">Sin partidas. Agrega avances en los conceptos y asígnalos a esta estimación.</p>';
-  }
-  return `
-    <table class="estimation-lines-table">
-      <thead>
-        <tr><th>Concepto</th><th>m²</th><th>P. unit.</th><th>Importe</th><th>Fecha</th></tr>
-      </thead>
-      <tbody>
-        ${lines
-          .map(
-            (l) => `
-        <tr>
-          <td>${escapeHtml(l.conceptName)}</td>
-          <td>${l.m2}</td>
-          <td>${formatMoney(l.unitPrice)}</td>
-          <td>${formatMoney(l.amount)}</td>
-          <td>${l.date ? formatDate(l.date) : "—"}</td>
-        </tr>`
-          )
-          .join("")}
-      </tbody>
-    </table>`;
-}
-
-function estimationCardHtml(est, idx, conceptsSource) {
-  const concepts = conceptsSource || editorConcepts;
-  const lines = getEstimationLines(est.id, concepts);
-  const total = lines.reduce((s, l) => s + l.amount, 0);
+function estimationCardHtml(est, idx) {
+  refreshEstimationBreakdowns(editorEstimations);
+  const breakdown = estimationBreakdownFor(est.id);
+  const total = breakdown.grandTotal || 0;
+  const lineCount = breakdown.lineCount || 0;
+  const projectCount = breakdown.groups?.length || 0;
   const label = estimationDisplayLabel(est, idx);
   const expanded = !!est.expanded;
-  const summary = `${label} · ${lines.length} partida(s) · ${formatMoney(total)} · ${est.paid ? "Pagada" : "Pendiente"}`;
+  const projectsNote =
+    projectCount > 1 ? ` · ${projectCount} proyectos` : "";
+  const summary = `${label} · ${lineCount} partida(s)${projectsNote} · ${formatMoney(total)} · ${est.paid ? "Pagada" : "Pendiente"}`;
 
   return `
     <div class="estimation-card concept-row ${est.paid ? "is-paid" : ""} ${expanded ? "" : "is-collapsed"}" data-est-index="${idx}">
@@ -740,8 +724,8 @@ function estimationCardHtml(est, idx, conceptsSource) {
           <label>Notas (opcional)</label>
           <textarea rows="2" placeholder="Observaciones para el cliente…" onchange="pafEstFieldChange(${idx},'notes',this.value)">${escapeHtml(est.notes || "")}</textarea>
         </div>
-        <p class="subsection-label">Partidas incluidas</p>
-        ${estimationLinesTableHtml(lines)}
+        <p class="subsection-label">Partidas por proyecto</p>
+        ${estimationLinesGroupedHtml(breakdown)}
       </div>
     </div>`;
 }
@@ -758,17 +742,14 @@ function hydrateEstimationsFromProject(project) {
 }
 
 function buildEstimationsEditorHtml(project) {
-  const concepts = project?.concepts || editorConcepts;
   const list = mergeEstimationsFromConcepts(
     project?.estimations || [],
-    concepts
+    project?.concepts || editorConcepts
   );
   if (!list.length) {
     return '<p class="admin-empty">Sin estimaciones. Agrega un avance en un concepto o pulsa + Estimación.</p>';
   }
-  return list
-    .map((est, idx) => estimationCardHtml(est, idx, concepts))
-    .join("");
+  return list.map((est, idx) => estimationCardHtml(est, idx)).join("");
 }
 
 function bindEstimationEditorEvents(_el) {
@@ -781,6 +762,7 @@ function renderEstimationsEditor() {
 
   try {
     syncEditorEstimations();
+    refreshEstimationBreakdowns(editorEstimations);
     if (!editorEstimations.length) {
       el.innerHTML =
         '<p class="admin-empty">Sin estimaciones. Agrega un avance en un concepto o pulsa + Estimación.</p>';

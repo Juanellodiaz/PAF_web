@@ -120,12 +120,9 @@ function buildMetaPayload(project) {
     const adv = Array.isArray(c.advances) ? c.advances : [];
     if (adv.length) advancesByConceptId[c.id] = adv;
   });
-  const estimations = project.estimations || [];
   return {
-    v: 2,
-    estimations,
+    v: 3,
     advancesByConceptId,
-    paidByEstimationId: buildPaidByEstimationId(estimations),
   };
 }
 
@@ -173,12 +170,15 @@ function applyMetaToProject(project) {
     advances: advancesByConceptId[c.id] || [],
   }));
 
-  const storedEstimations = mergeStoredEstimations(
-    project.estimations,
-    meta.estimations
-  );
-  let estimations = mergeEstimationsFromConcepts(storedEstimations, concepts);
-  estimations = applyPaidFromMeta(estimations, meta.paidByEstimationId);
+  let estimations = project.estimations || [];
+  if (meta.v !== 3) {
+    const storedEstimations = mergeStoredEstimations(
+      project.estimations,
+      meta.estimations
+    );
+    estimations = mergeEstimationsFromConcepts(storedEstimations, concepts);
+    estimations = applyPaidFromMeta(estimations, meta.paidByEstimationId);
+  }
 
   return {
     ...project,
