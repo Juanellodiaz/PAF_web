@@ -1,0 +1,68 @@
+{
+  "users": [
+    {
+      "id": "admin-paf",
+      "username": "paf",
+      "password": "admin",
+      "role": "admin",
+      "name": "PAF Administración"
+    },
+    {
+      "id": "client-iwa",
+      "username": "iwa",
+      "password": "iwa",
+      "role": "client",
+      "name": "IWA Studio"
+    }
+  ],
+  "projects": [
+    {
+      "id": "proj-polanco-2026",
+      "name": "Residencia Polanco — Microcemento",
+      "clientId": "client-iwa",
+      "status": "in_progress",
+      "completionDate": "2026-09-30",
+      "zone3dImage": "/assets/zone-3d-placeholder.svg",
+      "concepts": [
+        {
+          "id": "c1",
+          "name": "Microcemento — Sala y comedor",
+          "m2": 86,
+          "unitPrice": 2850,
+          "totalPrice": 245100,
+          "status": "in_progress"
+        },
+        {
+          "id": "c2",
+          "name": "Microcemento — Baños principales",
+          "m2": 24,
+          "unitPrice": 3200,
+          "totalPrice": 76800,
+          "status": "pending"
+        },
+        {
+          "id": "c3",
+          "name": "Sellador hidrofóbico — Terraza",
+          "m2": 42,
+          "unitPrice": 980,
+          "totalPrice": 41160,
+          "status": "pending"
+        }
+      ],
+      "documents": [
+        {
+          "id": "d1",
+          "type": "consideration",
+          "title": "Consideraciones de sustrato",
+          "content": "Verificar humedad relativa < 4% en losa antes de aplicar basecoat. Curado mínimo 72 h entre capas en zona de terraza."
+        },
+        {
+          "id": "d2",
+          "type": "notification",
+          "title": "Visita técnica programada",
+          "content": "Inspección de avance en baños principales — 28 de junio, 10:00 h."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — PAF</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/portal.css">
+</head>
+<body class="portal-body">
+  <div class="portal-video-wrap" aria-hidden="true">
+    <video class="portal-video" autoplay muted loop playsinline>
+      <source src="Background_PAF.mp4" type="video/mp4">
+    </video>
+    <div class="portal-video-overlay"></div>
+  </div>
+
+  <header class="portal-header">
+    <a href="/" class="logo">
+      <img src="PAF_logo.svg" alt="PAF" width="180" height="21">
+    </a>
+    <a href="/" class="btn btn-ghost btn-sm">← Inicio</a>
+  </header>
+
+  <main class="portal-main">
+    <div class="login-wrap">
+      <div class="login-card">
+        <h1>Acceso clientes</h1>
+        <p class="login-sub">Consulta el estado de tus proyectos y avances en tiempo real.</p>
+        <form id="login-form">
+          <div class="form-group">
+            <label for="username">Usuario</label>
+            <input type="text" id="username" name="username" autocomplete="username" required>
+          </div>
+          <div class="form-group">
+            <label for="password">Contraseña</label>
+            <input type="password" id="password" name="password" autocomplete="current-password" required>
+          </div>
+          <p class="form-error" id="login-error" role="alert"></p>
+          <button type="submit" class="btn btn-primary" style="width:100%">Ingresar</button>
+        </form>
+        <p class="login-hint">
+          Admin: <strong>paf</strong> / <strong>admin</strong><br>
+          Cliente demo: <strong>iwa</strong> / <strong>iwa</strong>
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/portal.js"></script>
+  <script src="js/login.js"></script>
+</body>
+</html>

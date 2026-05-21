@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administración — PAF</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/portal.css">
+</head>
+<body class="portal-body">
+  <header class="portal-header">
+    <a href="/" class="logo">
+      <img src="PAF_logo.svg" alt="PAF" width="180" height="21">
+    </a>
+    <div class="portal-actions">
+      <a href="/" class="btn btn-ghost btn-sm">Inicio</a>
+      <button type="button" class="btn btn-ghost btn-sm" id="logout-btn">Salir</button>
+    </div>
+  </header>
+
+  <main class="portal-main">
+    <div class="portal-toolbar">
+      <div>
+        <h1>Panel de administración</h1>
+        <p class="portal-user" id="user-greeting"></p>
+      </div>
+    </div>
+
+    <div class="admin-layout">
+      <form class="admin-form" id="project-form">
+        <h2 id="form-title">Nuevo proyecto</h2>
+        <input type="hidden" name="id" id="project-id">
+        <div class="form-group">
+          <label for="name">Nombre del proyecto</label>
+          <input type="text" id="name" name="name" required>
+        </div>
+        <div class="form-group">
+          <label for="clientId">Cliente asignado</label>
+          <select id="clientId" name="clientId" required>
+            <option value="">— Seleccionar —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="completionDate">Fecha de culminación</label>
+          <input type="date" id="completionDate" name="completionDate" required>
+        </div>
+        <div class="form-group">
+          <label for="status">Estado</label>
+          <select id="status" name="status">
+            <option value="pending">Pendiente</option>
+            <option value="in_progress">En progreso</option>
+            <option value="completed">Completado</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="zone3dImage">Imagen zona 3D (URL)</label>
+          <input type="text" id="zone3dImage" name="zone3dImage" placeholder="/assets/zone-3d-placeholder.svg">
+        </div>
+        <p class="form-error" id="form-error"></p>
+        <div class="portal-actions">
+          <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="form-reset" hidden>Cancelar</button>
+        </div>
+      </form>
+
+      <div>
+        <p class="panel-label" style="margin-bottom:1rem">Proyectos registrados</p>
+        <div class="admin-list" id="admin-projects"></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/portal.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

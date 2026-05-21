@@ -6,6 +6,7 @@ const translations = {
     "nav.tech": "Tecnología",
     "nav.approach": "Enfoque",
     "nav.contact": "Contacto",
+    "nav.login": "Login",
     "hero.eyebrow": "Acabados arquitectónicos premium",
     "hero.title": "Superficies que definen la arquitectura moderna",
     "hero.subtitle": "Microcementos, estucos decorativos y sistemas de acabado de alto rendimiento para proyectos residenciales, comerciales y de hospitalidad en México y Estados Unidos.",
@@ -68,6 +69,7 @@ const translations = {
     "nav.tech": "Technology",
     "nav.approach": "Approach",
     "nav.contact": "Contact",
+    "nav.login": "Login",
     "hero.eyebrow": "Premium architectural finishes",
     "hero.title": "Surfaces that define modern architecture",
     "hero.subtitle": "Microcements, decorative stuccos, and high-performance finishing systems for residential, commercial, and hospitality projects across Mexico and the United States.",
@@ -165,7 +167,8 @@ menuToggle.addEventListener("click", () => {
 });
 
 mobileNav.querySelectorAll("a").forEach((link) => {
-  link.addEventListener("click", () => {
+  link.addEventListener("click", (e) => {
+    if (link.hasAttribute("data-login")) return;
     mobileNav.classList.remove("open");
     menuToggle.classList.remove("open");
     menuToggle.setAttribute("aria-expanded", "false");
@@ -198,6 +201,17 @@ const observer = new IntersectionObserver(
 );
 
 revealEls.forEach((el) => observer.observe(el));
+
+/* Login fade transition */
+document.querySelectorAll("[data-login]").forEach((link) => {
+  link.addEventListener("click", (e) => {
+    e.preventDefault();
+    document.body.classList.add("page-exit");
+    setTimeout(() => {
+      window.location.href = link.getAttribute("href");
+    }, 450);
+  });
+});
 
 /* Init */
 setLanguage(currentLang);

@@ -1,0 +1,479 @@
+/* Portal — login & dashboards */
+.portal-body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg);
+}
+
+.portal-video-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.portal-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.portal-video-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 8, 8, 0.82);
+}
+
+.portal-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--pad-x);
+  background: rgba(8, 8, 8, 0.7);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+
+.portal-main {
+  position: relative;
+  z-index: 2;
+  min-height: 100vh;
+  padding: calc(var(--header-h) + 2rem) var(--pad-x) 3rem;
+}
+
+/* Page transitions */
+body.page-exit {
+  opacity: 0;
+  transition: opacity 0.45s var(--ease);
+}
+
+body.page-enter {
+  animation: pageEnter 0.55s var(--ease) forwards;
+}
+
+@keyframes pageEnter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Login */
+.login-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - var(--header-h) - 4rem);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  padding: 2.5rem;
+  background: rgba(13, 13, 13, 0.85);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+}
+
+.login-card h1 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.5rem;
+}
+
+.login-card .login-sub {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 2rem;
+}
+
+.form-group {
+  margin-bottom: 1.25rem;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 0.5rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 300;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  outline: none;
+  transition: border-color 0.25s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: var(--border-hover);
+}
+
+.form-error {
+  font-size: 0.8rem;
+  color: #c47a6a;
+  margin-top: 1rem;
+  min-height: 1.2em;
+}
+
+.login-hint {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+/* Dashboard layout */
+.portal-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+
+.portal-toolbar h1 {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.portal-user {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+
+.portal-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.btn-sm {
+  padding: 0.6rem 1.1rem;
+  font-size: 0.65rem;
+}
+
+/* Project cards grid */
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+}
+
+.project-card {
+  display: block;
+  padding: 1.75rem;
+  background: var(--bg-card);
+  transition: background 0.25s;
+}
+
+.project-card:hover {
+  background: var(--bg-elevated);
+}
+
+.project-card h3 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+}
+
+.project-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.project-status {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--border);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+}
+
+.project-status.in_progress {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Project dashboard */
+.project-dashboard {
+  max-width: var(--max-w);
+  margin: 0 auto;
+}
+
+.project-hero {
+  margin-bottom: 2.5rem;
+}
+
+.project-hero h1 {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3.5vw, 2.25rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  margin-bottom: 0.5rem;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin-bottom: 1px;
+}
+
+.dashboard-panel {
+  padding: 1.75rem;
+  background: var(--bg-card);
+}
+
+.dashboard-panel.full {
+  grid-column: 1 / -1;
+}
+
+.panel-label {
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 1.25rem;
+}
+
+/* Metrics */
+.metrics-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.metric-box {
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.metric-value {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.25rem;
+}
+
+.metric-value.accent {
+  color: var(--accent);
+}
+
+.metric-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* Concepts table */
+.concepts-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.concepts-table th,
+.concepts-table td {
+  padding: 0.85rem 0;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.concepts-table th {
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.concepts-table td:last-child,
+.concepts-table th:last-child {
+  text-align: right;
+}
+
+.concept-status {
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.concept-status.in_progress {
+  color: var(--accent);
+}
+
+/* 3D zone */
+.zone-3d {
+  aspect-ratio: 16 / 10;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.zone-3d img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.9;
+}
+
+/* Documents */
+.doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.doc-item {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+}
+
+.doc-item.notification {
+  border-left-color: var(--text-dim);
+}
+
+.doc-item h4 {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 0.35rem;
+}
+
+.doc-item .doc-type {
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+}
+
+.doc-item.notification .doc-type {
+  color: var(--text-dim);
+}
+
+.doc-item p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+/* Admin */
+.admin-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+.admin-form {
+  padding: 1.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+
+.admin-form h2 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin-bottom: 1.5rem;
+}
+
+.admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border);
+}
+
+.admin-list-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-list-item:last-child {
+  border-bottom: none;
+}
+
+.empty-state {
+  padding: 3rem;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+@media (max-width: 900px) {
+  .dashboard-grid,
+  .admin-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .metrics-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .concepts-table {
+    font-size: 0.75rem;
+  }
+
+  .concepts-table th:nth-child(3),
+  .concepts-table td:nth-child(3) {
+    display: none;
+  }
+}
