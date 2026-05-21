@@ -68,7 +68,11 @@ function renderAdminView(p) {
     <section class="admin-section project-edit-section">
       <div class="admin-section-head">
         <p class="admin-section-label">Conceptos a trabajar</p>
-        <button type="button" class="btn btn-ghost btn-sm" id="add-concept">+ Concepto</button>
+        <div class="portal-actions">
+          <button type="button" class="btn btn-ghost btn-sm" id="collapse-all-concepts">Colapsar</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="expand-all-concepts">Expandir</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="add-concept">+ Concepto</button>
+        </div>
       </div>
       <div id="concepts-editor" class="concepts-editor"></div>
       <p class="concepts-total-preview" id="concepts-total-preview">Total: ${formatMoney(payload.conceptsTotal)} · ${payload.m2Total} m²</p>

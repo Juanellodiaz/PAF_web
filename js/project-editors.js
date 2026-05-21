@@ -13,6 +13,7 @@ function newConcept() {
     unitPrice: 0,
     totalPrice: 0,
     status: "pending",
+    collapsed: false,
   };
 }
 
@@ -89,47 +90,15 @@ function renderConceptsEditor() {
   }
 
   el.innerHTML = editorConcepts
-    .map(
-      (c, i) => `
-    <div class="concept-row" data-index="${i}">
-      <div class="concept-row-top">
-        <span class="concept-row-num">${String(i + 1).padStart(2, "0")}</span>
-        <button type="button" class="btn-remove" data-remove-concept="${i}">×</button>
-      </div>
-      <div class="form-group">
-        <label>Concepto</label>
-        <input type="text" data-field="name" data-index="${i}" value="${escapeAttr(c.name)}">
-      </div>
-      <div class="form-row form-row-4">
-        <div class="form-group">
-          <label>m²</label>
-          <input type="number" min="0" step="0.01" data-field="m2" data-index="${i}" value="${c.m2 || ""}">
-        </div>
-        <div class="form-group">
-          <label>Precio unit. (MXN)</label>
-          <input type="number" min="0" step="1" data-field="unitPrice" data-index="${i}" value="${c.unitPrice || ""}">
-        </div>
-        <div class="form-group">
-          <label>Total</label>
-          <input type="text" readonly class="input-readonly" data-total-preview="${i}" value="${formatMoney(calcConceptTotal(c))}">
-        </div>
-        <div class="form-group">
-          <label>Estado</label>
-          <select data-field="status" data-index="${i}">
-            <option value="pending" ${c.status === "pending" ? "selected" : ""}>Pendiente</option>
-            <option value="in_progress" ${c.status === "in_progress" ? "selected" : ""}>En progreso</option>
-            <option value="completed" ${c.status === "completed" ? "selected" : ""}>Completado</option>
-          </select>
-        </div>
-      </div>
-    </div>
-  `
-    )
+    .map((c, i) => conceptRowHtml(c, i))
     .join("");
 
   el.querySelectorAll("[data-field]").forEach((input) => {
     input.addEventListener("input", onConceptFieldChange);
     input.addEventListener("change", onConceptFieldChange);
+  });
+  el.querySelectorAll("[data-toggle-concept]").forEach((btn) => {
+    btn.addEventListener("click", () => toggleConceptRow(Number(btn.dataset.toggleConcept)));
   });
   el.querySelectorAll("[data-remove-concept]").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -138,6 +107,83 @@ function renderConceptsEditor() {
     });
   });
   updateConceptsPreview();
+}
+
+function conceptSummary(c) {
+  const name = c.name.trim() || "Sin nombre";
+  const m2 = Number(c.m2) || 0;
+  const total = formatMoney(calcConceptTotal(c));
+  const st = statusLabel(c.status);
+  return `${name} · ${m2} m² · ${total} · ${st}`;
+}
+
+function conceptRowHtml(c, i) {
+  const collapsed = !!c.collapsed;
+  return `
+    <div class="concept-row ${collapsed ? "is-collapsed" : ""}" data-index="${i}">
+      <div class="concept-row-top">
+        <button type="button" class="concept-toggle" data-toggle-concept="${i}" aria-expanded="${!collapsed}">
+          <span class="concept-chevron" aria-hidden="true"></span>
+          <span class="concept-row-num">${String(i + 1).padStart(2, "0")}</span>
+          <span class="concept-summary" data-summary="${i}">${escapeHtml(conceptSummary(c))}</span>
+        </button>
+        <button type="button" class="btn-remove" data-remove-concept="${i}" aria-label="Eliminar concepto">×</button>
+      </div>
+      <div class="concept-row-body">
+        <div class="form-group">
+          <label>Concepto</label>
+          <input type="text" data-field="name" data-index="${i}" value="${escapeAttr(c.name)}">
+        </div>
+        <div class="form-row form-row-4">
+          <div class="form-group">
+            <label>m²</label>
+            <input type="number" min="0" step="0.01" data-field="m2" data-index="${i}" value="${c.m2 || ""}">
+          </div>
+          <div class="form-group">
+            <label>Precio unit. (MXN)</label>
+            <input type="number" min="0" step="1" data-field="unitPrice" data-index="${i}" value="${c.unitPrice || ""}">
+          </div>
+          <div class="form-group">
+            <label>Total</label>
+            <input type="text" readonly class="input-readonly" data-total-preview="${i}" value="${formatMoney(calcConceptTotal(c))}">
+          </div>
+          <div class="form-group">
+            <label>Estado</label>
+            <select data-field="status" data-index="${i}">
+              <option value="pending" ${c.status === "pending" ? "selected" : ""}>Pendiente</option>
+              <option value="in_progress" ${c.status === "in_progress" ? "selected" : ""}>En progreso</option>
+              <option value="completed" ${c.status === "completed" ? "selected" : ""}>Completado</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function toggleConceptRow(i) {
+  editorConcepts[i].collapsed = !editorConcepts[i].collapsed;
+  const row = document.querySelector(`.concept-row[data-index="${i}"]`);
+  if (!row) {
+    renderConceptsEditor();
+    return;
+  }
+  row.classList.toggle("is-collapsed", editorConcepts[i].collapsed);
+  const btn = row.querySelector("[data-toggle-concept]");
+  if (btn) btn.setAttribute("aria-expanded", String(!editorConcepts[i].collapsed));
+  updateConceptSummaryLine(i);
+}
+
+function updateConceptSummaryLine(i) {
+  const el = document.querySelector(`[data-summary="${i}"]`);
+  if (el) el.textContent = conceptSummary(editorConcepts[i]);
+}
+
+function setAllConceptsCollapsed(collapsed) {
+  editorConcepts.forEach((c) => {
+    c.collapsed = collapsed;
+  });
+  renderConceptsEditor();
 }
 
 function onConceptFieldChange(e) {
@@ -150,6 +196,7 @@ function onConceptFieldChange(e) {
   }
   const totalEl = document.querySelector(`[data-total-preview="${i}"]`);
   if (totalEl) totalEl.value = formatMoney(calcConceptTotal(editorConcepts[i]));
+  updateConceptSummaryLine(i);
   updateConceptsPreview();
 }
 
@@ -223,6 +270,12 @@ function bindEditorActions() {
   document.getElementById("add-concept")?.addEventListener("click", () => {
     editorConcepts.push(newConcept());
     renderConceptsEditor();
+  });
+  document.getElementById("collapse-all-concepts")?.addEventListener("click", () => {
+    setAllConceptsCollapsed(true);
+  });
+  document.getElementById("expand-all-concepts")?.addEventListener("click", () => {
+    setAllConceptsCollapsed(false);
   });
   document.getElementById("add-document")?.addEventListener("click", () => {
     editorDocuments.push(newDocument());

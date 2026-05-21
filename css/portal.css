@@ -529,13 +529,84 @@ body.page-enter {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0;
+}
+
+.concept-row:not(.is-collapsed) .concept-row-top {
   margin-bottom: 0.75rem;
+}
+
+.concept-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  font-family: var(--font-body);
+}
+
+.concept-chevron {
+  width: 6px;
+  height: 6px;
+  border-right: 1px solid var(--accent);
+  border-bottom: 1px solid var(--accent);
+  transform: rotate(45deg);
+  transition: transform 0.25s var(--ease);
+  flex-shrink: 0;
+  margin-top: -2px;
+}
+
+.concept-row.is-collapsed .concept-chevron {
+  transform: rotate(-45deg);
+  margin-top: 2px;
 }
 
 .concept-row-num {
   font-size: 0.65rem;
+  font-weight: 500;
   letter-spacing: 0.12em;
-  color: var(--text-dim);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.concept-summary {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.concept-row:not(.is-collapsed) .concept-summary {
+  display: none;
+}
+
+.concept-row-body {
+  overflow: hidden;
+  transition: max-height 0.35s var(--ease), opacity 0.25s;
+  max-height: 400px;
+  opacity: 1;
+}
+
+.concept-row.is-collapsed {
+  padding: 0.65rem 1rem;
+}
+
+.concept-row.is-collapsed .concept-row-body {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.concepts-editor .concept-row + .concept-row {
+  margin-top: 0;
 }
 
 .btn-remove {
