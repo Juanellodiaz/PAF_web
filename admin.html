@@ -30,63 +30,38 @@
     </div>
 
     <div class="admin-layout">
-      <form class="admin-form" id="project-form">
+      <form class="admin-form admin-form--simple" id="project-form">
         <h2 id="form-title">Nuevo proyecto</h2>
-        <input type="hidden" name="id" id="project-id">
-
-        <p class="admin-section-label">Datos generales</p>
+        <p class="admin-section-hint">Crea el proyecto aquí. Agrega conceptos, costos y documentos desde <strong>Ver / Editar</strong>.</p>
         <div class="form-group">
           <label for="name">Nombre del proyecto</label>
           <input type="text" id="name" name="name" required>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="clientId">Cliente asignado</label>
-            <select id="clientId" name="clientId" required>
-              <option value="">— Seleccionar —</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="status">Estado del proyecto</label>
-            <select id="status" name="status">
-              <option value="pending">Pendiente</option>
-              <option value="in_progress">En progreso</option>
-              <option value="completed">Completado</option>
-            </select>
-          </div>
+        <div class="form-group">
+          <label for="clientId">Cliente asignado</label>
+          <select id="clientId" name="clientId" required>
+            <option value="">— Seleccionar —</option>
+          </select>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="completionDate">Fecha de culminación</label>
-            <input type="date" id="completionDate" name="completionDate" required>
-          </div>
-          <div class="form-group">
-            <label for="zone3dImage">Imagen zona 3D (URL)</label>
-            <input type="text" id="zone3dImage" name="zone3dImage" placeholder="/assets/zone-3d-placeholder.svg">
-          </div>
+        <div class="form-group">
+          <label for="completionDate">Fecha de culminación</label>
+          <input type="date" id="completionDate" name="completionDate" required>
         </div>
-
-        <section class="admin-section">
-          <div class="admin-section-head">
-            <p class="admin-section-label">Conceptos a trabajar</p>
-            <button type="button" class="btn btn-ghost btn-sm" id="add-concept">+ Concepto</button>
-          </div>
-          <p class="admin-section-hint">m², precio unitario y total por concepto. El total del proyecto se calcula automáticamente.</p>
-          <div id="concepts-editor" class="concepts-editor"></div>
-          <p class="concepts-total-preview" id="concepts-total-preview">Total conceptos: $0 · 0 m²</p>
-        </section>
-
-        <section class="admin-section">
-          <div class="admin-section-head">
-            <p class="admin-section-label">Documentos y notificaciones</p>
-            <button type="button" class="btn btn-ghost btn-sm" id="add-document">+ Documento</button>
-          </div>
-          <div id="documents-editor" class="documents-editor"></div>
-        </section>
-
+        <div class="form-group">
+          <label for="status">Estado</label>
+          <select id="status" name="status">
+            <option value="pending">Pendiente</option>
+            <option value="in_progress">En progreso</option>
+            <option value="completed">Completado</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="zone3dImage">Imagen zona 3D (URL)</label>
+          <input type="text" id="zone3dImage" name="zone3dImage" placeholder="/assets/zone-3d-placeholder.svg">
+        </div>
         <p class="form-error" id="form-error"></p>
         <div class="portal-actions">
-          <button type="submit" class="btn btn-primary btn-sm">Guardar proyecto</button>
+          <button type="submit" class="btn btn-primary btn-sm">Crear proyecto</button>
           <button type="button" class="btn btn-ghost btn-sm" id="form-reset" hidden>Cancelar</button>
         </div>
       </form>

@@ -441,6 +441,28 @@ body.page-enter {
   margin-bottom: 1.25rem;
 }
 
+.admin-form--simple {
+  max-height: none;
+}
+
+.admin-form--simple .admin-section-hint {
+  margin-bottom: 1.25rem;
+}
+
+.admin-badge {
+  font-size: 0.65rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+}
+
+.project-edit-section {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
 .admin-section-label {
   font-size: 0.65rem;
   font-weight: 500;
