@@ -136,14 +136,14 @@ window.pafEstPaidChange = function (idx, checked) {
     ? new Date().toISOString().slice(0, 10)
     : null;
   updateEstimationRowUi(idx);
-  if (typeof window.refreshProjectMetrics === "function") {
-    window.refreshProjectMetrics();
+  if (typeof window.markProjectDirty === "function") {
+    window.markProjectDirty();
   }
   if (window.__pafProjectData) {
     window.__pafProjectData.estimations = collectEstimations();
   }
-  if (typeof window.markProjectDirty === "function") {
-    window.markProjectDirty();
+  if (typeof window.refreshProjectMetrics === "function") {
+    window.refreshProjectMetrics();
   }
 };
 
@@ -591,9 +591,6 @@ function updateProgressChart() {
   if (ring) ring.style.setProperty("--pct", String(prog.percent));
   if (val) val.textContent = `${prog.percent}%`;
   if (sub) sub.textContent = `${prog.doneM2} / ${prog.totalM2} m²`;
-  if (typeof window.refreshProjectMetrics === "function") {
-    window.refreshProjectMetrics();
-  }
 }
 
 function estimationLinesTableHtml(lines) {
