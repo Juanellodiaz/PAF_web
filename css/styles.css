@@ -628,12 +628,31 @@ ul { list-style: none; }
   to { transform: rotate(360deg); }
 }
 
-.tech-ring-sub {
-  font-size: 0.75rem;
+.tech-ring-brand {
+  line-height: 1;
+}
+
+.tech-ring-partnership {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+}
+
+.tech-ring-x {
+  font-size: 0.65rem;
   font-weight: 500;
-  letter-spacing: 0.2em;
   color: var(--text-dim);
-  margin-top: 0.25rem;
+  line-height: 1;
+  opacity: 0.65;
+}
+
+.tech-ring-s35-logo {
+  height: 0.72rem;
+  width: auto;
+  display: block;
+  opacity: 0.55;
 }
 
 .tech-tagline {
