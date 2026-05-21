@@ -185,7 +185,7 @@ function setEditorData(concepts, documents, estimations) {
   });
   editorDocuments = (documents || [])
     .filter((d) => !isMetaDocument(d))
-    .map((d) => ({ ...d }));
+    .map((d) => ({ ...d, collapsed: true }));
   editorEstimations = mergeEstimationsFromConcepts(estimations, editorConcepts).map(
     (e) => ({ ...e, expanded: e.expanded !== false })
   );
@@ -771,6 +771,7 @@ function renderDocumentsEditor() {
     btn.addEventListener("click", () => {
       editorDocuments.splice(Number(btn.dataset.removeDoc), 1);
       renderDocumentsEditor();
+      updateWorkspaceSectionSummary();
     });
   });
   el.querySelectorAll("[data-doc-upload]").forEach((input) => {
@@ -876,6 +877,32 @@ function escapeAttr(s) {
   return escapeHtml(s).replace(/"/g, "&quot;");
 }
 
+function workspaceSectionSummary() {
+  const n = editorDocuments.length;
+  return `Vista 3D · ${n} documento${n === 1 ? "" : "s"}`;
+}
+
+function updateWorkspaceSectionSummary() {
+  const el = document.getElementById("workspace-section-summary");
+  if (el) el.textContent = workspaceSectionSummary();
+}
+
+function bindWorkspaceSectionToggle() {
+  const section = document.getElementById("workspace-section");
+  const btn = document.getElementById("toggle-workspace-section");
+  if (!section || !btn || btn.dataset.bound === "1") return;
+  btn.dataset.bound = "1";
+  btn.addEventListener("click", () => {
+    section.classList.toggle("is-collapsed");
+    const collapsed = section.classList.contains("is-collapsed");
+    btn.setAttribute("aria-expanded", String(!collapsed));
+  });
+  updateWorkspaceSectionSummary();
+}
+
+window.bindWorkspaceSectionToggle = bindWorkspaceSectionToggle;
+window.updateWorkspaceSectionSummary = updateWorkspaceSectionSummary;
+
 function bindEditorActions() {
   document.getElementById("add-concept")?.addEventListener("click", () => {
     editorConcepts.push(newConcept());
@@ -890,6 +917,7 @@ function bindEditorActions() {
   document.getElementById("add-document")?.addEventListener("click", () => {
     editorDocuments.push(newDocument());
     renderDocumentsEditor();
+    updateWorkspaceSectionSummary();
   });
   document.getElementById("collapse-all-docs")?.addEventListener("click", () => {
     setAllDocumentsCollapsed(true);

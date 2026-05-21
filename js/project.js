@@ -140,35 +140,46 @@ function renderAdminView(p) {
       <div id="estimations-editor" class="estimations-editor">${estimationsBootstrap}</div>
     </section>
 
-    <div class="dashboard-grid" style="margin-top:2rem">
-      <div class="dashboard-panel">
-        <p class="panel-label">Zona de trabajo — Vista 3D</p>
-        <div class="zone-3d">
-          <img src="${escapeAttr(p.zone3dImage)}" alt="Vista 3D" id="zone-3d-img">
-        </div>
-        <div class="form-group" style="margin-top:1rem">
-          <label for="zone3dImage">Imagen zona 3D</label>
-          <div class="upload-row">
-            <input type="file" id="zone3d-upload" accept="image/*">
-            <span class="upload-hint">Subir archivo o pegar URL</span>
-          </div>
-          <input type="text" id="zone3dImage" value="${escapeAttr(p.zone3dImage || "")}" placeholder="https://…">
-          <p class="form-error" id="zone3d-upload-error"></p>
-        </div>
+    <section id="workspace-section" class="admin-section project-collapsible-section is-collapsed" style="margin-top:2rem">
+      <div class="section-collapse-head">
+        <button type="button" class="concept-toggle" id="toggle-workspace-section" aria-expanded="false">
+          <span class="concept-chevron" aria-hidden="true"></span>
+          <span class="admin-section-label section-collapse-title">Zona de trabajo y documentos</span>
+          <span class="concept-summary" id="workspace-section-summary">Vista 3D · ${(p.documents || []).filter((d) => d.title !== "_PAF_INTERNAL" && !String(d.id || "").startsWith("_paf_meta_")).length} documento(s)</span>
+        </button>
       </div>
+      <div class="section-collapse-body">
+        <div class="dashboard-grid">
+          <div class="dashboard-panel">
+            <p class="panel-label">Zona de trabajo — Vista 3D</p>
+            <div class="zone-3d">
+              <img src="${escapeAttr(p.zone3dImage)}" alt="Vista 3D" id="zone-3d-img">
+            </div>
+            <div class="form-group" style="margin-top:1rem">
+              <label for="zone3dImage">Imagen zona 3D</label>
+              <div class="upload-row">
+                <input type="file" id="zone3d-upload" accept="image/*">
+                <span class="upload-hint">Subir archivo o pegar URL</span>
+              </div>
+              <input type="text" id="zone3dImage" value="${escapeAttr(p.zone3dImage || "")}" placeholder="https://…">
+              <p class="form-error" id="zone3d-upload-error"></p>
+            </div>
+          </div>
 
-      <div class="dashboard-panel">
-        <div class="admin-section-head">
-          <p class="panel-label" style="margin:0">Documentos e imágenes</p>
-          <div class="portal-actions">
-            <button type="button" class="btn btn-ghost btn-sm" id="collapse-all-docs">Colapsar</button>
-            <button type="button" class="btn btn-ghost btn-sm" id="expand-all-docs">Expandir</button>
-            <button type="button" class="btn btn-ghost btn-sm" id="add-document">+ Documento</button>
+          <div class="dashboard-panel">
+            <div class="admin-section-head">
+              <p class="panel-label" style="margin:0">Documentos e imágenes</p>
+              <div class="portal-actions">
+                <button type="button" class="btn btn-ghost btn-sm" id="collapse-all-docs">Colapsar</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="expand-all-docs">Expandir</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="add-document">+ Documento</button>
+              </div>
+            </div>
+            <div id="documents-editor" class="documents-editor" style="margin-top:1rem"></div>
           </div>
         </div>
-        <div id="documents-editor" class="documents-editor" style="margin-top:1rem"></div>
       </div>
-    </div>
+    </section>
 
     <p class="save-status" id="save-status" role="status" aria-live="polite"></p>
     <p class="form-error" id="save-error"></p>
@@ -182,6 +193,7 @@ function renderAdminView(p) {
   renderEstimationsEditor();
   const estPanel = document.getElementById("estimations-editor");
   renderDocumentsEditor();
+  bindWorkspaceSectionToggle();
   bindZone3dUpload();
   updateProgressChart();
   saveEditorDraft(p.id);

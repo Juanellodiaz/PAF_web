@@ -276,6 +276,56 @@ body.page-enter {
   margin-bottom: 0.5rem;
 }
 
+.project-collapsible-section {
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  padding: 0;
+}
+
+.project-collapsible-section .section-collapse-head {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid transparent;
+}
+
+.project-collapsible-section:not(.is-collapsed) .section-collapse-head {
+  border-bottom-color: var(--border);
+}
+
+.project-collapsible-section .section-collapse-head .concept-toggle {
+  width: 100%;
+}
+
+.project-collapsible-section .section-collapse-title {
+  margin: 0;
+  font-size: 0.65rem;
+}
+
+.project-collapsible-section.is-collapsed .section-collapse-head .concept-summary {
+  display: inline;
+}
+
+.project-collapsible-section:not(.is-collapsed) .section-collapse-head .concept-summary {
+  display: none;
+}
+
+.project-collapsible-section .section-collapse-body {
+  overflow: hidden;
+  transition: max-height 0.35s var(--ease), opacity 0.25s;
+  max-height: 2400px;
+  opacity: 1;
+}
+
+.project-collapsible-section.is-collapsed .section-collapse-body {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.project-collapsible-section .dashboard-grid {
+  margin-bottom: 0;
+  border: none;
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
