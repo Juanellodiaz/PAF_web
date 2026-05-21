@@ -131,7 +131,7 @@ function renderAdminView(p) {
       <p class="concepts-total-preview" id="concepts-total-preview">Total: ${formatMoney(payload.conceptsTotal)} · ${payload.m2Total} m²</p>
     </section>
 
-    <section class="admin-section project-edit-section" style="margin-top:2rem">
+    <section id="estimations-section" class="admin-section project-edit-section" style="margin-top:2rem">
       <div class="admin-section-head">
         <p class="admin-section-label">Estimaciones${estimationCount ? ` (${estimationCount})` : ""}</p>
         <button type="button" class="btn btn-ghost btn-sm" id="add-estimation">+ Estimación</button>
@@ -180,6 +180,9 @@ function renderAdminView(p) {
   }
   renderConceptsEditor();
   renderEstimationsEditor();
+  const estPanel = document.getElementById("estimations-editor");
+  if (estPanel) bindEstimationEditorEvents(estPanel);
+  if (typeof ensureEstimationDelegation === "function") ensureEstimationDelegation();
   renderDocumentsEditor();
   bindZone3dUpload();
   updateProgressChart();

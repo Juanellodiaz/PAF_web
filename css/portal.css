@@ -922,6 +922,13 @@ body.page-enter {
 
 .estimation-card .concept-row-top {
   margin-bottom: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.estimation-card .concept-toggle {
+  cursor: pointer;
+  min-height: 2.25rem;
 }
 
 .estimation-card:not(.is-collapsed) .concept-row-top {

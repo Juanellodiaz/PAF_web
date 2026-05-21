@@ -39,10 +39,37 @@ function newEstimation() {
 }
 
 function syncEditorEstimations() {
+  const expandedById = new Map(
+    editorEstimations.map((e) => [e.id, !!e.expanded])
+  );
   editorEstimations = mergeEstimationsFromConcepts(
     editorEstimations,
     editorConcepts
   );
+  editorEstimations.forEach((e) => {
+    if (expandedById.has(e.id)) e.expanded = expandedById.get(e.id);
+  });
+}
+
+function toggleEstimationRow(idx) {
+  const est = editorEstimations[idx];
+  if (!est) return;
+  est.expanded = !est.expanded;
+  const row = document.querySelector(
+    `#estimations-editor [data-est-index="${idx}"]`
+  );
+  if (!row) {
+    renderEstimationsEditor();
+    return;
+  }
+  row.classList.toggle("is-collapsed", !est.expanded);
+  row.querySelectorAll("[data-toggle-est]").forEach((btn) => {
+    btn.setAttribute("aria-expanded", String(!!est.expanded));
+  });
+  const detailBtn = row.querySelector("[data-est-detail-toggle]");
+  if (detailBtn) {
+    detailBtn.textContent = est.expanded ? "Ocultar detalle" : "Ver detalle";
+  }
 }
 
 function newAdvance(estimationId) {
@@ -526,7 +553,7 @@ function estimationCardHtml(est, idx, conceptsSource) {
             <input type="checkbox" data-est-paid="${idx}" ${est.paid ? "checked" : ""}>
             Marcar como pagada
           </label>
-          <button type="button" class="btn btn-ghost btn-sm" data-toggle-est="${idx}">
+          <button type="button" class="btn btn-ghost btn-sm" data-toggle-est="${idx}" data-est-detail-toggle>
             ${expanded ? "Ocultar detalle" : "Ver detalle"}
           </button>
         </div>
@@ -559,8 +586,80 @@ function buildEstimationsEditorHtml(project) {
     .join("");
 }
 
+let estimationDelegationReady = false;
+
+function ensureEstimationDelegation() {
+  const section = document.getElementById("estimations-section");
+  if (!section || estimationDelegationReady) return;
+  estimationDelegationReady = true;
+
+  section.addEventListener("click", (e) => {
+    const toggleBtn = e.target.closest("[data-toggle-est]");
+    if (toggleBtn) {
+      e.preventDefault();
+      toggleEstimationRow(Number(toggleBtn.dataset.toggleEst));
+      return;
+    }
+    const dlBtn = e.target.closest("[data-download-est]");
+    if (dlBtn && typeof window.exportEstimation === "function") {
+      const idx = Number(dlBtn.dataset.downloadEst);
+      window.exportEstimation(editorEstimations[idx]);
+      return;
+    }
+    const rmBtn = e.target.closest("[data-remove-est]");
+    if (rmBtn) {
+      const idx = Number(rmBtn.dataset.removeEst);
+      const estId = editorEstimations[idx]?.id;
+      if (!confirm("¿Eliminar esta estimación? Los avances quedarán sin estimación asignada.")) {
+        return;
+      }
+      editorEstimations.splice(idx, 1);
+      editorConcepts.forEach((c) => {
+        c.advances = parseAdvances(c).map((a) =>
+          a.estimationId === estId ? { ...a, estimationId: "" } : a
+        );
+      });
+      if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);
+      renderConceptsEditor();
+      renderEstimationsEditor();
+      void persistProjectAdvances();
+    }
+  });
+
+  section.addEventListener("change", (e) => {
+    const paidInput = e.target.closest("[data-est-paid]");
+    if (paidInput) {
+      const idx = Number(paidInput.dataset.estPaid);
+      editorEstimations[idx].paid = paidInput.checked;
+      editorEstimations[idx].paidAt = paidInput.checked
+        ? new Date().toISOString().slice(0, 10)
+        : null;
+      renderEstimationsEditor();
+      void persistProjectAdvances();
+      return;
+    }
+    const field = e.target.closest("[data-est-field]");
+    if (field) {
+      const idx = Number(field.dataset.estIndex);
+      editorEstimations[idx][field.dataset.estField] = field.value;
+      if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);
+      if (field.dataset.estField === "label") {
+        const row = section.querySelector(`[data-est-index="${idx}"] .concept-summary`);
+        if (row) {
+          const lines = getEstimationLines(editorEstimations[idx].id, editorConcepts);
+          const total = lines.reduce((s, l) => s + l.amount, 0);
+          const label = estimationDisplayLabel(editorEstimations[idx], idx);
+          row.textContent = `${label} · ${lines.length} partida(s) · ${formatMoney(total)} · ${editorEstimations[idx].paid ? "Pagada" : "Pendiente"}`;
+        }
+      }
+      void persistProjectAdvances();
+    }
+  });
+}
+
 function bindEstimationEditorEvents(el) {
   if (!el) return;
+  ensureEstimationDelegation();
 
   const onEstFieldChange = (e) => {
     const idx = Number(e.target.dataset.estIndex);
@@ -587,54 +686,6 @@ function bindEstimationEditorEvents(el) {
     });
   });
 
-  el.querySelectorAll("[data-toggle-est]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const idx = Number(btn.dataset.toggleEst);
-      editorEstimations[idx].expanded = !editorEstimations[idx].expanded;
-      renderEstimationsEditor();
-    });
-  });
-
-  el.querySelectorAll("[data-est-paid]").forEach((input) => {
-    input.addEventListener("change", (e) => {
-      const idx = Number(e.target.dataset.estPaid);
-      editorEstimations[idx].paid = e.target.checked;
-      editorEstimations[idx].paidAt = e.target.checked
-        ? new Date().toISOString().slice(0, 10)
-        : null;
-      renderEstimationsEditor();
-      void persistProjectAdvances();
-    });
-  });
-
-  el.querySelectorAll("[data-download-est]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const idx = Number(btn.dataset.downloadEst);
-      if (typeof window.exportEstimation === "function") {
-        window.exportEstimation(editorEstimations[idx]);
-      }
-    });
-  });
-
-  el.querySelectorAll("[data-remove-est]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const idx = Number(btn.dataset.removeEst);
-      const estId = editorEstimations[idx]?.id;
-      if (!confirm("¿Eliminar esta estimación? Los avances quedarán sin estimación asignada.")) {
-        return;
-      }
-      editorEstimations.splice(idx, 1);
-      editorConcepts.forEach((c) => {
-        c.advances = parseAdvances(c).map((a) =>
-          a.estimationId === estId ? { ...a, estimationId: "" } : a
-        );
-      });
-      if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);
-      renderConceptsEditor();
-      renderEstimationsEditor();
-      void persistProjectAdvances();
-    });
-  });
 }
 
 function renderEstimationsEditor() {
@@ -876,4 +927,5 @@ function bindEditorActions() {
     renderEstimationsEditor();
     void persistProjectAdvances();
   });
+  ensureEstimationDelegation();
 }
