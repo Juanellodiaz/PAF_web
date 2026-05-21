@@ -2,3 +2,5 @@
 .vercel
 *.log
 node_modules/
+.env
+.env.local

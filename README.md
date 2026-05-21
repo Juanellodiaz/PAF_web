@@ -44,6 +44,17 @@ admin.html         # Panel administración
 project.html       # Detalle de proyecto
 ```
 
+## Supabase (producción)
+
+1. En Supabase → **SQL Editor**, ejecuta el contenido de `supabase/schema.sql`.
+2. En **Settings → API**, copia:
+   - **Project URL** → `SUPABASE_URL`
+   - **Secret key** (`sb_secret_...`) → `SUPABASE_SERVICE_ROLE_KEY`
+3. Crea `.env` local (ver `.env.example`) o agrega las variables en **Vercel → Environment Variables**.
+4. Redespliega en Vercel.
+
+Sin variables de Supabase, el servidor usa `data/db.json` (solo recomendado en local).
+
 ## Despliegue
 
-El proyecto incluye `vercel.json` para servir API y frontend juntos. Los cambios en `data/db.json` desde el panel admin persisten en entornos con disco escribible (local, VPS). En serverless, considera migrar a una base de datos externa para producción.
+El proyecto usa Vercel: archivos estáticos + API en `api/index.js`. Con Supabase configurado, los cambios del admin persisten en PostgreSQL.
