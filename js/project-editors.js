@@ -2,6 +2,12 @@ let editorConcepts = [];
 let editorDocuments = [];
 let editorEstimations = [];
 
+function isMetaDocument(d) {
+  return (
+    String(d?.id || "").startsWith("_paf_meta_") || d?.title === "_PAF_INTERNAL"
+  );
+}
+
 function newEditorId(prefix) {
   return `${prefix}-${Math.random().toString(16).slice(2, 10)}`;
 }
@@ -81,7 +87,9 @@ function setEditorData(concepts, documents, estimations) {
       collapsed: true,
     };
   });
-  editorDocuments = (documents || []).map((d) => ({ ...d }));
+  editorDocuments = (documents || [])
+    .filter((d) => !isMetaDocument(d))
+    .map((d) => ({ ...d }));
   editorEstimations = (estimations || []).map((e) => ({ ...e }));
 }
 
@@ -121,6 +129,7 @@ function collectEstimations() {
 
 function collectDocuments() {
   return editorDocuments
+    .filter((d) => !isMetaDocument(d))
     .map((d) => ({
       ...d,
       title: d.title.trim(),

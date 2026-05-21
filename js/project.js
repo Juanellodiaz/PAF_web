@@ -377,8 +377,15 @@ async function saveProject() {
     renderEstimationsEditor();
     const img = document.getElementById("zone-3d-img");
     if (img) img.src = project.zone3dImage;
+    const advanceCount = (project.concepts || []).reduce(
+      (s, c) => s + (c.advances?.length || 0),
+      0
+    );
     err.style.color = "var(--accent)";
-    err.textContent = "Cambios guardados correctamente.";
+    err.textContent =
+      advanceCount > 0
+        ? `Guardado (${advanceCount} avance${advanceCount === 1 ? "" : "s"} registrado${advanceCount === 1 ? "" : "s"}).`
+        : "Cambios guardados correctamente.";
     setTimeout(() => {
       err.textContent = "";
       err.style.color = "";

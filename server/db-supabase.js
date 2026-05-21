@@ -1,4 +1,9 @@
 const { createClient } = require("@supabase/supabase-js");
+const {
+  isSchemaColumnError,
+  applyMetaToProject,
+  documentsForSave,
+} = require("./project-meta");
 
 let client;
 
@@ -41,7 +46,7 @@ function mapDocument(row) {
 }
 
 function mapProject(row) {
-  return {
+  const project = {
     id: row.id,
     name: row.name,
     clientId: row.client_id,
@@ -52,10 +57,73 @@ function mapProject(row) {
     concepts: (row.project_concepts || []).map(mapConcept),
     documents: (row.project_documents || []).map(mapDocument),
   };
+  return applyMetaToProject(project);
 }
 
 const PROJECT_SELECT =
   "*, project_concepts(*), project_documents(*)";
+
+function conceptRow(c, includeAdvances) {
+  const row = {
+    id: c.id,
+    project_id: c.projectId,
+    name: c.name,
+    m2: c.m2,
+    unit_price: c.unitPrice,
+    total_price: c.totalPrice,
+    status: c.status,
+  };
+  if (includeAdvances) {
+    row.advances = c.advances || [];
+  }
+  return row;
+}
+
+async function upsertProjectRow(project) {
+  const full = {
+    id: project.id,
+    name: project.name,
+    client_id: project.clientId || null,
+    status: project.status,
+    completion_date: project.completionDate,
+    zone3d_image: project.zone3dImage,
+    estimations: project.estimations || [],
+  };
+  const minimal = {
+    id: full.id,
+    name: full.name,
+    client_id: full.client_id,
+    status: full.status,
+    completion_date: full.completion_date,
+    zone3d_image: full.zone3d_image,
+  };
+
+  let { error } = await getClient().from("projects").upsert(full, {
+    onConflict: "id",
+  });
+  if (error && isSchemaColumnError(error)) {
+    ({ error } = await getClient().from("projects").upsert(minimal, {
+      onConflict: "id",
+    }));
+  }
+  if (error) throw error;
+}
+
+async function insertConcepts(project) {
+  if (!project.concepts?.length) return;
+
+  const rowsFull = project.concepts.map((c) =>
+    conceptRow({ ...c, projectId: project.id }, true)
+  );
+  let { error } = await getClient().from("project_concepts").insert(rowsFull);
+  if (error && isSchemaColumnError(error)) {
+    const rowsMinimal = project.concepts.map((c) =>
+      conceptRow({ ...c, projectId: project.id }, false)
+    );
+    ({ error } = await getClient().from("project_concepts").insert(rowsMinimal));
+  }
+  if (error) throw error;
+}
 
 async function findUser(username, password) {
   const { data, error } = await getClient()
@@ -113,21 +181,7 @@ async function getProject(id) {
 }
 
 async function saveProject(project) {
-  const row = {
-    id: project.id,
-    name: project.name,
-    client_id: project.clientId || null,
-    status: project.status,
-    completion_date: project.completionDate,
-    zone3d_image: project.zone3dImage,
-    estimations: project.estimations || [],
-  };
-
-  const { error: projectError } = await getClient()
-    .from("projects")
-    .upsert(row, { onConflict: "id" });
-
-  if (projectError) throw projectError;
+  await upsertProjectRow(project);
 
   await getClient()
     .from("project_concepts")
@@ -139,25 +193,12 @@ async function saveProject(project) {
     .delete()
     .eq("project_id", project.id);
 
-  if (project.concepts?.length) {
-    const { error } = await getClient().from("project_concepts").insert(
-      project.concepts.map((c) => ({
-        id: c.id,
-        project_id: project.id,
-        name: c.name,
-        m2: c.m2,
-        unit_price: c.unitPrice,
-        total_price: c.totalPrice,
-        status: c.status,
-        advances: c.advances || [],
-      }))
-    );
-    if (error) throw error;
-  }
+  await insertConcepts(project);
 
-  if (project.documents?.length) {
+  const docs = documentsForSave(project);
+  if (docs.length) {
     const { error } = await getClient().from("project_documents").insert(
-      project.documents.map((d) => ({
+      docs.map((d) => ({
         id: d.id,
         project_id: project.id,
         type: d.type,
@@ -171,7 +212,7 @@ async function saveProject(project) {
   const loaded = await getProject(project.id);
   if (loaded) return loaded;
 
-  return {
+  return applyMetaToProject({
     id: project.id,
     name: project.name,
     clientId: project.clientId || null,
@@ -180,8 +221,8 @@ async function saveProject(project) {
     zone3dImage: project.zone3dImage,
     estimations: project.estimations || [],
     concepts: project.concepts || [],
-    documents: project.documents || [],
-  };
+    documents: [],
+  });
 }
 
 async function deleteProject(id) {
