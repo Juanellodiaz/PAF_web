@@ -59,6 +59,28 @@ function estimationDisplayLabel(est, index) {
   return (est.label || "").trim() || `Estimación ${String(index + 1).padStart(2, "0")}`;
 }
 
+function mergeStoredEstimations(projectEstimations, metaEstimations) {
+  const byId = new Map();
+  (projectEstimations || []).forEach((e) => {
+    if (e?.id) byId.set(e.id, { ...e });
+  });
+  (metaEstimations || []).forEach((e) => {
+    if (!e?.id) return;
+    const prev = byId.get(e.id);
+    if (!prev) {
+      byId.set(e.id, { ...e });
+      return;
+    }
+    byId.set(e.id, {
+      ...prev,
+      ...e,
+      paid: !!(prev.paid || e.paid),
+      paidAt: prev.paidAt || e.paidAt || null,
+    });
+  });
+  return Array.from(byId.values());
+}
+
 function mergeEstimationsFromConcepts(stored, concepts) {
   const byId = new Map();
   (stored || []).forEach((e) => {

@@ -25,6 +25,28 @@ function isSchemaColumnError(err) {
   );
 }
 
+function mergeStoredEstimations(projectEstimations, metaEstimations) {
+  const byId = new Map();
+  (projectEstimations || []).forEach((e) => {
+    if (e?.id) byId.set(e.id, { ...e });
+  });
+  (metaEstimations || []).forEach((e) => {
+    if (!e?.id) return;
+    const prev = byId.get(e.id);
+    if (!prev) {
+      byId.set(e.id, { ...e });
+      return;
+    }
+    byId.set(e.id, {
+      ...prev,
+      ...e,
+      paid: !!(prev.paid || e.paid),
+      paidAt: prev.paidAt || e.paidAt || null,
+    });
+  });
+  return Array.from(byId.values());
+}
+
 function mergeEstimationsFromConcepts(stored, concepts) {
   const byId = new Map();
   (stored || []).forEach((e) => {
@@ -106,10 +128,11 @@ function applyMetaToProject(project) {
     advances: advancesByConceptId[c.id] || [],
   }));
 
-  const estimations = mergeEstimationsFromConcepts(
-    meta.estimations || [],
-    concepts
+  const storedEstimations = mergeStoredEstimations(
+    project.estimations,
+    meta.estimations
   );
+  const estimations = mergeEstimationsFromConcepts(storedEstimations, concepts);
 
   return {
     ...project,
@@ -138,4 +161,5 @@ module.exports = {
   buildMetaPayload,
   metaDocumentFromProject,
   mergeEstimationsFromConcepts,
+  mergeStoredEstimations,
 };

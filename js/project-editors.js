@@ -64,6 +64,7 @@ function updateEstimationRowUi(idx) {
   const label = estimationDisplayLabel(est, idx);
   const summary = `${label} · ${lines.length} partida(s) · ${formatMoney(total)} · ${est.paid ? "Pagada" : "Pendiente"}`;
   row.classList.toggle("is-collapsed", !expanded);
+  row.classList.toggle("is-paid", !!est.paid);
   const summaryEl = row.querySelector(".concept-summary");
   if (summaryEl) summaryEl.textContent = summary;
   row.querySelectorAll("[data-est-toggle-label]").forEach((btn) => {
@@ -121,7 +122,8 @@ window.pafEstPaidChange = function (idx, checked) {
   editorEstimations[idx].paidAt = checked
     ? new Date().toISOString().slice(0, 10)
     : null;
-  renderEstimationsEditor();
+  updateEstimationRowUi(idx);
+  if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);
   if (typeof window.refreshProjectMetrics === "function") {
     window.refreshProjectMetrics();
   }
@@ -648,23 +650,8 @@ function buildEstimationsEditorHtml(project) {
     .join("");
 }
 
-function bindEstimationEditorEvents(el) {
-  if (!el || el.dataset.estBound === "1") return;
-  el.dataset.estBound = "1";
-  el.addEventListener("click", (e) => {
-    const toggleBtn = e.target.closest("[data-toggle-est]");
-    if (toggleBtn) {
-      e.preventDefault();
-      toggleEstimationRow(Number(toggleBtn.dataset.toggleEst));
-      return;
-    }
-    const labelBtn = e.target.closest("[data-est-toggle-label]");
-    if (labelBtn) {
-      e.preventDefault();
-      const row = labelBtn.closest("[data-est-index]");
-      if (row) toggleEstimationRow(Number(row.dataset.estIndex));
-    }
-  });
+function bindEstimationEditorEvents(_el) {
+  /* Toggle vía onclick en el HTML (evita doble disparo con delegación) */
 }
 
 function renderEstimationsEditor() {

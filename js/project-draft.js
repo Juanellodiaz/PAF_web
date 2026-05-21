@@ -61,9 +61,7 @@ function mergeProjectWithDraft(project, draft) {
     if (!concepts.find((x) => x.id === c.id)) concepts.push(c);
   });
   const estimations = mergeEstimationsFromConcepts(
-    (draft.estimations?.length || 0) >= (project.estimations?.length || 0)
-      ? draft.estimations
-      : project.estimations,
+    mergeStoredEstimations(project.estimations, draft.estimations),
     concepts
   );
   return { ...project, concepts, estimations };
