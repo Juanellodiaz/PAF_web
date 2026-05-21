@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="PAF — Premium Architectural Finishes. Sistemas de acabado microcemento y superficies de alto nivel en México y Estados Unidos.">
+  <title>PAF — Premium Architectural Finishes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="site-header" id="header">
+    <a href="#inicio" class="logo" aria-label="PAF — Inicio">
+      <img src="PAF_logo.svg" alt="Premium Architectural Finishes" width="180" height="21">
+    </a>
+    <nav class="nav" aria-label="Principal">
+      <ul class="nav-list">
+        <li><a href="#nosotros" data-i18n="nav.about">Nosotros</a></li>
+        <li><a href="#filosofia" data-i18n="nav.philosophy">Filosofía</a></li>
+        <li><a href="#servicios" data-i18n="nav.services">Servicios</a></li>
+        <li><a href="#sistema" data-i18n="nav.approach">Enfoque</a></li>
+        <li><a href="#tecnologia" data-i18n="nav.tech">Tecnología</a></li>
+        <li><a href="#contacto" data-i18n="nav.contact">Contacto</a></li>
+      </ul>
+      <div class="header-actions">
+        <div class="lang-switch" role="group" aria-label="Idioma">
+          <button type="button" class="lang-btn active" data-lang="es" aria-pressed="true">ES</button>
+          <span class="lang-divider" aria-hidden="true"></span>
+          <button type="button" class="lang-btn" data-lang="en" aria-pressed="false">EN</button>
+        </div>
+        <button type="button" class="menu-toggle" aria-expanded="false" aria-controls="mobile-nav" aria-label="Menú">
+          <span></span><span></span>
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <div class="mobile-nav" id="mobile-nav" hidden>
+    <ul>
+      <li><a href="#nosotros" data-i18n="nav.about">Nosotros</a></li>
+      <li><a href="#filosofia" data-i18n="nav.philosophy">Filosofía</a></li>
+      <li><a href="#servicios" data-i18n="nav.services">Servicios</a></li>
+      <li><a href="#sistema" data-i18n="nav.approach">Enfoque</a></li>
+      <li><a href="#tecnologia" data-i18n="nav.tech">Tecnología</a></li>
+      <li><a href="#contacto" data-i18n="nav.contact">Contacto</a></li>
+    </ul>
+  </div>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero" id="inicio">
+      <div class="hero-video-wrap" aria-hidden="true">
+        <video class="hero-video" autoplay muted loop playsinline poster="">
+          <source src="Background_PAF.mp4" type="video/mp4">
+        </video>
+        <div class="hero-overlay"></div>
+      </div>
+      <div class="hero-content">
+        <p class="hero-eyebrow" data-i18n="hero.eyebrow">Acabados arquitectónicos premium</p>
+        <h1 class="hero-title" data-i18n="hero.title">Superficies que definen la arquitectura moderna</h1>
+        <p class="hero-subtitle" data-i18n="hero.subtitle">Microcementos, estucos decorativos y sistemas de acabado de alto rendimiento para proyectos residenciales, comerciales y de hospitalidad en México y Estados Unidos.</p>
+        <div class="hero-cta">
+          <a href="#contacto" class="btn btn-primary" data-i18n="hero.cta">Iniciar proyecto</a>
+          <a href="#servicios" class="btn btn-ghost" data-i18n="hero.explore">Explorar servicios</a>
+        </div>
+      </div>
+      <a href="#nosotros" class="scroll-hint" aria-label="Desplazarse">
+        <span data-i18n="hero.scroll">Descubrir</span>
+        <svg width="12" height="24" viewBox="0 0 12 24" fill="none" aria-hidden="true"><path d="M6 0v22M1 17l5 5 5-5" stroke="currentColor" stroke-width="1"/></svg>
+      </a>
+    </section>
+
+    <!-- About -->
+    <section class="section section-about" id="nosotros">
+      <div class="container">
+        <div class="section-grid">
+          <div class="section-label-col">
+            <span class="section-index">01</span>
+            <h2 class="section-title" data-i18n="about.title">Nosotros</h2>
+          </div>
+          <div class="section-content-col">
+            <p class="lead" data-i18n="about.lead">PAF es una empresa de acabados arquitectónicos premium con base en México, especializada en sistemas de superficie de alto nivel para proyectos residenciales, comerciales, de hospitalidad y arquitectónicos.</p>
+            <p data-i18n="about.p1">Nos enfocamos en la aplicación, desarrollo e integración de sistemas avanzados de acabado — microcementos, estucos decorativos, recubrimientos texturizados, basecoats especializados y selladores protectores — diseñados para elevar la arquitectura contemporánea.</p>
+            <p data-i18n="about.p2">Combinamos rendimiento técnico con sofisticación estética, creando superficies duraderas, minimalistas, atemporales y visualmente refinadas. Trabajamos de la mano con arquitectos, diseñadores, desarrolladores y profesionales de la construcción para entregar soluciones personalizadas adaptadas a la identidad y necesidades funcionales de cada proyecto.</p>
+            <div class="stats">
+              <div class="stat">
+                <span class="stat-value">MX · US</span>
+                <span class="stat-label" data-i18n="about.stat1">Presencia internacional</span>
+              </div>
+              <div class="stat">
+                <span class="stat-value">360°</span>
+                <span class="stat-label" data-i18n="about.stat2">Sistema arquitectónico integral</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Philosophy -->
+    <section class="section section-philosophy" id="filosofia">
+      <div class="container">
+        <div class="section-header-center">
+          <span class="section-index">02</span>
+          <h2 class="section-title" data-i18n="philosophy.title">Filosofía de diseño</h2>
+          <p class="section-desc" data-i18n="philosophy.desc">Cada superficie refleja una visión: material auténtico, precisión técnica y artesanía de nivel premium.</p>
+        </div>
+        <ul class="pillars">
+          <li><span class="pillar-num">01</span><span data-i18n="philosophy.p1">Minimalismo</span></li>
+          <li><span class="pillar-num">02</span><span data-i18n="philosophy.p2">Autenticidad del material</span></li>
+          <li><span class="pillar-num">03</span><span data-i18n="philosophy.p3">Estética arquitectónica moderna</span></li>
+          <li><span class="pillar-num">04</span><span data-i18n="philosophy.p4">Precisión técnica</span></li>
+          <li><span class="pillar-num">05</span><span data-i18n="philosophy.p5">Artesanía premium</span></li>
+          <li><span class="pillar-num">06</span><span data-i18n="philosophy.p6">Rendimiento duradero</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Services -->
+    <section class="section section-services" id="servicios">
+      <div class="container">
+        <div class="section-grid">
+          <div class="section-label-col">
+            <span class="section-index">03</span>
+            <h2 class="section-title" data-i18n="services.title">Servicios</h2>
+            <p class="section-side-desc" data-i18n="services.desc">Soluciones de acabado adaptadas a la escala, el entorno y la identidad de cada proyecto arquitectónico.</p>
+          </div>
+          <div class="section-content-col">
+            <ul class="services-grid">
+              <li data-i18n="services.s1">Sistemas de microcemento</li>
+              <li data-i18n="services.s2">Aplicación de estuco decorativo</li>
+              <li data-i18n="services.s3">Recubrimientos arquitectónicos</li>
+              <li data-i18n="services.s4">Acabados de muro interior y exterior</li>
+              <li data-i18n="services.s5">Sistemas de fachada</li>
+              <li data-i18n="services.s6">Superficies premium de piso y muro</li>
+              <li data-i18n="services.s7">Restauración y refinado de superficies</li>
+              <li data-i18n="services.s8">Impermeabilización y selladores protectores</li>
+              <li data-i18n="services.s9">Desarrollo de acabados a medida</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Approach / System -->
+    <section class="section section-approach" id="sistema">
+      <div class="container">
+        <div class="approach-card">
+          <div class="approach-text">
+            <span class="section-index">04</span>
+            <h2 class="section-title" data-i18n="approach.title">Más que un acabado: un sistema</h2>
+            <p data-i18n="approach.p1">A diferencia de los contratistas tradicionales, PAF aborda los acabados como un sistema arquitectónico completo — integrando preparación de sustrato, capas de terminación, tecnologías de protección y técnicas de aplicación especializadas.</p>
+            <p data-i18n="approach.p2">Este enfoque garantiza rendimiento a largo plazo y resultados visuales de nivel premium en cada superficie.</p>
+          </div>
+          <ol class="approach-steps">
+            <li>
+              <span class="step-label" data-i18n="approach.step1.label">01</span>
+              <span class="step-title" data-i18n="approach.step1.title">Preparación de sustrato</span>
+            </li>
+            <li>
+              <span class="step-label" data-i18n="approach.step2.label">02</span>
+              <span class="step-title" data-i18n="approach.step2.title">Capas de acabado</span>
+            </li>
+            <li>
+              <span class="step-label" data-i18n="approach.step3.label">03</span>
+              <span class="step-title" data-i18n="approach.step3.title">Protección y sellado</span>
+            </li>
+            <li>
+              <span class="step-label" data-i18n="approach.step4.label">04</span>
+              <span class="step-title" data-i18n="approach.step4.title">Aplicación especializada</span>
+            </li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- Technology -->
+    <section class="section section-tech" id="tecnologia">
+      <div class="container">
+        <div class="tech-grid">
+          <div class="tech-content">
+            <span class="section-index">05</span>
+            <h2 class="section-title" data-i18n="tech.title">Tecnología avanzada</h2>
+            <p class="lead" data-i18n="tech.lead">Impulsados por tecnologías de materiales desarrolladas junto a Productos S-35, ofrecemos soluciones innovadoras con adhesión superior, durabilidad, propiedades hidrofóbicas y texturas refinadas.</p>
+            <ul class="tech-features">
+              <li data-i18n="tech.f1">Adhesión mejorada</li>
+              <li data-i18n="tech.f2">Durabilidad extendida</li>
+              <li data-i18n="tech.f3">Propiedades hidrofóbicas</li>
+              <li data-i18n="tech.f4">Texturas de precisión</li>
+            </ul>
+          </div>
+          <div class="tech-visual">
+            <div class="tech-ring" aria-hidden="true">
+              <span>PAF</span>
+              <span class="tech-ring-sub">× S-35</span>
+            </div>
+            <p class="tech-tagline" data-i18n="tech.tagline">Nueva generación de acabados arquitectónicos</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA / Contact -->
+    <section class="section section-contact" id="contacto">
+      <div class="container">
+        <div class="contact-block">
+          <span class="section-index">06</span>
+          <h2 class="contact-title" data-i18n="contact.title">Construyamos la superficie de tu próximo proyecto</h2>
+          <p class="contact-desc" data-i18n="contact.desc">Donde los materiales de construcción, el diseño y la artesanía convergen en una experiencia premium.</p>
+          <div class="contact-actions">
+            <a href="mailto:contacto@paf.mx" class="btn btn-primary" data-i18n="contact.email">contacto@paf.mx</a>
+            <span class="contact-regions" data-i18n="contact.regions">México · Estados Unidos</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <img src="PAF_logo.svg" alt="" class="footer-logo" width="140" height="16" aria-hidden="true">
+      <p class="footer-copy" data-i18n="footer.copy">© 2026 PAF — Premium Architectural Finishes. Todos los derechos reservados.</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
