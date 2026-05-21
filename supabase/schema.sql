@@ -14,7 +14,8 @@ create table if not exists projects (
   client_id text references users (id) on delete set null,
   status text not null default 'pending',
   completion_date date not null,
-  zone3d_image text default '/assets/zone-3d-placeholder.svg'
+  zone3d_image text default '/assets/zone-3d-placeholder.svg',
+  estimations jsonb not null default '[]'::jsonb
 );
 
 create table if not exists project_concepts (
@@ -24,7 +25,8 @@ create table if not exists project_concepts (
   m2 numeric not null,
   unit_price numeric not null,
   total_price numeric not null,
-  status text not null default 'pending'
+  status text not null default 'pending',
+  advances jsonb not null default '[]'::jsonb
 );
 
 create table if not exists project_documents (
@@ -58,6 +60,10 @@ insert into project_documents (id, project_id, type, title, content) values
   ('d2', 'proj-polanco-2026', 'notification', 'Visita técnica programada',
    'Inspección de avance en baños principales — 28 de junio, 10:00 h.')
 on conflict (id) do nothing;
+
+-- Migración (tablas ya existentes):
+-- alter table projects add column if not exists estimations jsonb not null default '[]'::jsonb;
+-- alter table project_concepts add column if not exists advances jsonb not null default '[]'::jsonb;
 
 -- Migración (tablas ya existentes): permitir tipo "image" en documentos
 -- alter table project_documents drop constraint if exists project_documents_type_check;

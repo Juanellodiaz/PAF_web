@@ -1,5 +1,6 @@
 let projectData = null;
 let isAdmin = false;
+let clientDisplayName = "";
 
 (async () => {
   const user = await requireAuth();
@@ -25,12 +26,35 @@ let isAdmin = false;
   const { project: p } = await api(`/projects/${id}`);
   projectData = p;
 
+  if (user.role === "client") {
+    clientDisplayName = user.name || "";
+  } else if (p.clientId) {
+    try {
+      const { users } = await api("/users");
+      const client = users.find((u) => u.id === p.clientId);
+      clientDisplayName = client?.name || "";
+    } catch {
+      clientDisplayName = "";
+    }
+  }
+
   if (isAdmin) {
     window.refreshProjectMetrics = refreshMetricsFromEditors;
+    window.exportEstimation = (est) => {
+      downloadEstimation(
+        { ...projectData, concepts: collectConcepts(), estimations: collectEstimations() },
+        est,
+        collectConcepts(),
+        clientDisplayName
+      );
+    };
     renderAdminView(p);
     bindEditorActions();
     document.getElementById("save-project-btn").addEventListener("click", saveProject);
   } else {
+    window.exportEstimation = (est) => {
+      downloadEstimation(projectData, est, projectData.concepts || [], clientDisplayName);
+    };
     renderClientView(p);
   }
 })();
@@ -43,15 +67,17 @@ function refreshMetricsFromEditors() {
   const totalEl = document.getElementById("metric-total");
   if (m2El) m2El.textContent = totalM2;
   if (totalEl) totalEl.textContent = formatMoney(totalMoney);
+  updateProgressChart();
 }
 
 function renderClientView(p) {
   const payload = projectPayload(p);
   document.getElementById("project-root").innerHTML = buildReadonlyHtml(payload);
+  bindClientEstimationActions(p);
 }
 
 function renderAdminView(p) {
-  setEditorData(p.concepts, p.documents);
+  setEditorData(p.concepts, p.documents, p.estimations);
   const payload = projectPayload(p);
 
   document.getElementById("project-root").innerHTML = `
@@ -76,6 +102,15 @@ function renderAdminView(p) {
       </div>
       <div id="concepts-editor" class="concepts-editor"></div>
       <p class="concepts-total-preview" id="concepts-total-preview">Total: ${formatMoney(payload.conceptsTotal)} · ${payload.m2Total} m²</p>
+    </section>
+
+    <section class="admin-section project-edit-section" style="margin-top:2rem">
+      <div class="admin-section-head">
+        <p class="admin-section-label">Estimaciones</p>
+        <button type="button" class="btn btn-ghost btn-sm" id="add-estimation">+ Estimación</button>
+      </div>
+      <p class="portal-user" style="margin:0 0 1rem">Los avances de cada concepto se asignan a una estimación. Descarga el PDF/HTML para cobro semanal y marca como pagada.</p>
+      <div id="estimations-editor" class="estimations-editor"></div>
     </section>
 
     <div class="dashboard-grid" style="margin-top:2rem">
@@ -112,8 +147,10 @@ function renderAdminView(p) {
   `;
 
   renderConceptsEditor();
+  renderEstimationsEditor();
   renderDocumentsEditor();
   bindZone3dUpload();
+  updateProgressChart();
 }
 
 function bindZone3dUpload() {
@@ -145,8 +182,23 @@ function bindZone3dUpload() {
   });
 }
 
+function progressRingHtml(p) {
+  const prog = calcProjectProgress(p.concepts || []);
+  return `
+    <div class="metric-box metric-box-progress">
+      <div class="progress-ring-wrap">
+        <div class="progress-ring" id="progress-ring" style="--pct: ${prog.percent}">
+          <span class="progress-ring-value" id="progress-percent">${prog.percent}%</span>
+        </div>
+      </div>
+      <span class="metric-label">Avance del proyecto</span>
+      <span class="metric-sublabel" id="progress-m2-sub">${prog.doneM2} / ${prog.totalM2} m²</span>
+    </div>`;
+}
+
 function metricsHtml(p) {
   return `
+    ${progressRingHtml(p)}
     <div class="metric-box">
       <span class="metric-value accent">${p.daysRemaining}</span>
       <span class="metric-label">Días restantes</span>
@@ -171,7 +223,15 @@ function projectPayload(project) {
   );
   const conceptsTotal = concepts.reduce((s, c) => s + c.totalPrice, 0);
   const m2Total = concepts.reduce((s, c) => s + (Number(c.m2) || 0), 0);
-  return { ...project, daysRemaining: daysLeft, conceptsTotal, m2Total };
+  const progress = calcProjectProgress(concepts);
+  return {
+    ...project,
+    daysRemaining: daysLeft,
+    conceptsTotal,
+    m2Total,
+    progressPercent: progress.percent,
+    progressDoneM2: progress.doneM2,
+  };
 }
 
 function buildReadonlyHtml(p) {
@@ -186,24 +246,32 @@ function buildReadonlyHtml(p) {
         <p class="panel-label">Conceptos a trabajar</p>
         <table class="concepts-table">
           <thead>
-            <tr><th>Concepto</th><th>m²</th><th>Precio unit.</th><th>Total</th><th>Estado</th></tr>
+            <tr><th>Concepto</th><th>m²</th><th>Avance</th><th>Precio unit.</th><th>Total</th><th>Estado</th></tr>
           </thead>
           <tbody>
             ${(p.concepts || [])
-              .map(
-                (c) => `
+              .map((c) => {
+                const done = conceptAdvanceM2(c);
+                const total = Number(c.m2) || 0;
+                const pct = total ? Math.round((done / total) * 100) : 0;
+                return `
               <tr>
                 <td>${escapeHtml(c.name)}</td>
                 <td>${c.m2}</td>
+                <td>${done} / ${total} m² (${pct}%)</td>
                 <td>${formatMoney(c.unitPrice)}</td>
                 <td>${formatMoney(c.totalPrice)}</td>
                 <td><span class="concept-status ${c.status}">${statusLabel(c.status)}</span></td>
-              </tr>`
-              )
+              </tr>`;
+              })
               .join("")}
           </tbody>
         </table>
         ${!(p.concepts && p.concepts.length) ? '<p class="portal-user" style="margin-top:1rem">Sin conceptos registrados aún.</p>' : ""}
+      </div>
+      <div class="dashboard-panel full">
+        <p class="panel-label">Estimaciones</p>
+        ${estimationsReadonlyHtml(p, false)}
       </div>
       <div class="dashboard-panel">
         <p class="panel-label">Zona de trabajo — Vista 3D</p>
@@ -215,6 +283,48 @@ function buildReadonlyHtml(p) {
       </div>
     </div>
   `;
+}
+
+function estimationsReadonlyHtml(p, allowPaidToggle) {
+  const list = p.estimations || [];
+  if (!list.length) {
+    return '<p class="portal-user">Sin estimaciones generadas.</p>';
+  }
+  return `<div class="estimations-readonly">${list
+    .map((est, idx) => {
+      const lines = getEstimationLines(est.id, p.concepts || []);
+      const total = lines.reduce((s, l) => s + l.amount, 0);
+      const label = estimationDisplayLabel(est, idx);
+      return `
+      <div class="estimation-card ${est.paid ? "is-paid" : ""}">
+        <div class="estimation-card-head">
+          <div>
+            <strong>${escapeHtml(label)}</strong>
+            <p class="estimation-meta">${lines.length} partida(s) · ${formatDate(est.date)} · ${est.paid ? "Pagada" : "Pendiente"}</p>
+          </div>
+          <span class="estimation-total">${formatMoney(total)}</span>
+        </div>
+        <div class="estimation-card-actions">
+          ${
+            allowPaidToggle
+              ? `<label class="estimation-paid"><input type="checkbox" data-client-est-paid="${idx}" ${est.paid ? "checked" : ""}> Pagada</label>`
+              : `<span class="estimation-status-badge ${est.paid ? "paid" : ""}">${est.paid ? "Pagada" : "Pendiente de pago"}</span>`
+          }
+          <button type="button" class="btn btn-ghost btn-sm" data-client-download-est="${idx}">Descargar</button>
+        </div>
+      </div>`;
+    })
+    .join("")}</div>`;
+}
+
+function bindClientEstimationActions(p) {
+  document.querySelectorAll("[data-client-download-est]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const idx = Number(btn.dataset.clientDownloadEst);
+      const est = (p.estimations || [])[idx];
+      if (est) downloadEstimation(p, est, p.concepts || [], clientDisplayName);
+    });
+  });
 }
 
 function documentsReadonlyHtml(docs) {
@@ -252,6 +362,7 @@ async function saveProject() {
       zoneInput?.value.trim() || projectData.zone3dImage,
     concepts: collectConcepts(),
     documents: collectDocuments(),
+    estimations: collectEstimations(),
   };
 
   try {
@@ -260,8 +371,10 @@ async function saveProject() {
       body: JSON.stringify(body),
     });
     projectData = project;
+    setEditorData(project.concepts, project.documents, project.estimations);
     const payload = projectPayload(project);
     document.getElementById("metrics-row").innerHTML = metricsHtml(payload);
+    renderEstimationsEditor();
     const img = document.getElementById("zone-3d-img");
     if (img) img.src = project.zone3dImage;
     err.style.color = "var(--accent)";

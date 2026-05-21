@@ -1,5 +1,6 @@
 let editorConcepts = [];
 let editorDocuments = [];
+let editorEstimations = [];
 
 function newEditorId(prefix) {
   return `${prefix}-${Math.random().toString(16).slice(2, 10)}`;
@@ -13,7 +14,30 @@ function newConcept() {
     unitPrice: 0,
     totalPrice: 0,
     status: "pending",
+    advances: [],
     collapsed: false,
+  };
+}
+
+function newEstimation() {
+  const n = editorEstimations.length + 1;
+  return {
+    id: newEditorId("est"),
+    label: `Estimación ${String(n).padStart(2, "0")}`,
+    date: new Date().toISOString().slice(0, 10),
+    paid: false,
+    paidAt: null,
+    notes: "",
+  };
+}
+
+function newAdvance(estimationId) {
+  return {
+    id: newEditorId("adv"),
+    m2: 0,
+    date: new Date().toISOString().slice(0, 10),
+    estimationId,
+    note: "",
   };
 }
 
@@ -48,12 +72,17 @@ function syncConceptTotals() {
   });
 }
 
-function setEditorData(concepts, documents) {
+function setEditorData(concepts, documents, estimations) {
   editorConcepts = (concepts || []).map((c) => {
     const { collapsed: _ui, ...rest } = c;
-    return { ...rest, collapsed: true };
+    return {
+      ...rest,
+      advances: parseAdvances(c),
+      collapsed: true,
+    };
   });
   editorDocuments = (documents || []).map((d) => ({ ...d }));
+  editorEstimations = (estimations || []).map((e) => ({ ...e }));
 }
 
 function collectConcepts() {
@@ -67,9 +96,27 @@ function collectConcepts() {
         m2: Number(c.m2) || 0,
         unitPrice: Number(c.unitPrice) || 0,
         totalPrice: calcConceptTotal(c),
+        advances: parseAdvances(c).map((a) => ({
+          id: a.id,
+          m2: Number(a.m2) || 0,
+          date: a.date || "",
+          estimationId: a.estimationId || "",
+          note: (a.note || "").trim(),
+        })),
       };
     })
     .filter((c) => c.name);
+}
+
+function collectEstimations() {
+  return editorEstimations.map((e) => ({
+    id: e.id,
+    label: (e.label || "").trim(),
+    date: e.date || new Date().toISOString().slice(0, 10),
+    paid: !!e.paid,
+    paidAt: e.paid ? e.paidAt || new Date().toISOString().slice(0, 10) : null,
+    notes: (e.notes || "").trim(),
+  }));
 }
 
 function collectDocuments() {
@@ -120,17 +167,97 @@ function renderConceptsEditor() {
     btn.addEventListener("click", () => {
       editorConcepts.splice(Number(btn.dataset.removeConcept), 1);
       renderConceptsEditor();
+      renderEstimationsEditor();
+    });
+  });
+  el.querySelectorAll("[data-add-advance]").forEach((btn) => {
+    btn.addEventListener("click", () => addConceptAdvance(Number(btn.dataset.addAdvance)));
+  });
+  el.querySelectorAll("[data-remove-advance]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const ci = Number(btn.dataset.removeAdvance);
+      const ai = Number(btn.dataset.advanceIndex);
+      editorConcepts[ci].advances = parseAdvances(editorConcepts[ci]).filter(
+        (_, j) => j !== ai
+      );
+      renderConceptsEditor();
+      renderEstimationsEditor();
     });
   });
   updateConceptsPreview();
+  updateProgressChart();
 }
 
 function conceptSummary(c) {
   const name = c.name.trim() || "Sin nombre";
   const m2 = Number(c.m2) || 0;
+  const done = conceptAdvanceM2(c);
+  const pct = m2 ? Math.round((done / m2) * 100) : 0;
   const total = formatMoney(calcConceptTotal(c));
   const st = statusLabel(c.status);
-  return `${name} · ${m2} m² · ${total} · ${st}`;
+  return `${name} · ${done}/${m2} m² (${pct}%) · ${total} · ${st}`;
+}
+
+function estimationSelectOptions(selectedId) {
+  const opts = editorEstimations
+    .map((e, idx) => {
+      const label = estimationDisplayLabel(e, idx);
+      return `<option value="${escapeAttr(e.id)}" ${e.id === selectedId ? "selected" : ""}>${escapeHtml(label)}</option>`;
+    })
+    .join("");
+  return `${opts}<option value="__new__">+ Crear nueva estimación</option>`;
+}
+
+function conceptAdvancesBlock(c, i) {
+  const advances = parseAdvances(c);
+  const pending = conceptAdvancePendingM2(c);
+  const list =
+    advances.length === 0
+      ? '<p class="admin-empty admin-empty-inline">Sin avances registrados.</p>'
+      : `<ul class="advance-list">${advances
+          .map((a, ai) => {
+            const estIdx = editorEstimations.findIndex((e) => e.id === a.estimationId);
+            const estLabel =
+              estIdx >= 0
+                ? estimationDisplayLabel(editorEstimations[estIdx], estIdx)
+                : "Sin estimación";
+            const amount = Math.round((Number(a.m2) || 0) * (Number(c.unitPrice) || 0));
+            return `<li class="advance-item">
+              <span>${Number(a.m2) || 0} m² · ${formatMoney(amount)} · ${escapeHtml(estLabel)}${a.date ? ` · ${formatDate(a.date)}` : ""}</span>
+              <button type="button" class="btn-remove btn-remove-sm" data-remove-advance="${i}" data-advance-index="${ai}" aria-label="Quitar avance">×</button>
+            </li>`;
+          })
+          .join("")}</ul>`;
+
+  const defaultEst =
+    editorEstimations.length > 0
+      ? editorEstimations[editorEstimations.length - 1].id
+      : "__new__";
+
+  return `
+    <div class="concept-advances" data-concept-advances="${i}">
+      <p class="subsection-label">Avances de obra</p>
+      ${list}
+      <p class="advance-pending">Pendiente por avanzar: <strong>${pending}</strong> m²</p>
+      <div class="advance-form form-row form-row-3">
+        <div class="form-group">
+          <label>m² de avance</label>
+          <input type="number" min="0" step="0.01" data-advance-m2="${i}" placeholder="Ej. 200">
+        </div>
+        <div class="form-group">
+          <label>Fecha</label>
+          <input type="date" data-advance-date="${i}" value="${new Date().toISOString().slice(0, 10)}">
+        </div>
+        <div class="form-group">
+          <label>Estimación</label>
+          <select data-advance-estimation="${i}">
+            ${estimationSelectOptions(defaultEst)}
+          </select>
+        </div>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" data-add-advance="${i}">+ Agregar avance</button>
+      <p class="form-error" data-advance-error="${i}"></p>
+    </div>`;
 }
 
 function conceptRowHtml(c, i) {
@@ -172,6 +299,7 @@ function conceptRowHtml(c, i) {
             </select>
           </div>
         </div>
+        ${conceptAdvancesBlock(c, i)}
       </div>
     </div>
   `;
@@ -214,6 +342,152 @@ function onConceptFieldChange(e) {
   if (totalEl) totalEl.value = formatMoney(calcConceptTotal(editorConcepts[i]));
   updateConceptSummaryLine(i);
   updateConceptsPreview();
+  updateProgressChart();
+}
+
+function resolveEstimationId(selectValue) {
+  if (selectValue !== "__new__") return selectValue;
+  const est = newEstimation();
+  editorEstimations.push(est);
+  renderEstimationsEditor();
+  return est.id;
+}
+
+function addConceptAdvance(conceptIndex) {
+  const c = editorConcepts[conceptIndex];
+  const errEl = document.querySelector(`[data-advance-error="${conceptIndex}"]`);
+  if (errEl) errEl.textContent = "";
+
+  const m2Input = document.querySelector(`[data-advance-m2="${conceptIndex}"]`);
+  const dateInput = document.querySelector(`[data-advance-date="${conceptIndex}"]`);
+  const estSelect = document.querySelector(
+    `[data-advance-estimation="${conceptIndex}"]`
+  );
+
+  const m2 = Number(m2Input?.value) || 0;
+  const date = dateInput?.value || new Date().toISOString().slice(0, 10);
+  const pending = conceptAdvancePendingM2(c);
+
+  if (m2 <= 0) {
+    if (errEl) errEl.textContent = "Indica los m² del avance.";
+    return;
+  }
+  if (m2 > pending + 0.001) {
+    if (errEl) {
+      errEl.textContent = `Solo quedan ${pending} m² por registrar en este concepto.`;
+    }
+    return;
+  }
+
+  const estimationId = resolveEstimationId(estSelect?.value || "__new__");
+  if (!estimationId) {
+    if (errEl) errEl.textContent = "Selecciona o crea una estimación.";
+    return;
+  }
+
+  if (!c.advances) c.advances = [];
+  c.advances.push(newAdvance(estimationId));
+  const adv = c.advances[c.advances.length - 1];
+  adv.m2 = m2;
+  adv.date = date;
+
+  if (m2Input) m2Input.value = "";
+  renderConceptsEditor();
+  renderEstimationsEditor();
+}
+
+function updateProgressChart() {
+  const prog = calcProjectProgress(editorConcepts);
+  const ring = document.getElementById("progress-ring");
+  const val = document.getElementById("progress-percent");
+  const sub = document.getElementById("progress-m2-sub");
+  if (ring) ring.style.setProperty("--pct", String(prog.percent));
+  if (val) val.textContent = `${prog.percent}%`;
+  if (sub) sub.textContent = `${prog.doneM2} / ${prog.totalM2} m²`;
+  if (typeof window.refreshProjectMetrics === "function") {
+    window.refreshProjectMetrics();
+  }
+}
+
+function renderEstimationsEditor() {
+  const el = document.getElementById("estimations-editor");
+  if (!el) return;
+
+  if (!editorEstimations.length) {
+    el.innerHTML =
+      '<p class="admin-empty">Sin estimaciones. Agrega un avance en un concepto o crea una estimación nueva.</p>';
+    return;
+  }
+
+  el.innerHTML = editorEstimations
+    .map((est, idx) => {
+      const lines = getEstimationLines(est.id, editorConcepts);
+      const total = lines.reduce((s, l) => s + l.amount, 0);
+      const label = estimationDisplayLabel(est, idx);
+      return `
+      <div class="estimation-card ${est.paid ? "is-paid" : ""}" data-est-index="${idx}">
+        <div class="estimation-card-head">
+          <div>
+            <input type="text" class="estimation-label-input" data-est-field="label" data-est-index="${idx}" value="${escapeAttr(est.label || label)}" placeholder="${escapeAttr(label)}">
+            <p class="estimation-meta">${lines.length} partida(s) · ${formatDate(est.date)}</p>
+          </div>
+          <span class="estimation-total">${formatMoney(total)}</span>
+        </div>
+        <div class="estimation-card-actions">
+          <label class="estimation-paid">
+            <input type="checkbox" data-est-paid="${idx}" ${est.paid ? "checked" : ""}>
+            Pagada
+          </label>
+          <input type="date" class="estimation-date-input" data-est-field="date" data-est-index="${idx}" value="${escapeAttr(est.date || "")}">
+          <button type="button" class="btn btn-ghost btn-sm" data-download-est="${idx}">Descargar</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-remove-est="${idx}">Eliminar</button>
+        </div>
+      </div>`;
+    })
+    .join("");
+
+  el.querySelectorAll("[data-est-field]").forEach((input) => {
+    input.addEventListener("change", (e) => {
+      const idx = Number(e.target.dataset.estIndex);
+      editorEstimations[idx][e.target.dataset.estField] = e.target.value;
+      if (e.target.dataset.estField === "date") renderEstimationsEditor();
+    });
+  });
+  el.querySelectorAll("[data-est-paid]").forEach((input) => {
+    input.addEventListener("change", (e) => {
+      const idx = Number(e.target.dataset.estPaid);
+      editorEstimations[idx].paid = e.target.checked;
+      editorEstimations[idx].paidAt = e.target.checked
+        ? new Date().toISOString().slice(0, 10)
+        : null;
+      renderEstimationsEditor();
+    });
+  });
+  el.querySelectorAll("[data-download-est]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const idx = Number(btn.dataset.downloadEst);
+      if (typeof window.exportEstimation === "function") {
+        window.exportEstimation(editorEstimations[idx]);
+      }
+    });
+  });
+  el.querySelectorAll("[data-remove-est]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const idx = Number(btn.dataset.removeEst);
+      const estId = editorEstimations[idx]?.id;
+      if (!confirm("¿Eliminar esta estimación? Los avances quedarán sin estimación asignada.")) {
+        return;
+      }
+      editorEstimations.splice(idx, 1);
+      editorConcepts.forEach((c) => {
+        c.advances = parseAdvances(c).map((a) =>
+          a.estimationId === estId ? { ...a, estimationId: "" } : a
+        );
+      });
+      renderConceptsEditor();
+      renderEstimationsEditor();
+    });
+  });
 }
 
 function documentSummary(d) {
@@ -420,5 +694,9 @@ function bindEditorActions() {
   });
   document.getElementById("expand-all-docs")?.addEventListener("click", () => {
     setAllDocumentsCollapsed(false);
+  });
+  document.getElementById("add-estimation")?.addEventListener("click", () => {
+    editorEstimations.push(newEstimation());
+    renderEstimationsEditor();
   });
 }

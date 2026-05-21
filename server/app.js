@@ -50,14 +50,31 @@ function projectPayload(project) {
   const daysLeft = Math.max(0, Math.ceil(msLeft / (1000 * 60 * 60 * 24)));
   const conceptsTotal = concepts.reduce((s, c) => s + c.totalPrice, 0);
   const m2Total = concepts.reduce((s, c) => s + c.m2, 0);
+  const progress = calcProjectProgress(concepts);
   return {
     ...project,
     concepts,
     documents: project.documents || [],
+    estimations: project.estimations || [],
     daysRemaining: daysLeft,
     conceptsTotal,
     m2Total,
+    progressPercent: progress.percent,
+    progressDoneM2: progress.doneM2,
   };
+}
+
+function calcProjectProgress(concepts) {
+  const list = concepts || [];
+  const totalM2 = list.reduce((s, c) => s + (Number(c.m2) || 0), 0);
+  const doneM2 = list.reduce((s, c) => {
+    const adv = Array.isArray(c.advances) ? c.advances : [];
+    return s + adv.reduce((a, v) => a + (Number(v.m2) || 0), 0);
+  }, 0);
+  const percent = totalM2
+    ? Math.min(100, Math.round((doneM2 / totalM2) * 1000) / 10)
+    : 0;
+  return { totalM2, doneM2, percent };
 }
 
 function handleError(res, err) {
@@ -134,6 +151,7 @@ app.post("/api/projects", requireAuth, requireAdmin, async (req, res) => {
       zone3dImage: body.zone3dImage || "/assets/zone-3d-placeholder.svg",
       concepts: body.concepts || [],
       documents: body.documents || [],
+      estimations: body.estimations || [],
     };
     const saved = await db.saveProject(project);
     res.status(201).json({ project: projectPayload(saved) });
@@ -153,6 +171,7 @@ app.put("/api/projects/:id", requireAuth, requireAdmin, async (req, res) => {
       id: existing.id,
       concepts: body.concepts ?? existing.concepts,
       documents: body.documents ?? existing.documents,
+      estimations: body.estimations ?? existing.estimations,
     };
     const saved = await db.saveProject(project);
     res.json({ project: projectPayload(saved) });

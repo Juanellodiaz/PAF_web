@@ -27,6 +27,7 @@ function mapConcept(row) {
     unitPrice: Number(row.unit_price),
     totalPrice: Number(row.total_price),
     status: row.status,
+    advances: row.advances || [],
   };
 }
 
@@ -47,6 +48,7 @@ function mapProject(row) {
     status: row.status,
     completionDate: row.completion_date,
     zone3dImage: row.zone3d_image,
+    estimations: row.estimations || [],
     concepts: (row.project_concepts || []).map(mapConcept),
     documents: (row.project_documents || []).map(mapDocument),
   };
@@ -118,6 +120,7 @@ async function saveProject(project) {
     status: project.status,
     completion_date: project.completionDate,
     zone3d_image: project.zone3dImage,
+    estimations: project.estimations || [],
   };
 
   const { error: projectError } = await getClient()
@@ -146,6 +149,7 @@ async function saveProject(project) {
         unit_price: c.unitPrice,
         total_price: c.totalPrice,
         status: c.status,
+        advances: c.advances || [],
       }))
     );
     if (error) throw error;
@@ -174,6 +178,7 @@ async function saveProject(project) {
     status: project.status,
     completionDate: project.completionDate,
     zone3dImage: project.zone3dImage,
+    estimations: project.estimations || [],
     concepts: project.concepts || [],
     documents: project.documents || [],
   };

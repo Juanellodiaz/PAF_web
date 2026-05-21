@@ -290,7 +290,7 @@ body.page-enter {
 /* Metrics */
 .metrics-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
 }
 
@@ -298,6 +298,57 @@ body.page-enter {
   padding: 1.25rem;
   border: 1px solid var(--border);
   text-align: center;
+}
+
+.metric-box-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.metric-sublabel {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-top: 0.25rem;
+}
+
+.progress-ring-wrap {
+  margin-bottom: 0.5rem;
+}
+
+.progress-ring {
+  --pct: 0;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--accent) 0 calc(var(--pct) * 1%),
+    rgba(255, 255, 255, 0.08) 0
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.progress-ring::before {
+  content: "";
+  position: absolute;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--bg, #0a0a0a);
+}
+
+.progress-ring-value {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--accent);
 }
 
 .metric-value {
@@ -511,6 +562,10 @@ body.page-enter {
   grid-template-columns: repeat(4, 1fr);
 }
 
+.form-row-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
 .concepts-editor,
 .documents-editor {
   display: flex;
@@ -591,7 +646,7 @@ body.page-enter {
 .concept-row-body {
   overflow: hidden;
   transition: max-height 0.35s var(--ease), opacity 0.25s;
-  max-height: 400px;
+  max-height: 900px;
   opacity: 1;
 }
 
@@ -663,6 +718,144 @@ body.page-enter {
 .doc-item-image .doc-image-preview {
   margin-top: 0.5rem;
   max-height: 280px;
+}
+
+.subsection-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 1rem 0 0.5rem;
+}
+
+.admin-empty-inline {
+  margin: 0.25rem 0 0.75rem;
+  font-size: 0.8rem;
+}
+
+.concept-advances {
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.advance-list {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.advance-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding: 0.35rem 0.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+}
+
+.advance-pending {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin-bottom: 0.75rem;
+}
+
+.btn-remove-sm {
+  font-size: 1rem;
+  padding: 0 0.35rem;
+}
+
+.estimations-editor,
+.estimations-readonly {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.estimation-card {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.estimation-card.is-paid {
+  border-left: 2px solid var(--accent);
+  opacity: 0.85;
+}
+
+.estimation-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.estimation-label-input {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  width: 100%;
+  max-width: 280px;
+  padding: 0.15rem 0;
+}
+
+.estimation-meta {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-top: 0.35rem;
+}
+
+.estimation-total {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.estimation-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.estimation-paid {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.estimation-date-input {
+  font-size: 0.75rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 0.25rem 0.4rem;
+}
+
+.estimation-status-badge {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.estimation-status-badge.paid {
+  color: var(--accent);
 }
 
 .btn-remove {
@@ -753,6 +946,16 @@ body.page-enter {
     grid-template-columns: 1fr;
   }
 
+  .metrics-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .form-row-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
   .metrics-row {
     grid-template-columns: 1fr;
   }

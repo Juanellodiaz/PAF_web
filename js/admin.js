@@ -80,6 +80,7 @@ async function onSubmit(e) {
       document.getElementById("zone3dImage").value.trim() ||
       "/assets/zone-3d-placeholder.svg",
     concepts: [],
+    estimations: [],
     documents: [],
   };
 
