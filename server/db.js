@@ -1,6 +1,14 @@
+const DEFAULT_SUPABASE_URL =
+  "https://wxubwrjdtylnpvjtogjp.supabase.co";
+
+function getSupabaseUrl() {
+  return process.env.SUPABASE_URL || DEFAULT_SUPABASE_URL;
+}
+
 function useSupabase() {
   return !!(
-    process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+    process.env.SUPABASE_SERVICE_ROLE_KEY &&
+    (process.env.SUPABASE_URL || process.env.VERCEL)
   );
 }
 

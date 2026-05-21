@@ -187,6 +187,14 @@ app.delete("/api/projects/:id", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+app.get("/api/health", (_req, res) => {
+  res.json({
+    useSupabase: db.useSupabase(),
+    hasUrl: !!process.env.SUPABASE_URL,
+    hasKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+});
+
 app.get("/api/users", requireAuth, requireAdmin, async (req, res) => {
   try {
     const users = (await db.listUsers()).filter((u) => u.role === "client");

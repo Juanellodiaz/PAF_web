@@ -2,12 +2,15 @@ const { createClient } = require("@supabase/supabase-js");
 
 let client;
 
+const DEFAULT_SUPABASE_URL =
+  "https://wxubwrjdtylnpvjtogjp.supabase.co";
+
 function getClient() {
   if (!client) {
-    const url = process.env.SUPABASE_URL;
+    const url = process.env.SUPABASE_URL || DEFAULT_SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!url || !key) {
-      throw new Error("Faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY");
+    if (!key) {
+      throw new Error("Falta SUPABASE_SERVICE_ROLE_KEY");
     }
     client = createClient(url, key, {
       auth: { persistSession: false, autoRefreshToken: false },
