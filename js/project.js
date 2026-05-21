@@ -2,6 +2,18 @@ let projectData = null;
 let isAdmin = false;
 let clientDisplayName = "";
 let savedProjectSnapshot = null;
+let projectDirtyFlag = false;
+
+function normalizeEstimationForSnapshot(e) {
+  return {
+    id: e.id,
+    label: (e.label || "").trim(),
+    date: e.date || "",
+    paid: !!e.paid,
+    paidAt: e.paid ? e.paidAt || null : null,
+    notes: (e.notes || "").trim(),
+  };
+}
 
 function projectStateSnapshot() {
   if (!projectData || typeof collectConcepts !== "function") return "";
@@ -10,11 +22,12 @@ function projectStateSnapshot() {
     zone3dImage: body.zone3dImage || "",
     concepts: body.concepts || [],
     documents: body.documents || [],
-    estimations: body.estimations || [],
+    estimations: (body.estimations || []).map(normalizeEstimationForSnapshot),
   });
 }
 
 function isProjectDirty() {
+  if (projectDirtyFlag) return true;
   if (savedProjectSnapshot === null) return false;
   return projectStateSnapshot() !== savedProjectSnapshot;
 }
@@ -31,6 +44,7 @@ function updateSaveButtonState() {
 }
 
 function markProjectDirty() {
+  projectDirtyFlag = true;
   if (window.__pafProjectId && typeof saveEditorDraft === "function") {
     saveEditorDraft(window.__pafProjectId);
   }
@@ -38,6 +52,7 @@ function markProjectDirty() {
 }
 
 function markProjectSaved() {
+  projectDirtyFlag = false;
   savedProjectSnapshot = projectStateSnapshot();
   updateSaveButtonState();
 }

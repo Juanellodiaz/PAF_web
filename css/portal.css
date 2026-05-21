@@ -162,9 +162,9 @@ body.page-enter {
 }
 
 #save-project-btn.btn-primary.is-dirty {
-  background: var(--text);
-  color: var(--bg);
-  border-color: var(--text);
+  background: var(--text) !important;
+  color: var(--bg) !important;
+  border-color: var(--text) !important;
 }
 
 #save-project-btn.btn-primary.is-dirty:hover:not(:disabled) {
