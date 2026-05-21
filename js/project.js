@@ -43,6 +43,7 @@ let clientDisplayName = "";
   }
   projectData = p;
   window.__pafProjectId = id;
+  window.__pafProjectData = p;
 
   if (user.role === "client") {
     clientDisplayName = user.name || "";
@@ -96,8 +97,15 @@ function renderClientView(p) {
 }
 
 function renderAdminView(p) {
-  setEditorData(p.concepts, p.documents, p.estimations);
   const payload = projectPayload(p);
+  const estimationCount = mergeEstimationsFromConcepts(
+    p.estimations,
+    p.concepts
+  ).length;
+  const estimationsBootstrap =
+    typeof buildEstimationsEditorHtml === "function"
+      ? buildEstimationsEditorHtml(p)
+      : "";
 
   document.getElementById("project-root").innerHTML = `
     <div class="project-hero">
@@ -125,11 +133,11 @@ function renderAdminView(p) {
 
     <section class="admin-section project-edit-section" style="margin-top:2rem">
       <div class="admin-section-head">
-        <p class="admin-section-label">Estimaciones</p>
+        <p class="admin-section-label">Estimaciones${estimationCount ? ` (${estimationCount})` : ""}</p>
         <button type="button" class="btn btn-ghost btn-sm" id="add-estimation">+ Estimación</button>
       </div>
       <p class="portal-user" style="margin:0 0 1rem">Los avances de cada concepto se asignan a una estimación. Descarga el PDF/HTML para cobro semanal y marca como pagada.</p>
-      <div id="estimations-editor" class="estimations-editor"></div>
+      <div id="estimations-editor" class="estimations-editor">${estimationsBootstrap}</div>
     </section>
 
     <div class="dashboard-grid" style="margin-top:2rem">
@@ -166,6 +174,10 @@ function renderAdminView(p) {
     <p class="form-error" id="save-error"></p>
   `;
 
+  setEditorData(p.concepts, p.documents, p.estimations);
+  if (typeof hydrateEstimationsFromProject === "function") {
+    hydrateEstimationsFromProject(p);
+  }
   renderConceptsEditor();
   renderEstimationsEditor();
   renderDocumentsEditor();
@@ -436,7 +448,11 @@ async function saveProject(options = {}) {
       body: JSON.stringify(buildSaveBody()),
     });
     projectData = project;
+    window.__pafProjectData = project;
     setEditorData(project.concepts, project.documents, project.estimations);
+    if (typeof hydrateEstimationsFromProject === "function") {
+      hydrateEstimationsFromProject(project);
+    }
     renderConceptsEditor();
     renderEstimationsEditor();
     const payload = projectPayload(project);

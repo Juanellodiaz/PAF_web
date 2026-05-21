@@ -482,8 +482,9 @@ function estimationLinesTableHtml(lines) {
     </table>`;
 }
 
-function estimationCardHtml(est, idx) {
-  const lines = getEstimationLines(est.id, editorConcepts);
+function estimationCardHtml(est, idx, conceptsSource) {
+  const concepts = conceptsSource || editorConcepts;
+  const lines = getEstimationLines(est.id, concepts);
   const total = lines.reduce((s, l) => s + l.amount, 0);
   const label = estimationDisplayLabel(est, idx);
   const expanded = !!est.expanded;
@@ -533,21 +534,33 @@ function estimationCardHtml(est, idx) {
     </div>`;
 }
 
-function renderEstimationsEditor() {
-  const el = document.getElementById("estimations-editor");
-  if (!el) return;
+function hydrateEstimationsFromProject(project) {
+  if (!project) return;
+  editorEstimations = mergeEstimationsFromConcepts(
+    project.estimations || [],
+    project.concepts || editorConcepts
+  ).map((e) => ({
+    expanded: !!e.expanded,
+    ...e,
+  }));
+}
 
-  syncEditorEstimations();
-
-  if (!editorEstimations.length) {
-    el.innerHTML =
-      '<p class="admin-empty">Sin estimaciones. Agrega un avance en un concepto o pulsa + Estimación.</p>';
-    return;
+function buildEstimationsEditorHtml(project) {
+  const concepts = project?.concepts || editorConcepts;
+  const list = mergeEstimationsFromConcepts(
+    project?.estimations || [],
+    concepts
+  );
+  if (!list.length) {
+    return '<p class="admin-empty">Sin estimaciones. Agrega un avance en un concepto o pulsa + Estimación.</p>';
   }
-
-  el.innerHTML = editorEstimations
-    .map((est, idx) => estimationCardHtml(est, idx))
+  return list
+    .map((est, idx) => estimationCardHtml(est, idx, concepts))
     .join("");
+}
+
+function bindEstimationEditorEvents(el) {
+  if (!el) return;
 
   const onEstFieldChange = (e) => {
     const idx = Number(e.target.dataset.estIndex);
@@ -623,6 +636,34 @@ function renderEstimationsEditor() {
     });
   });
 }
+
+function renderEstimationsEditor() {
+  const el = document.getElementById("estimations-editor");
+  if (!el) return;
+
+  try {
+    syncEditorEstimations();
+    if (!editorEstimations.length) {
+      el.innerHTML =
+        '<p class="admin-empty">Sin estimaciones. Agrega un avance en un concepto o pulsa + Estimación.</p>';
+      return;
+    }
+    el.innerHTML = editorEstimations
+      .map((est, idx) => estimationCardHtml(est, idx))
+      .join("");
+    bindEstimationEditorEvents(el);
+  } catch (err) {
+    el.innerHTML = `<p class="form-error">No se pudieron cargar las estimaciones: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+window.buildEstimationsEditorHtml = buildEstimationsEditorHtml;
+window.hydrateEstimationsFromProject = hydrateEstimationsFromProject;
+window.refreshEstimationsPanel = function (project) {
+  if (project) hydrateEstimationsFromProject(project);
+  else syncEditorEstimations();
+  renderEstimationsEditor();
+};
 
 function documentSummary(d) {
   const title = d.title.trim() || "Sin título";
