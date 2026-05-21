@@ -191,6 +191,9 @@ function renderConceptsEditor() {
       );
       renderConceptsEditor();
       renderEstimationsEditor();
+      if (typeof window.autoSaveProject === "function") {
+        window.autoSaveProject();
+      }
     });
   });
   updateConceptsPreview();
@@ -403,6 +406,11 @@ function addConceptAdvance(conceptIndex) {
   if (m2Input) m2Input.value = "";
   renderConceptsEditor();
   renderEstimationsEditor();
+  updateProgressChart();
+
+  if (typeof window.autoSaveProject === "function") {
+    window.autoSaveProject();
+  }
 }
 
 function updateProgressChart() {
@@ -495,6 +503,9 @@ function renderEstimationsEditor() {
       });
       renderConceptsEditor();
       renderEstimationsEditor();
+      if (typeof window.autoSaveProject === "function") {
+        window.autoSaveProject();
+      }
     });
   });
 }

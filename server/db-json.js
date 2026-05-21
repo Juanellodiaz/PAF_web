@@ -1,5 +1,9 @@
 const fs = require("fs");
 const path = require("path");
+const {
+  applyMetaToProject,
+  documentsForSave,
+} = require("./project-meta");
 
 const DB_PATH = path.join(__dirname, "..", "data", "db.json");
 
@@ -41,16 +45,21 @@ function listProjectsForUser(user) {
 }
 
 function getProject(id) {
-  return readDb().projects.find((p) => p.id === id) || null;
+  const p = readDb().projects.find((pr) => pr.id === id) || null;
+  return p ? applyMetaToProject(p) : null;
 }
 
 function saveProject(project) {
+  const stored = {
+    ...project,
+    documents: documentsForSave(project),
+  };
   const db = readDb();
   const idx = db.projects.findIndex((p) => p.id === project.id);
-  if (idx >= 0) db.projects[idx] = project;
-  else db.projects.push(project);
+  if (idx >= 0) db.projects[idx] = stored;
+  else db.projects.push(stored);
   writeDb(db);
-  return project;
+  return applyMetaToProject(stored);
 }
 
 function deleteProject(id) {

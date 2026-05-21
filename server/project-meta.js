@@ -77,18 +77,12 @@ function applyMetaToProject(project) {
   }
 
   const advancesByConceptId = meta.advancesByConceptId || {};
-  const concepts = (project.concepts || []).map((c) => {
-    const fromMeta = advancesByConceptId[c.id];
-    const fromCol = Array.isArray(c.advances) ? c.advances : [];
-    const advances =
-      fromCol.length > 0 ? fromCol : fromMeta || [];
-    return { ...c, advances };
-  });
+  const concepts = (project.concepts || []).map((c) => ({
+    ...c,
+    advances: advancesByConceptId[c.id] || [],
+  }));
 
-  const estimations =
-    (project.estimations && project.estimations.length > 0
-      ? project.estimations
-      : meta.estimations) || [];
+  const estimations = meta.estimations || [];
 
   return {
     ...project,

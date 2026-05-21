@@ -2,7 +2,9 @@ const { createClient } = require("@supabase/supabase-js");
 const {
   isSchemaColumnError,
   applyMetaToProject,
-  documentsForSave,
+  userDocuments,
+  metaDocumentFromProject,
+  metaDocId,
 } = require("./project-meta");
 
 let client;
@@ -109,6 +111,23 @@ async function upsertProjectRow(project) {
   if (error) throw error;
 }
 
+async function upsertMetaDocument(project) {
+  const meta = metaDocumentFromProject(project);
+  const { error } = await getClient()
+    .from("project_documents")
+    .upsert(
+      {
+        id: meta.id,
+        project_id: project.id,
+        type: meta.type,
+        title: meta.title,
+        content: meta.content,
+      },
+      { onConflict: "id" }
+    );
+  if (error) throw error;
+}
+
 async function insertConcepts(project) {
   if (!project.concepts?.length) return;
 
@@ -183,19 +202,24 @@ async function getProject(id) {
 async function saveProject(project) {
   await upsertProjectRow(project);
 
+  // Persist avances/estimaciones primero (no se borra en el delete de documentos)
+  await upsertMetaDocument(project);
+
   await getClient()
     .from("project_concepts")
     .delete()
     .eq("project_id", project.id);
 
+  await insertConcepts(project);
+
+  const metaId = metaDocId(project.id);
   await getClient()
     .from("project_documents")
     .delete()
-    .eq("project_id", project.id);
+    .eq("project_id", project.id)
+    .neq("id", metaId);
 
-  await insertConcepts(project);
-
-  const docs = documentsForSave(project);
+  const docs = userDocuments(project);
   if (docs.length) {
     const { error } = await getClient().from("project_documents").insert(
       docs.map((d) => ({
@@ -208,6 +232,9 @@ async function saveProject(project) {
     );
     if (error) throw error;
   }
+
+  // Refrescar meta con el estado más reciente
+  await upsertMetaDocument(project);
 
   const loaded = await getProject(project.id);
   if (loaded) return loaded;

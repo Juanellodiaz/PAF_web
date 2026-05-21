@@ -351,49 +351,70 @@ function documentsReadonlyHtml(docs) {
     .join("");
 }
 
-async function saveProject() {
-  const err = document.getElementById("save-error");
-  err.textContent = "";
+function buildSaveBody() {
   const zoneInput = document.getElementById("zone3dImage");
-
-  const body = {
+  return {
     ...projectData,
-    zone3dImage:
-      zoneInput?.value.trim() || projectData.zone3dImage,
+    zone3dImage: zoneInput?.value.trim() || projectData.zone3dImage,
     concepts: collectConcepts(),
     documents: collectDocuments(),
     estimations: collectEstimations(),
   };
+}
+
+async function saveProject(options = {}) {
+  const { silent = false } = options;
+  const err = document.getElementById("save-error");
+  if (!silent && err) err.textContent = "";
+
+  const saveBtn = document.getElementById("save-project-btn");
+  if (saveBtn) saveBtn.disabled = true;
 
   try {
     const { project } = await api(`/projects/${projectData.id}`, {
       method: "PUT",
-      body: JSON.stringify(body),
+      body: JSON.stringify(buildSaveBody()),
     });
     projectData = project;
     setEditorData(project.concepts, project.documents, project.estimations);
-    const payload = projectPayload(project);
-    document.getElementById("metrics-row").innerHTML = metricsHtml(payload);
+    renderConceptsEditor();
     renderEstimationsEditor();
+    const payload = projectPayload(project);
+    const metricsEl = document.getElementById("metrics-row");
+    if (metricsEl) metricsEl.innerHTML = metricsHtml(payload);
+    updateProgressChart();
     const img = document.getElementById("zone-3d-img");
     if (img) img.src = project.zone3dImage;
+
     const advanceCount = (project.concepts || []).reduce(
       (s, c) => s + (c.advances?.length || 0),
       0
     );
-    err.style.color = "var(--accent)";
-    err.textContent =
-      advanceCount > 0
-        ? `Guardado (${advanceCount} avance${advanceCount === 1 ? "" : "s"} registrado${advanceCount === 1 ? "" : "s"}).`
-        : "Cambios guardados correctamente.";
-    setTimeout(() => {
-      err.textContent = "";
-      err.style.color = "";
-    }, 3000);
+    if (err) {
+      err.style.color = "var(--accent)";
+      err.textContent = silent
+        ? "Avance guardado automáticamente."
+        : advanceCount > 0
+          ? `Guardado (${advanceCount} avance${advanceCount === 1 ? "" : "s"}).`
+          : "Cambios guardados correctamente.";
+      setTimeout(() => {
+        err.textContent = "";
+        err.style.color = "";
+      }, silent ? 2500 : 4000);
+    }
+    return true;
   } catch (ex) {
-    err.textContent = ex.message;
+    if (err) {
+      err.style.color = "";
+      err.textContent = ex.message || "No se pudo guardar. Intenta de nuevo.";
+    }
+    return false;
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
   }
 }
+
+window.autoSaveProject = () => saveProject({ silent: true });
 
 function escapeHtml(s) {
   const d = document.createElement("div");
