@@ -39,6 +39,7 @@ let clientDisplayName = "";
   }
 
   if (isAdmin) {
+    window.autoSaveProject = () => saveProject({ silent: true });
     window.refreshProjectMetrics = refreshMetricsFromEditors;
     window.exportEstimation = (est) => {
       downloadEstimation(
@@ -143,6 +144,7 @@ function renderAdminView(p) {
       </div>
     </div>
 
+    <p class="save-status" id="save-status" role="status" aria-live="polite"></p>
     <p class="form-error" id="save-error"></p>
   `;
 
@@ -365,7 +367,12 @@ function buildSaveBody() {
 async function saveProject(options = {}) {
   const { silent = false } = options;
   const err = document.getElementById("save-error");
+  const status = document.getElementById("save-status");
   if (!silent && err) err.textContent = "";
+  if (status) {
+    status.textContent = "Guardando…";
+    status.className = "save-status is-saving";
+  }
 
   const saveBtn = document.getElementById("save-project-btn");
   if (saveBtn) saveBtn.disabled = true;
@@ -390,31 +397,35 @@ async function saveProject(options = {}) {
       (s, c) => s + (c.advances?.length || 0),
       0
     );
-    if (err) {
-      err.style.color = "var(--accent)";
-      err.textContent = silent
-        ? "Avance guardado automáticamente."
-        : advanceCount > 0
-          ? `Guardado (${advanceCount} avance${advanceCount === 1 ? "" : "s"}).`
-          : "Cambios guardados correctamente.";
-      setTimeout(() => {
-        err.textContent = "";
-        err.style.color = "";
-      }, silent ? 2500 : 4000);
+    const okMsg = silent
+      ? "✓ Avance guardado automáticamente"
+      : advanceCount > 0
+        ? `✓ Guardado (${advanceCount} avance${advanceCount === 1 ? "" : "s"})`
+        : "✓ Cambios guardados";
+    if (status) {
+      status.textContent = okMsg;
+      status.className = "save-status is-ok";
     }
+    if (err) err.textContent = "";
+    setTimeout(() => {
+      if (status) {
+        status.textContent = "";
+        status.className = "save-status";
+      }
+    }, silent ? 3500 : 5000);
     return true;
   } catch (ex) {
-    if (err) {
-      err.style.color = "";
-      err.textContent = ex.message || "No se pudo guardar. Intenta de nuevo.";
+    const msg = ex.message || "No se pudo guardar. Intenta de nuevo.";
+    if (status) {
+      status.textContent = "";
+      status.className = "save-status";
     }
+    if (err) err.textContent = msg;
     return false;
   } finally {
     if (saveBtn) saveBtn.disabled = false;
   }
 }
-
-window.autoSaveProject = () => saveProject({ silent: true });
 
 function escapeHtml(s) {
   const d = document.createElement("div");

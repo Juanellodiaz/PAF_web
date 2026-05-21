@@ -109,4 +109,5 @@ module.exports = {
   userDocuments,
   documentsForSave,
   buildMetaPayload,
+  metaDocumentFromProject,
 };

@@ -191,9 +191,7 @@ function renderConceptsEditor() {
       );
       renderConceptsEditor();
       renderEstimationsEditor();
-      if (typeof window.autoSaveProject === "function") {
-        window.autoSaveProject();
-      }
+      void persistProjectAdvances();
     });
   });
   updateConceptsPreview();
@@ -408,9 +406,12 @@ function addConceptAdvance(conceptIndex) {
   renderEstimationsEditor();
   updateProgressChart();
 
-  if (typeof window.autoSaveProject === "function") {
-    window.autoSaveProject();
-  }
+  void persistProjectAdvances();
+}
+
+async function persistProjectAdvances() {
+  if (typeof window.autoSaveProject !== "function") return;
+  await window.autoSaveProject();
 }
 
 function updateProgressChart() {
@@ -503,9 +504,7 @@ function renderEstimationsEditor() {
       });
       renderConceptsEditor();
       renderEstimationsEditor();
-      if (typeof window.autoSaveProject === "function") {
-        window.autoSaveProject();
-      }
+      void persistProjectAdvances();
     });
   });
 }

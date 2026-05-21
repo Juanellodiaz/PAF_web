@@ -149,6 +149,22 @@ body.page-enter {
   min-height: 1.2em;
 }
 
+.save-status {
+  font-size: 0.85rem;
+  margin-top: 1rem;
+  min-height: 1.4em;
+  letter-spacing: 0.04em;
+}
+
+.save-status.is-saving {
+  color: var(--text-muted);
+}
+
+.save-status.is-ok {
+  color: var(--accent);
+  font-weight: 500;
+}
+
 .login-hint {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
