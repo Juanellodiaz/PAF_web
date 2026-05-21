@@ -1,13 +1,50 @@
 let projectData = null;
 let isAdmin = false;
 let clientDisplayName = "";
-let saveQueue = Promise.resolve();
+let savedProjectSnapshot = null;
 
-function enqueueSave(task) {
-  const run = saveQueue.then(() => task());
-  saveQueue = run.catch(() => false);
-  return run;
+function projectStateSnapshot() {
+  if (!projectData || typeof collectConcepts !== "function") return "";
+  const body = buildSaveBody();
+  return JSON.stringify({
+    zone3dImage: body.zone3dImage || "",
+    concepts: body.concepts || [],
+    documents: body.documents || [],
+    estimations: body.estimations || [],
+  });
 }
+
+function isProjectDirty() {
+  if (savedProjectSnapshot === null) return false;
+  return projectStateSnapshot() !== savedProjectSnapshot;
+}
+
+function updateSaveButtonState() {
+  const btn = document.getElementById("save-project-btn");
+  if (!btn) return;
+  const dirty = isProjectDirty();
+  btn.classList.toggle("is-dirty", dirty);
+  btn.setAttribute(
+    "aria-label",
+    dirty ? "Hay cambios sin guardar" : "Sin cambios pendientes"
+  );
+}
+
+function markProjectDirty() {
+  if (window.__pafProjectId && typeof saveEditorDraft === "function") {
+    saveEditorDraft(window.__pafProjectId);
+  }
+  updateSaveButtonState();
+}
+
+function markProjectSaved() {
+  savedProjectSnapshot = projectStateSnapshot();
+  updateSaveButtonState();
+}
+
+window.markProjectDirty = markProjectDirty;
+window.markProjectSaved = markProjectSaved;
+window.isProjectDirty = isProjectDirty;
 
 (async () => {
   const user = await requireAuth();
@@ -65,7 +102,10 @@ function enqueueSave(task) {
   }
 
   if (isAdmin) {
-    window.autoSaveProject = () => enqueueSave(() => saveProject({ silent: true }));
+    window.autoSaveProject = () => {
+      markProjectDirty();
+      return Promise.resolve(true);
+    };
     window.refreshProjectMetrics = refreshMetricsFromEditors;
     window.exportEstimation = (est) => {
       downloadEstimation(
@@ -77,7 +117,10 @@ function enqueueSave(task) {
     };
     renderAdminView(p);
     bindEditorActions();
-    document.getElementById("save-project-btn").addEventListener("click", saveProject);
+    markProjectSaved();
+    document
+      .getElementById("save-project-btn")
+      ?.addEventListener("click", () => saveProject({ silent: false }));
   } else {
     window.exportEstimation = (est) => {
       downloadEstimation(projectData, est, projectData.concepts || [], clientDisplayName);
@@ -210,8 +253,7 @@ function renderAdminView(p) {
 
   window.addEventListener("beforeunload", (e) => {
     if (!isAdmin) return;
-    const draft = loadEditorDraft(p.id);
-    if (draft && projectNeedsDraftRestore(projectData, draft)) {
+    if (isProjectDirty()) {
       e.preventDefault();
       e.returnValue = "";
     }
@@ -234,6 +276,7 @@ function bindZone3dUpload() {
       const url = await uploadFile(file);
       urlInput.value = url;
       if (img) img.src = url;
+      markProjectDirty();
     } catch (ex) {
       if (errEl) errEl.textContent = ex.message;
     } finally {
@@ -244,6 +287,7 @@ function bindZone3dUpload() {
 
   urlInput.addEventListener("input", () => {
     if (img) img.src = urlInput.value.trim() || img.src;
+    markProjectDirty();
   });
 }
 
@@ -498,10 +542,10 @@ async function saveProject(options = {}) {
     );
     clearEditorDraft(projectData.id);
     saveEditorDraft(projectData.id);
+    markProjectSaved();
 
-    const okMsg = silent
-      ? "✓ Avance guardado en el servidor"
-      : advanceCount > 0
+    const okMsg =
+      advanceCount > 0
         ? `✓ Guardado (${advanceCount} avance${advanceCount === 1 ? "" : "s"})`
         : "✓ Cambios guardados";
     if (status) {
@@ -514,9 +558,10 @@ async function saveProject(options = {}) {
         status.textContent = "";
         status.className = "save-status";
       }
-    }, silent ? 5000 : 5000);
+    }, 5000);
     return true;
   } catch (ex) {
+    markProjectDirty();
     const msg = ex.message || "No se pudo guardar. Intenta de nuevo.";
     if (status) {
       status.textContent = "";

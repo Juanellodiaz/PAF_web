@@ -149,6 +149,35 @@ body.page-enter {
   min-height: 1.2em;
 }
 
+#save-project-btn.btn-primary {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+
+#save-project-btn.btn-primary:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+#save-project-btn.btn-primary.is-dirty {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+
+#save-project-btn.btn-primary.is-dirty:hover:not(:disabled) {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--text);
+}
+
+#save-project-btn.btn-primary:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
 .save-status {
   font-size: 0.85rem;
   margin-top: 1rem;

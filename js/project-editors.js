@@ -123,20 +123,13 @@ window.pafRemoveEstimation = function (idx) {
   void persistProjectAdvances();
 };
 
-window.pafToggleEstPaid = async function (idx) {
+window.pafToggleEstPaid = function (idx) {
   const est = editorEstimations[idx];
   if (!est) return;
-  const toggle = document.querySelector(`[data-est-paid-toggle="${idx}"]`);
-  if (toggle?.disabled) return;
-  if (toggle) toggle.disabled = true;
-  try {
-    await window.pafEstPaidChange(idx, !est.paid);
-  } finally {
-    if (toggle) toggle.disabled = false;
-  }
+  window.pafEstPaidChange(idx, !est.paid);
 };
 
-window.pafEstPaidChange = async function (idx, checked) {
+window.pafEstPaidChange = function (idx, checked) {
   if (!editorEstimations[idx]) return;
   editorEstimations[idx].paid = checked;
   editorEstimations[idx].paidAt = checked
@@ -146,45 +139,11 @@ window.pafEstPaidChange = async function (idx, checked) {
   if (typeof window.refreshProjectMetrics === "function") {
     window.refreshProjectMetrics();
   }
-  const estimationsToSave = collectEstimations();
   if (window.__pafProjectData) {
-    window.__pafProjectData.estimations = estimationsToSave;
+    window.__pafProjectData.estimations = collectEstimations();
   }
-  if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);
-  const status = document.getElementById("save-status");
-  if (status) {
-    status.textContent = "Guardando estado de pago…";
-    status.className = "save-status is-saving";
-  }
-  const ok = await persistProjectAdvances();
-  if (ok && window.__pafProjectId) {
-    saveEditorDraft(window.__pafProjectId);
-  }
-  if (!ok) {
-    editorEstimations[idx].paid = !checked;
-    editorEstimations[idx].paidAt = checked
-      ? new Date().toISOString().slice(0, 10)
-      : null;
-    updateEstimationRowUi(idx);
-    if (typeof window.refreshProjectMetrics === "function") {
-      window.refreshProjectMetrics();
-    }
-    const errEl = document.getElementById("save-error");
-    if (errEl) {
-      errEl.textContent =
-        "No se pudo guardar el estado de pago. Pulsa Guardar cambios.";
-    }
-    return;
-  }
-  if (status) {
-    status.textContent = checked ? "✓ Marcada como pagada" : "✓ Marcada como pendiente";
-    status.className = "save-status is-ok";
-    setTimeout(() => {
-      if (status.textContent.startsWith("✓ Marcada")) {
-        status.textContent = "";
-        status.className = "save-status";
-      }
-    }, 3000);
+  if (typeof window.markProjectDirty === "function") {
+    window.markProjectDirty();
   }
 };
 
@@ -374,6 +333,7 @@ function renderConceptsEditor() {
       editorConcepts.splice(Number(btn.dataset.removeConcept), 1);
       renderConceptsEditor();
       renderEstimationsEditor();
+      persistProjectAdvances();
     });
   });
   el.querySelectorAll("[data-add-advance]").forEach((btn) => {
@@ -553,6 +513,7 @@ function onConceptFieldChange(e) {
   updateConceptSummaryLine(i);
   updateConceptsPreview();
   updateProgressChart();
+  persistProjectAdvances();
 }
 
 function resolveEstimationId(selectValue) {
@@ -611,19 +572,15 @@ async function addConceptAdvance(conceptIndex) {
   renderEstimationsEditor();
   updateProgressChart();
 
-  if (addBtn) addBtn.disabled = true;
-  const saved = await persistProjectAdvances();
-  if (addBtn) addBtn.disabled = false;
-
-  if (!saved && errEl) {
-    errEl.textContent =
-      "No se pudo guardar en el servidor. Revisa la conexión y pulsa Guardar cambios.";
-  }
+  persistProjectAdvances();
+  if (errEl) errEl.textContent = "";
 }
 
-async function persistProjectAdvances() {
-  if (typeof window.autoSaveProject !== "function") return false;
-  return window.autoSaveProject();
+function persistProjectAdvances() {
+  if (typeof window.markProjectDirty === "function") {
+    window.markProjectDirty();
+  }
+  return Promise.resolve(true);
 }
 
 function updateProgressChart() {
@@ -850,6 +807,7 @@ function renderDocumentsEditor() {
       editorDocuments.splice(Number(btn.dataset.removeDoc), 1);
       renderDocumentsEditor();
       updateWorkspaceSectionSummary();
+      persistProjectAdvances();
     });
   });
   el.querySelectorAll("[data-doc-upload]").forEach((input) => {
@@ -887,6 +845,7 @@ function onDocumentFieldChange(e) {
   editorDocuments[i][field] = e.target.value;
   if (field === "type") {
     renderDocumentsEditor();
+    persistProjectAdvances();
     return;
   }
   updateDocumentSummaryLine(i);
@@ -894,6 +853,7 @@ function onDocumentFieldChange(e) {
     const preview = document.querySelector(`[data-doc-preview="${i}"]`);
     if (preview) preview.src = e.target.value;
   }
+  persistProjectAdvances();
 }
 
 async function onDocumentImageUpload(e) {
@@ -927,6 +887,7 @@ async function onDocumentImageUpload(e) {
       if (wrap) wrap.hidden = false;
     }
     updateDocumentSummaryLine(i);
+    persistProjectAdvances();
   } catch (ex) {
     const msg = ex.message || "Error al subir";
     if (row) {
@@ -985,6 +946,7 @@ function bindEditorActions() {
   document.getElementById("add-concept")?.addEventListener("click", () => {
     editorConcepts.push(newConcept());
     renderConceptsEditor();
+    persistProjectAdvances();
   });
   document.getElementById("collapse-all-concepts")?.addEventListener("click", () => {
     setAllConceptsCollapsed(true);
@@ -996,6 +958,7 @@ function bindEditorActions() {
     editorDocuments.push(newDocument());
     renderDocumentsEditor();
     updateWorkspaceSectionSummary();
+    persistProjectAdvances();
   });
   document.getElementById("collapse-all-docs")?.addEventListener("click", () => {
     setAllDocumentsCollapsed(true);
