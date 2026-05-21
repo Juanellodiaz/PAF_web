@@ -242,60 +242,23 @@ body.page-enter {
 }
 
 .client-estimations-section {
-  margin-bottom: 2rem;
+  margin-top: 2rem;
 }
 
 .client-estimations-section .panel-label {
   margin-bottom: 1rem;
 }
 
-.client-estimations-list .estimation-card.is-pending-payment {
-  border-left: 3px solid #e67e22;
-  background: rgba(230, 126, 34, 0.1);
+.client-estimations-section .estimation-status-badge.pending {
+  color: #e67e22;
+  border-color: transparent;
+  background: transparent;
 }
 
-.client-estimations-list .estimation-card.is-pending-payment .estimation-total {
-  color: #f39c12;
-}
-
-.client-estimations-list .estimation-card.is-pending-payment .estimation-status-badge.pending {
-  color: #f39c12;
-  border-color: rgba(243, 156, 18, 0.55);
-  background: rgba(230, 126, 34, 0.12);
-}
-
-.client-estimations-list .estimation-card.is-paid-dashboard {
-  border-left: 3px solid #1a4d32;
-  background: rgba(26, 77, 50, 0.18);
-  opacity: 1;
-}
-
-.client-estimations-list .estimation-card.is-paid-dashboard .estimation-total {
-  color: #3d9a6a;
-}
-
-.client-estimations-list .estimation-card.is-paid-dashboard .estimation-status-badge.paid {
-  color: #cfe8d8;
-  border-color: rgba(61, 154, 106, 0.55);
-  background: rgba(26, 77, 50, 0.35);
-}
-
-.client-estimations-list .estimation-card .concept-row-top {
-  margin-bottom: 0;
-}
-
-.client-estimations-list .estimation-card:not(.is-collapsed) .concept-row-top {
-  margin-bottom: 0.75rem;
-}
-
-.client-estimations-list .estimation-card-head {
-  margin-bottom: 0;
-  width: 100%;
-}
-
-.client-estimations-list .estimation-card .concept-toggle {
-  flex: 1;
-  min-width: 0;
+.client-estimations-section .estimation-status-badge.paid {
+  color: #1e5c3a;
+  border-color: transparent;
+  background: transparent;
 }
 
 .client-summary .metric-sublabel {

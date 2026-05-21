@@ -63,13 +63,12 @@ function clientEstimationCardHtml(est, idx) {
   const projectCount = breakdown.groups?.length || 0;
   const label = estimationDisplayLabel(est, idx);
   const paid = !!est.paid;
-  const statusClass = paid ? "is-paid-dashboard" : "is-pending-payment";
   const projectsNote =
     projectCount > 1 ? ` · ${projectCount} proyectos` : "";
-  const summary = `${label} · ${lineCount} partida(s)${projectsNote} · ${formatMoney(total)} · ${paid ? "Pagada" : "Pendiente de pago"}`;
+  const summary = `${label} · ${lineCount} partida(s)${projectsNote} · ${formatMoney(total)} · ${paid ? "Pagada" : "Pendiente"}`;
 
   return `
-    <div class="estimation-card concept-row is-collapsed ${statusClass}" data-client-est-idx="${idx}">
+    <div class="estimation-card concept-row is-collapsed" data-client-est-idx="${idx}">
       <div class="concept-row-top estimation-card-head">
         <button type="button" class="concept-toggle" aria-expanded="false" onclick="pafToggleClientEstimation(${idx})">
           <span class="concept-chevron" aria-hidden="true"></span>
@@ -77,7 +76,7 @@ function clientEstimationCardHtml(est, idx) {
           <span class="concept-summary">${escapeHtml(summary)}</span>
         </button>
         <div class="estimation-head-actions">
-          <span class="estimation-status-badge ${paid ? "paid" : "pending"}">${paid ? "Pagada" : "Pendiente de pago"}</span>
+          <span class="estimation-status-badge ${paid ? "paid" : "pending"}">${paid ? "PAGADA" : "PENDIENTE DE PAGO"}</span>
           <span class="estimation-total">${formatMoney(total)}</span>
           <button type="button" class="btn btn-ghost btn-sm" onclick="pafToggleClientEstimation(${idx})">Ver detalle</button>
           <button type="button" class="btn btn-ghost btn-sm" data-client-download-est="${idx}">Descargar</button>
