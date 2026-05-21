@@ -1,14 +1,18 @@
 const API = "/api";
 
 async function api(path, options = {}) {
+  const { redirectOn401 = true, ...fetchOptions } = options;
   const res = await fetch(`${API}${path}`, {
     credentials: "same-origin",
-    headers: { "Content-Type": "application/json", ...options.headers },
-    ...options,
+    headers: { "Content-Type": "application/json", ...fetchOptions.headers },
+    ...fetchOptions,
   });
   const data = await res.json().catch(() => ({}));
   if (res.status === 401) {
-    window.location.href = "/login.html";
+    const onLoginPage = /login\.html$/i.test(window.location.pathname);
+    if (redirectOn401 && !onLoginPage) {
+      window.location.href = "/login.html";
+    }
     throw new Error(data.error || "No autenticado");
   }
   if (!res.ok) throw new Error(data.error || "Error de servidor");

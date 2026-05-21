@@ -24,6 +24,20 @@
   background: rgba(8, 8, 8, 0.82);
 }
 
+.portal-video-wrap--login {
+  background: #080808 radial-gradient(ellipse 80% 60% at 30% 40%, rgba(40, 38, 35, 0.5), #080808);
+}
+
+body.login-checking .login-card {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-video-wrap--login .portal-video {
+    display: none;
+  }
+}
+
 .portal-header {
   position: fixed;
   top: 0;
