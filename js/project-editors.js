@@ -34,7 +34,7 @@ function newEstimation() {
     paid: false,
     paidAt: null,
     notes: "",
-    expanded: true,
+    expanded: false,
   };
 }
 
@@ -123,6 +123,7 @@ window.pafRemoveEstimation = function (idx) {
       a.estimationId === estId ? { ...a, estimationId: "" } : a
     );
   });
+  if (typeof markProjectDirty === "function") markProjectDirty();
   if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);
   renderConceptsEditor();
   renderEstimationsEditor();
@@ -215,7 +216,7 @@ function setEditorData(concepts, documents, estimations) {
     .filter((d) => !isMetaDocument(d))
     .map((d) => ({ ...d, collapsed: true }));
   editorEstimations = mergeEstimationsFromConcepts(estimations, editorConcepts).map(
-    (e) => ({ ...e, expanded: e.expanded !== false })
+    (e) => ({ ...e, expanded: e.expanded === true })
   );
 }
 
@@ -314,7 +315,6 @@ function readPaidStateFromEditor() {
 
 function collectEstimations() {
   const paidById = readPaidStateFromEditor();
-  syncEditorEstimations();
   return editorEstimations.map((e) => {
     const paidState = paidById.get(e.id);
     const paid = paidState ? paidState.paid : !!e.paid;
@@ -737,7 +737,7 @@ function hydrateEstimationsFromProject(project) {
     project.concepts || editorConcepts
   ).map((e) => ({
     ...e,
-    expanded: true,
+    expanded: false,
   }));
 }
 

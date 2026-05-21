@@ -90,12 +90,7 @@ async function getProject(id) {
   );
 }
 
-async function saveProject(project) {
-  await persistGlobalEstimationsFromProject(
-    project,
-    loadGlobalEstimations,
-    saveGlobalEstimations
-  );
+async function saveProjectStoredBody(project) {
   const stored = {
     ...project,
     estimations: [],
@@ -113,6 +108,17 @@ async function saveProject(project) {
     saveGlobalEstimations,
     listAllProjectsForBootstrap
   );
+}
+
+async function saveProject(project) {
+  await persistGlobalEstimationsFromProject(
+    project,
+    loadGlobalEstimations,
+    saveGlobalEstimations,
+    listAllProjectsForBootstrap,
+    saveProjectStoredBody
+  );
+  return saveProjectStoredBody(project);
 }
 
 function deleteProject(id) {

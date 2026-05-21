@@ -218,7 +218,7 @@ function mergeEstimationsFromConcepts(stored, concepts) {
         paid: false,
         paidAt: null,
         notes: "",
-        expanded: true,
+        expanded: false,
       });
     });
   });

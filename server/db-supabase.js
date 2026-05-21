@@ -303,12 +303,7 @@ async function getProject(id) {
   );
 }
 
-async function saveProject(project) {
-  await persistGlobalEstimationsFromProject(
-    project,
-    loadGlobalEstimations,
-    saveGlobalEstimations
-  );
+async function saveProjectStoredBody(project) {
   const projectToStore = { ...project, estimations: [] };
   await upsertProjectRow(projectToStore);
 
@@ -365,6 +360,17 @@ async function saveProject(project) {
     saveGlobalEstimations,
     listAllProjectsForBootstrap
   );
+}
+
+async function saveProject(project) {
+  await persistGlobalEstimationsFromProject(
+    project,
+    loadGlobalEstimations,
+    saveGlobalEstimations,
+    listAllProjectsForBootstrap,
+    saveProjectStoredBody
+  );
+  return saveProjectStoredBody(project);
 }
 
 async function deleteProject(id) {
