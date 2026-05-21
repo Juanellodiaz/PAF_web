@@ -2,22 +2,21 @@ const express = require("express");
 const crypto = require("crypto");
 const cookieParser = require("cookie-parser");
 const db = require("./db");
+const {
+  signSession,
+  parseSession,
+  isProduction,
+  cookieOptions,
+} = require("./auth");
 
 function newProjectId() {
   return `proj-${crypto.randomBytes(4).toString("hex")}`;
 }
 
 const app = express();
-const sessions = new Map();
 
 app.use(express.json());
 app.use(cookieParser());
-
-function parseSession(req) {
-  const token = req.cookies.paf_session;
-  if (!token) return null;
-  return sessions.get(token) || null;
-}
 
 function requireAuth(req, res, next) {
   const session = parseSession(req);
@@ -33,20 +32,6 @@ function requireAdmin(req, res, next) {
     return res.status(403).json({ error: "Acceso denegado" });
   }
   next();
-}
-
-function createSession(user) {
-  const token = crypto.randomBytes(32).toString("hex");
-  sessions.set(token, user);
-  return token;
-}
-
-function isProduction(req) {
-  return (
-    process.env.NODE_ENV === "production" ||
-    process.env.VERCEL === "1" ||
-    req.secure
-  );
 }
 
 function projectPayload(project) {
@@ -88,13 +73,8 @@ app.post("/api/auth/login", async (req, res) => {
     if (!user) {
       return res.status(401).json({ error: "Credenciales inválidas" });
     }
-    const token = createSession(user);
-    res.cookie("paf_session", token, {
-      httpOnly: true,
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      secure: isProduction(req),
-    });
+    const token = signSession(user);
+    res.cookie("paf_session", token, cookieOptions(req));
     res.json({ user });
   } catch (err) {
     handleError(res, err);
@@ -102,9 +82,7 @@ app.post("/api/auth/login", async (req, res) => {
 });
 
 app.post("/api/auth/logout", (req, res) => {
-  const token = req.cookies.paf_session;
-  if (token) sessions.delete(token);
-  res.clearCookie("paf_session");
+  res.clearCookie("paf_session", { path: "/" });
   res.json({ ok: true });
 });
 

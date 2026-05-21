@@ -7,6 +7,10 @@ async function api(path, options = {}) {
     ...options,
   });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401) {
+    window.location.href = "/login.html";
+    throw new Error(data.error || "No autenticado");
+  }
   if (!res.ok) throw new Error(data.error || "Error de servidor");
   return data;
 }
