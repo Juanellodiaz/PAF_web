@@ -295,9 +295,16 @@ body.page-enter {
   letter-spacing: 0.1em;
 }
 
+.project-status.en_proceso,
 .project-status.in_progress {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.project-status.completado,
+.project-status.completed {
+  border-color: rgba(255, 255, 255, 0.35);
+  color: var(--text);
 }
 
 /* Project dashboard */
@@ -555,6 +562,7 @@ body.page-enter {
   color: var(--text-dim);
 }
 
+.concept-status.en_proceso,
 .concept-status.in_progress {
   color: var(--accent);
 }

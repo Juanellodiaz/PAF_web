@@ -19,7 +19,7 @@ function newConcept() {
     m2: 0,
     unitPrice: 0,
     totalPrice: 0,
-    status: "pending",
+    status: "en_aprobacion",
     advances: [],
     collapsed: false,
   };
@@ -544,9 +544,9 @@ function conceptRowHtml(c, i) {
           <div class="form-group">
             <label>Estado</label>
             <select data-field="status" data-index="${i}">
-              <option value="pending" ${c.status === "pending" ? "selected" : ""}>Pendiente</option>
-              <option value="in_progress" ${c.status === "in_progress" ? "selected" : ""}>En progreso</option>
-              <option value="completed" ${c.status === "completed" ? "selected" : ""}>Completado</option>
+              <option value="en_aprobacion" ${c.status === "en_aprobacion" || c.status === "pending" ? "selected" : ""}>En aprobación</option>
+              <option value="en_proceso" ${c.status === "en_proceso" || c.status === "in_progress" ? "selected" : ""}>En proceso</option>
+              <option value="completado" ${c.status === "completado" || c.status === "completed" ? "selected" : ""}>Completado</option>
             </select>
           </div>
         </div>

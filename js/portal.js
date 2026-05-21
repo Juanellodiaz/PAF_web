@@ -70,13 +70,26 @@ function formatDate(iso) {
   }).format(new Date(iso + "T12:00:00"));
 }
 
-function statusLabel(status) {
-  const map = {
-    pending: "Pendiente",
-    in_progress: "En progreso",
-    completed: "Completado",
+const PROJECT_STATUS_LABELS = {
+  en_aprobacion: "En aprobación",
+  en_proceso: "En proceso",
+  completado: "Completado",
+  pending: "En aprobación",
+  in_progress: "En proceso",
+  completed: "Completado",
+};
+
+function normalizeProjectStatus(status) {
+  const legacy = {
+    pending: "en_aprobacion",
+    in_progress: "en_proceso",
+    completed: "completado",
   };
-  return map[status] || status;
+  return legacy[status] || status || "en_aprobacion";
+}
+
+function statusLabel(status) {
+  return PROJECT_STATUS_LABELS[status] || status;
 }
 
 function calcProjectProgress(concepts) {

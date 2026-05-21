@@ -148,7 +148,7 @@ app.post("/api/projects", requireAuth, requireAdmin, async (req, res) => {
       id: body.id || newProjectId(),
       name: body.name || "Nuevo proyecto",
       clientId: body.clientId || "",
-      status: body.status || "pending",
+      status: body.status || "en_aprobacion",
       completionDate:
         body.completionDate || new Date().toISOString().slice(0, 10),
       zone3dImage: body.zone3dImage || "/assets/zone-3d-placeholder.svg",

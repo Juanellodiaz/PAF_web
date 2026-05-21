@@ -140,7 +140,7 @@ async function loadBasicEdit(id) {
   document.getElementById("name").value = p.name;
   document.getElementById("clientId").value = p.clientId || "";
   document.getElementById("completionDate").value = p.completionDate;
-  document.getElementById("status").value = p.status;
+  document.getElementById("status").value = normalizeProjectStatus(p.status);
   document.getElementById("zone3dImage").value = p.zone3dImage || "";
   document.getElementById("form-reset").hidden = false;
   document.getElementById("project-form").scrollIntoView({ behavior: "smooth" });

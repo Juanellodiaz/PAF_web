@@ -12,7 +12,7 @@ create table if not exists projects (
   id text primary key,
   name text not null,
   client_id text references users (id) on delete set null,
-  status text not null default 'pending',
+  status text not null default 'en_aprobacion',
   completion_date date not null,
   zone3d_image text default '/assets/zone-3d-placeholder.svg',
   estimations jsonb not null default '[]'::jsonb
@@ -25,7 +25,7 @@ create table if not exists project_concepts (
   m2 numeric not null,
   unit_price numeric not null,
   total_price numeric not null,
-  status text not null default 'pending',
+  status text not null default 'en_aprobacion',
   advances jsonb not null default '[]'::jsonb
 );
 
