@@ -73,6 +73,13 @@ function updateEstimationRowUi(idx) {
   row.querySelectorAll("[data-toggle-est]").forEach((btn) => {
     btn.setAttribute("aria-expanded", String(expanded));
   });
+  const paidToggle = row.querySelector("[data-est-paid-toggle]");
+  if (paidToggle) {
+    paidToggle.classList.toggle("is-paid", !!est.paid);
+    paidToggle.setAttribute("aria-pressed", String(!!est.paid));
+    const paidLabel = paidToggle.querySelector(".est-paid-toggle-text");
+    if (paidLabel) paidLabel.textContent = est.paid ? "Pagada" : "Pendiente";
+  }
 }
 
 function toggleEstimationRow(idx) {
@@ -116,6 +123,19 @@ window.pafRemoveEstimation = function (idx) {
   void persistProjectAdvances();
 };
 
+window.pafToggleEstPaid = async function (idx) {
+  const est = editorEstimations[idx];
+  if (!est) return;
+  const toggle = document.querySelector(`[data-est-paid-toggle="${idx}"]`);
+  if (toggle?.disabled) return;
+  if (toggle) toggle.disabled = true;
+  try {
+    await window.pafEstPaidChange(idx, !est.paid);
+  } finally {
+    if (toggle) toggle.disabled = false;
+  }
+};
+
 window.pafEstPaidChange = async function (idx, checked) {
   if (!editorEstimations[idx]) return;
   editorEstimations[idx].paid = checked;
@@ -137,11 +157,30 @@ window.pafEstPaidChange = async function (idx, checked) {
   }
   const ok = await persistProjectAdvances();
   if (!ok) {
+    editorEstimations[idx].paid = !checked;
+    editorEstimations[idx].paidAt = checked
+      ? new Date().toISOString().slice(0, 10)
+      : null;
+    updateEstimationRowUi(idx);
+    if (typeof window.refreshProjectMetrics === "function") {
+      window.refreshProjectMetrics();
+    }
     const errEl = document.getElementById("save-error");
     if (errEl) {
       errEl.textContent =
         "No se pudo guardar el estado de pago. Pulsa Guardar cambios.";
     }
+    return;
+  }
+  if (status) {
+    status.textContent = checked ? "✓ Marcada como pagada" : "✓ Marcada como pendiente";
+    status.className = "save-status is-ok";
+    setTimeout(() => {
+      if (status.textContent.startsWith("✓ Marcada")) {
+        status.textContent = "";
+        status.className = "save-status";
+      }
+    }, 3000);
   }
 };
 
@@ -247,11 +286,12 @@ function readPaidStateFromEditor() {
       const idx = Number(row.dataset.estIndex);
       const est = editorEstimations[idx];
       if (!est?.id) return;
-      const cb = row.querySelector(".estimation-paid input[type=checkbox]");
-      if (!cb) return;
+      const toggle = row.querySelector("[data-est-paid-toggle]");
+      if (!toggle) return;
+      const paid = toggle.classList.contains("is-paid");
       byId.set(est.id, {
-        paid: cb.checked,
-        paidAt: cb.checked
+        paid,
+        paidAt: paid
           ? est.paidAt || new Date().toISOString().slice(0, 10)
           : null,
       });
@@ -638,6 +678,10 @@ function estimationCardHtml(est, idx, conceptsSource) {
           <span class="concept-summary">${escapeHtml(summary)}</span>
         </button>
         <div class="estimation-head-actions">
+          <button type="button" class="est-paid-toggle ${est.paid ? "is-paid" : ""}" data-est-paid-toggle="${idx}" aria-pressed="${est.paid}" aria-label="Estado de pago" onclick="pafToggleEstPaid(${idx})">
+            <span class="est-paid-toggle-track" aria-hidden="true"><span class="est-paid-toggle-thumb"></span></span>
+            <span class="est-paid-toggle-text">${est.paid ? "Pagada" : "Pendiente"}</span>
+          </button>
           <span class="estimation-total">${formatMoney(total)}</span>
           <button type="button" class="btn btn-ghost btn-sm" data-est-toggle-label onclick="pafToggleEstimation(${idx})">${expanded ? "Ocultar" : "Ver detalle"}</button>
           <button type="button" class="btn btn-ghost btn-sm" onclick="pafDownloadEstimation(${idx})">Descargar</button>
@@ -661,12 +705,6 @@ function estimationCardHtml(est, idx, conceptsSource) {
         </div>
         <p class="subsection-label">Partidas incluidas</p>
         ${estimationLinesTableHtml(lines)}
-        <div class="estimation-card-actions">
-          <label class="estimation-paid">
-            <input type="checkbox" ${est.paid ? "checked" : ""} onchange="pafEstPaidChange(${idx}, this.checked)">
-            Marcar como pagada
-          </label>
-        </div>
       </div>
     </div>`;
 }
