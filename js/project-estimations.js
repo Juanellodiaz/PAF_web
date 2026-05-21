@@ -240,6 +240,14 @@ function mergeEstimationsFromConcepts(stored, concepts) {
   return Array.from(byId.values());
 }
 
+function projectProgressForExport(projectId) {
+  const project = (window.__pafProjectsForEstimations || []).find(
+    (p) => p.id === projectId
+  );
+  if (!project) return { percent: 0, doneM2: 0, totalM2: 0 };
+  return calcProjectProgress(project.concepts || []);
+}
+
 function buildEstimationExportHtml(estimation, breakdown, clientName, estimationsList) {
   const list = estimationsList || window.__pafGlobalEstimations || [];
   const idx = list.findIndex((e) => e.id === estimation.id);
@@ -254,6 +262,8 @@ function buildEstimationExportHtml(estimation, breakdown, clientName, estimation
 
   const sections = (b.groups || [])
     .map((g) => {
+      const prog = projectProgressForExport(g.projectId);
+      const progressLine = `Avance del proyecto: <strong>${prog.percent}%</strong> (${prog.doneM2} / ${prog.totalM2} m²)`;
       const rows = g.lines
         .map(
           (l) => `
@@ -268,6 +278,7 @@ function buildEstimationExportHtml(estimation, breakdown, clientName, estimation
         .join("");
       return `
     <h2 class="project-heading">${escapeHtml(g.projectName)}</h2>
+    <p class="project-progress">${progressLine}</p>
     <table>
       <thead>
         <tr>
@@ -301,7 +312,8 @@ function buildEstimationExportHtml(estimation, breakdown, clientName, estimation
     h1 { font-size: 1.35rem; margin: 0 0 0.25rem; }
     .meta { color: #555; font-size: 0.9rem; margin-bottom: 1.5rem; }
     .badge { display: inline-block; padding: 0.2rem 0.6rem; border: 1px solid #ccc; font-size: 0.75rem; margin-top: 0.5rem; }
-    .project-heading { font-size: 1rem; margin: 1.75rem 0 0.5rem; border-bottom: 1px solid #ddd; padding-bottom: 0.35rem; }
+    .project-heading { font-size: 1rem; margin: 1.75rem 0 0.35rem; border-bottom: 1px solid #ddd; padding-bottom: 0.35rem; }
+    .project-progress { font-size: 0.85rem; color: #444; margin: 0 0 0.65rem; }
     table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; margin-bottom: 0.5rem; }
     th, td { border: 1px solid #ddd; padding: 0.5rem 0.65rem; text-align: left; font-size: 0.85rem; }
     th { background: #f5f5f5; }
