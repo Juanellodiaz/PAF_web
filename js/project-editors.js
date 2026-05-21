@@ -143,19 +143,23 @@ window.pafEstPaidChange = async function (idx, checked) {
     ? new Date().toISOString().slice(0, 10)
     : null;
   updateEstimationRowUi(idx);
-  if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);
   if (typeof window.refreshProjectMetrics === "function") {
     window.refreshProjectMetrics();
   }
+  const estimationsToSave = collectEstimations();
   if (window.__pafProjectData) {
-    window.__pafProjectData.estimations = collectEstimations();
+    window.__pafProjectData.estimations = estimationsToSave;
   }
+  if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);
   const status = document.getElementById("save-status");
   if (status) {
     status.textContent = "Guardando estado de pago…";
     status.className = "save-status is-saving";
   }
   const ok = await persistProjectAdvances();
+  if (ok && window.__pafProjectId) {
+    saveEditorDraft(window.__pafProjectId);
+  }
   if (!ok) {
     editorEstimations[idx].paid = !checked;
     editorEstimations[idx].paidAt = checked

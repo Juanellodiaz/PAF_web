@@ -59,6 +59,19 @@ function estimationDisplayLabel(est, index) {
   return (est.label || "").trim() || `Estimación ${String(index + 1).padStart(2, "0")}`;
 }
 
+function mergeEstimationPaidState(prev, next) {
+  if (prev?.paid === false || next?.paid === false) {
+    return { paid: false, paidAt: null };
+  }
+  if (prev?.paid || next?.paid) {
+    return {
+      paid: true,
+      paidAt: prev?.paidAt || next?.paidAt || null,
+    };
+  }
+  return { paid: false, paidAt: null };
+}
+
 function mergeStoredEstimations(projectEstimations, metaEstimations) {
   const byId = new Map();
   (projectEstimations || []).forEach((e) => {
@@ -74,8 +87,7 @@ function mergeStoredEstimations(projectEstimations, metaEstimations) {
     byId.set(e.id, {
       ...prev,
       ...e,
-      paid: !!(prev.paid || e.paid),
-      paidAt: prev.paidAt || e.paidAt || null,
+      ...mergeEstimationPaidState(prev, e),
     });
   });
   return Array.from(byId.values());

@@ -25,6 +25,19 @@ function isSchemaColumnError(err) {
   );
 }
 
+function mergeEstimationPaidState(prev, next) {
+  if (prev?.paid === false || next?.paid === false) {
+    return { paid: false, paidAt: null };
+  }
+  if (prev?.paid || next?.paid) {
+    return {
+      paid: true,
+      paidAt: prev?.paidAt || next?.paidAt || null,
+    };
+  }
+  return { paid: false, paidAt: null };
+}
+
 function mergeStoredEstimations(projectEstimations, metaEstimations) {
   const byId = new Map();
   (projectEstimations || []).forEach((e) => {
@@ -40,8 +53,7 @@ function mergeStoredEstimations(projectEstimations, metaEstimations) {
     byId.set(e.id, {
       ...prev,
       ...e,
-      paid: !!(prev.paid || e.paid),
-      paidAt: prev.paidAt || e.paidAt || null,
+      ...mergeEstimationPaidState(prev, e),
     });
   });
   return Array.from(byId.values());
@@ -89,6 +101,9 @@ function applyPaidFromMeta(estimations, paidByEstimationId) {
     return estimations;
   }
   return (estimations || []).map((e) => {
+    if (e.paid === false) {
+      return { ...e, paid: false, paidAt: null };
+    }
     const flags = paidByEstimationId[e.id];
     if (!flags?.paid) return e;
     return {
