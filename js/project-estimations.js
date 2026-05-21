@@ -128,13 +128,13 @@ function refreshEstimationBreakdowns(estimations) {
 }
 
 function estimationBreakdownFor(estimationId, estimations) {
+  const projects = projectsForEstimationBreakdown();
+  const fresh = getEstimationBreakdown(estimationId, projects);
   if (!window.__pafEstimationBreakdowns) {
-    refreshEstimationBreakdowns(estimations);
+    window.__pafEstimationBreakdowns = {};
   }
-  return (
-    window.__pafEstimationBreakdowns?.[estimationId] ||
-    getEstimationBreakdown(estimationId, projectsForEstimationBreakdown())
-  );
+  window.__pafEstimationBreakdowns[estimationId] = fresh;
+  return fresh;
 }
 
 function estimationGrandTotal(est, estimations, projectsOrConcepts) {
@@ -381,6 +381,102 @@ function buildEstimationExportHtml(estimation, breakdown, clientName, estimation
 </body>
 </html>`;
 }
+
+function clientEstimationCardHtml(est, idx) {
+  const breakdown = estimationBreakdownFor(est.id);
+  const total = breakdown.grandTotal || 0;
+  const lineCount = breakdown.lineCount || 0;
+  const projectCount = breakdown.groups?.length || 0;
+  const label = estimationDisplayLabel(est, idx);
+  const paid = !!est.paid;
+  const projectsNote =
+    projectCount > 1 ? ` · ${projectCount} proyectos` : "";
+  const summary = `${label} · ${lineCount} partida(s)${projectsNote} · ${formatMoney(total)} · ${paid ? "Pagada" : "Pendiente"}`;
+
+  return `
+    <div class="estimation-card concept-row is-collapsed" data-client-est-idx="${idx}">
+      <div class="concept-row-top estimation-card-head">
+        <button type="button" class="concept-toggle" aria-expanded="false" onclick="pafToggleClientEstimation(${idx})">
+          <span class="concept-chevron" aria-hidden="true"></span>
+          <span class="concept-row-num">EST ${String(idx + 1).padStart(2, "0")}</span>
+          <span class="concept-summary">${escapeHtml(summary)}</span>
+        </button>
+        <div class="estimation-head-actions">
+          <span class="estimation-status-badge ${paid ? "paid" : "pending"}">${paid ? "PAGADA" : "PENDIENTE DE PAGO"}</span>
+          <span class="estimation-total">${formatMoney(total)}</span>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="pafToggleClientEstimation(${idx})">Ver detalle</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-client-download-est="${idx}">Descargar</button>
+        </div>
+      </div>
+      <div class="concept-row-body estimation-detail">
+        ${est.notes ? `<p class="estimation-notes-readonly">${escapeHtml(est.notes)}</p>` : ""}
+        ${estimationLinesGroupedHtml(breakdown)}
+      </div>
+    </div>`;
+}
+
+function renderClientEstimationsList(
+  listEl,
+  estimations,
+  clientName,
+  currentProject
+) {
+  if (!listEl) return [];
+
+  if (currentProject?.id) {
+    syncProjectsForEstimations(currentProject);
+  }
+  const list = mergeEstimationsFromConcepts(
+    estimations || [],
+    currentProject?.concepts || []
+  );
+  refreshEstimationBreakdowns(list);
+
+  if (!list.length) {
+    listEl.innerHTML =
+      '<p class="portal-user">Sin estimaciones generadas.</p>';
+    return [];
+  }
+
+  const sorted = [...list].sort((a, b) => {
+    if (!!a.paid !== !!b.paid) return a.paid ? 1 : -1;
+    return (b.date || "").localeCompare(a.date || "");
+  });
+
+  listEl.innerHTML = sorted
+    .map((est, idx) => clientEstimationCardHtml(est, idx))
+    .join("");
+
+  listEl.querySelectorAll("[data-client-download-est]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const idx = Number(btn.dataset.clientDownloadEst);
+      const est = sorted[idx];
+      if (est) {
+        if (currentProject?.id) syncProjectsForEstimations(currentProject);
+        refreshEstimationBreakdowns(sorted);
+        downloadEstimation(est, clientName);
+      }
+    });
+  });
+
+  window.__pafClientEstimationsSorted = sorted;
+  return sorted;
+}
+
+window.pafToggleClientEstimation = function (idx) {
+  const card = document.querySelector(`[data-client-est-idx="${idx}"]`);
+  if (!card) return;
+  const collapsed = card.classList.toggle("is-collapsed");
+  const expanded = !collapsed;
+  const toggle = card.querySelector(".concept-toggle");
+  if (toggle) toggle.setAttribute("aria-expanded", String(expanded));
+  card.querySelectorAll(".estimation-head-actions .btn-ghost").forEach((btn) => {
+    if (!btn.hasAttribute("data-client-download-est")) {
+      btn.textContent = expanded ? "Ocultar" : "Ver detalle";
+    }
+  });
+};
 
 function downloadEstimation(estimation, clientName, breakdown) {
   refreshEstimationBreakdowns();

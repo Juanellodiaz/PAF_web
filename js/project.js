@@ -72,7 +72,7 @@ async function loadEstimationContext() {
     );
     window.__pafProjectsForEstimations = projects || [];
     window.__pafGlobalEstimations = estimations || [];
-    window.__pafEstimationBreakdowns = breakdowns || {};
+    window.__pafEstimationBreakdowns = {};
     if (projectData && estimations?.length) {
       projectData.estimations = estimations;
     }
@@ -169,6 +169,15 @@ async function loadEstimationContext() {
       downloadEstimation(est, clientDisplayName);
     };
     renderClientView(p);
+    const estListEl = document.getElementById("project-estimations-list");
+    if (estListEl) {
+      renderClientEstimationsList(
+        estListEl,
+        p.estimations,
+        clientDisplayName,
+        p
+      );
+    }
   }
 })();
 
@@ -431,9 +440,9 @@ function buildReadonlyHtml(p) {
         </table>
         ${!(p.concepts && p.concepts.length) ? '<p class="portal-user" style="margin-top:1rem">Sin conceptos registrados aún.</p>' : ""}
       </div>
-      <div class="dashboard-panel full">
+      <div class="dashboard-panel full client-estimations-section">
         <p class="panel-label">Estimaciones</p>
-        ${estimationsReadonlyHtml(p, false)}
+        <div id="project-estimations-list" class="estimations-readonly"></div>
       </div>
       <div class="dashboard-panel">
         <p class="panel-label">Zona de trabajo — Vista 3D</p>
@@ -445,62 +454,6 @@ function buildReadonlyHtml(p) {
       </div>
     </div>
   `;
-}
-
-function estimationsReadonlyHtml(p, allowPaidToggle) {
-  const list = mergeEstimationsFromConcepts(p.estimations, p.concepts);
-  syncProjectsForEstimations(p);
-  refreshEstimationBreakdowns(list);
-  window.__pafProjectEstimationsList = list;
-  if (!list.length) {
-    return '<p class="portal-user">Sin estimaciones generadas.</p>';
-  }
-  return `<div class="estimations-readonly">${list
-    .map((est, idx) => {
-      const breakdown = estimationBreakdownFor(est.id, list);
-      const total = breakdown.grandTotal || 0;
-      const lineCount = breakdown.lineCount || 0;
-      const projectCount = breakdown.groups?.length || 0;
-      const label = estimationDisplayLabel(est, idx);
-      const projectsNote =
-        projectCount > 1
-          ? ` · ${projectCount} proyectos`
-          : projectCount === 1
-            ? ""
-            : "";
-      return `
-      <div class="estimation-card ${est.paid ? "is-paid" : ""}">
-        <div class="estimation-card-head">
-          <div>
-            <strong>${escapeHtml(label)}</strong>
-            <p class="estimation-meta">${lineCount} partida(s)${projectsNote} · ${formatDate(est.date)} · ${est.paid ? "Pagada" : "Pendiente"}</p>
-            ${est.notes ? `<p class="estimation-notes-readonly">${escapeHtml(est.notes)}</p>` : ""}
-          </div>
-          <span class="estimation-total">${formatMoney(total)}</span>
-        </div>
-        ${estimationLinesGroupedHtml(breakdown)}
-        <div class="estimation-card-actions">
-          <span class="estimation-status-badge ${est.paid ? "paid" : ""}">${est.paid ? "Pagada" : "Pendiente de pago"}</span>
-          <button type="button" class="btn btn-ghost btn-sm" data-client-download-est="${idx}">Descargar</button>
-        </div>
-      </div>`;
-    })
-    .join("")}</div>`;
-}
-
-function bindClientEstimationActions(p) {
-  document.querySelectorAll("[data-client-download-est]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const idx = Number(btn.dataset.clientDownloadEst);
-      const list = window.__pafProjectEstimationsList || p.estimations || [];
-      const est = list[idx];
-      if (est) {
-        syncProjectsForEstimations(p);
-        refreshEstimationBreakdowns(list);
-        downloadEstimation(est, clientDisplayName);
-      }
-    });
-  });
 }
 
 function documentsReadonlyHtml(docs) {
