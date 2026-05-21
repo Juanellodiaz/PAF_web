@@ -251,6 +251,19 @@ body.page-enter {
   padding: 1.75rem;
   background: var(--bg-card);
   transition: background 0.25s;
+  color: inherit;
+  text-decoration: none;
+}
+
+.project-card-layout {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.project-card-body {
+  flex: 1;
+  min-width: 0;
 }
 
 .project-card:hover {
@@ -415,6 +428,58 @@ body.page-enter {
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--accent);
+}
+
+.progress-ring--card {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+}
+
+.progress-ring--card::before {
+  width: 42px;
+  height: 42px;
+}
+
+.progress-ring--card .progress-ring-value {
+  font-size: 0.75rem;
+}
+
+.progress-ring-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.progress-ring-card-m2 {
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.admin-list-item-start {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-list-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.admin-list-item-info strong {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 500;
 }
 
 .metric-value {

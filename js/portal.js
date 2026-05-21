@@ -79,6 +79,45 @@ function statusLabel(status) {
   return map[status] || status;
 }
 
+function calcProjectProgress(concepts) {
+  const list = concepts || [];
+  const totalM2 = list.reduce((s, c) => s + (Number(c.m2) || 0), 0);
+  const doneM2 = list.reduce((s, c) => {
+    const adv = Array.isArray(c.advances) ? c.advances : [];
+    return s + adv.reduce((a, v) => a + (Number(v.m2) || 0), 0);
+  }, 0);
+  const percent = totalM2
+    ? Math.min(100, Math.round((doneM2 / totalM2) * 1000) / 10)
+    : 0;
+  return { totalM2, doneM2, percent };
+}
+
+function projectProgress(p) {
+  const calc = calcProjectProgress(p.concepts || []);
+  return {
+    percent:
+      typeof p.progressPercent === "number" ? p.progressPercent : calc.percent,
+    doneM2:
+      typeof p.progressDoneM2 === "number" ? p.progressDoneM2 : calc.doneM2,
+    totalM2: calc.totalM2,
+  };
+}
+
+function progressRingCardHtml(p) {
+  const prog = projectProgress(p);
+  const m2Label =
+    prog.totalM2 > 0
+      ? `<span class="progress-ring-card-m2">${prog.doneM2} / ${prog.totalM2} m²</span>`
+      : "";
+  return `
+    <div class="progress-ring-card" aria-label="Avance del proyecto: ${prog.percent} por ciento">
+      <div class="progress-ring progress-ring--card" style="--pct: ${prog.percent}">
+        <span class="progress-ring-value">${prog.percent}%</span>
+      </div>
+      ${m2Label}
+    </div>`;
+}
+
 function navigateWithFade(url) {
   document.body.classList.add("page-exit");
   setTimeout(() => {

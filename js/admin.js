@@ -43,9 +43,12 @@ async function loadProjects() {
       const n = (p.concepts && p.concepts.length) || 0;
       return `
       <div class="admin-list-item">
-        <div>
-          <strong>${escapeHtml(p.name)}</strong><br>
-          <span class="portal-user">${escapeHtml(clientName)} · ${p.daysRemaining} días · ${n} conceptos · ${formatMoney(p.conceptsTotal)}</span>
+        <div class="admin-list-item-start">
+          ${progressRingCardHtml(p)}
+          <div class="admin-list-item-info">
+            <strong>${escapeHtml(p.name)}</strong>
+            <span class="portal-user">${escapeHtml(clientName)} · ${p.daysRemaining} días · ${n} conceptos · ${formatMoney(p.conceptsTotal)}</span>
+          </div>
         </div>
         <div class="portal-actions">
           <a href="/project.html?id=${encodeURIComponent(p.id)}" class="btn btn-primary btn-sm">Ver / Editar</a>

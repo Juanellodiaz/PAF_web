@@ -21,11 +21,16 @@
     .map(
       (p) => `
     <a href="/project.html?id=${encodeURIComponent(p.id)}" class="project-card">
-      <h3>${escapeHtml(p.name)}</h3>
-      <div class="project-card-meta">
-        <span class="project-status ${p.status}">${statusLabel(p.status)}</span>
-        <span>${p.daysRemaining} días restantes</span>
-        <span>${formatMoney(p.conceptsTotal)}</span>
+      <div class="project-card-layout">
+        ${progressRingCardHtml(p)}
+        <div class="project-card-body">
+          <h3>${escapeHtml(p.name)}</h3>
+          <div class="project-card-meta">
+            <span class="project-status ${p.status}">${statusLabel(p.status)}</span>
+            <span>${p.daysRemaining} días restantes</span>
+            <span>${formatMoney(p.conceptsTotal)}</span>
+          </div>
+        </div>
       </div>
     </a>
   `
