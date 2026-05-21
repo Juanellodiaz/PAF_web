@@ -119,7 +119,7 @@ async function saveProject(project) {
 
   const { error: projectError } = await getClient()
     .from("projects")
-    .upsert(row);
+    .upsert(row, { onConflict: "id" });
 
   if (projectError) throw projectError;
 
@@ -161,7 +161,19 @@ async function saveProject(project) {
     if (error) throw error;
   }
 
-  return getProject(project.id);
+  const loaded = await getProject(project.id);
+  if (loaded) return loaded;
+
+  return {
+    id: project.id,
+    name: project.name,
+    clientId: project.clientId || null,
+    status: project.status,
+    completionDate: project.completionDate,
+    zone3dImage: project.zone3dImage,
+    concepts: project.concepts || [],
+    documents: project.documents || [],
+  };
 }
 
 async function deleteProject(id) {

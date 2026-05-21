@@ -1,8 +1,11 @@
 const express = require("express");
 const crypto = require("crypto");
 const cookieParser = require("cookie-parser");
-const { v4: uuidv4 } = require("uuid");
 const db = require("./db");
+
+function newProjectId() {
+  return `proj-${crypto.randomBytes(4).toString("hex")}`;
+}
 
 const app = express();
 const sessions = new Map();
@@ -47,14 +50,18 @@ function isProduction(req) {
 }
 
 function projectPayload(project) {
+  if (!project) throw new Error("Proyecto no encontrado");
+  const concepts = project.concepts || [];
   const completion = new Date(project.completionDate);
   const now = new Date();
   const msLeft = completion - now;
   const daysLeft = Math.max(0, Math.ceil(msLeft / (1000 * 60 * 60 * 24)));
-  const conceptsTotal = project.concepts.reduce((s, c) => s + c.totalPrice, 0);
-  const m2Total = project.concepts.reduce((s, c) => s + c.m2, 0);
+  const conceptsTotal = concepts.reduce((s, c) => s + c.totalPrice, 0);
+  const m2Total = concepts.reduce((s, c) => s + c.m2, 0);
   return {
     ...project,
+    concepts,
+    documents: project.documents || [],
     daysRemaining: daysLeft,
     conceptsTotal,
     m2Total,
@@ -63,7 +70,12 @@ function projectPayload(project) {
 
 function handleError(res, err) {
   console.error(err);
-  res.status(500).json({ error: "Error del servidor" });
+  const message =
+    err?.message ||
+    err?.details ||
+    err?.hint ||
+    "Error del servidor";
+  res.status(500).json({ error: message });
 }
 
 app.post("/api/auth/login", async (req, res) => {
@@ -128,7 +140,7 @@ app.post("/api/projects", requireAuth, requireAdmin, async (req, res) => {
   try {
     const body = req.body || {};
     const project = {
-      id: body.id || `proj-${uuidv4().slice(0, 8)}`,
+      id: body.id || newProjectId(),
       name: body.name || "Nuevo proyecto",
       clientId: body.clientId || "",
       status: body.status || "pending",
