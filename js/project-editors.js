@@ -213,7 +213,51 @@ function setEditorData(concepts, documents, estimations) {
   );
 }
 
+function onAdvanceFormChange(conceptIndex) {
+  updateAdvanceAmountPreview(conceptIndex);
+  const m2 =
+    Number(
+      document.querySelector(`[data-advance-m2="${conceptIndex}"]`)?.value
+    ) || 0;
+  if (m2 > 0) persistProjectAdvances();
+}
+
+function flushPendingAdvancesFromDom() {
+  editorConcepts.forEach((c, i) => {
+    const m2Input = document.querySelector(`[data-advance-m2="${i}"]`);
+    if (!m2Input) return;
+    const m2 = Number(m2Input.value) || 0;
+    if (m2 <= 0) return;
+
+    const pending = conceptAdvancePendingM2(c);
+    if (m2 > pending + 0.001) return;
+
+    const dateInput = document.querySelector(`[data-advance-date="${i}"]`);
+    const estSelect = document.querySelector(`[data-advance-estimation="${i}"]`);
+    const estimationId = resolveEstimationId(estSelect?.value || "__new__");
+    if (!estimationId) return;
+
+    const advances = parseAdvances(c);
+    const date = dateInput?.value || new Date().toISOString().slice(0, 10);
+    const alreadyAdded = advances.some(
+      (a) =>
+        Math.abs((Number(a.m2) || 0) - m2) < 0.001 &&
+        a.estimationId === estimationId &&
+        (a.date || "") === date
+    );
+    if (alreadyAdded) return;
+
+    if (!c.advances) c.advances = [];
+    const adv = newAdvance(estimationId);
+    adv.m2 = m2;
+    adv.date = date;
+    c.advances.push(adv);
+  });
+  syncEditorEstimations();
+}
+
 function collectConcepts() {
+  flushPendingAdvancesFromDom();
   syncConceptTotals();
   return editorConcepts
     .map((c) => {
@@ -343,10 +387,18 @@ function renderConceptsEditor() {
   });
   el.querySelectorAll("[data-advance-m2]").forEach((input) => {
     const i = Number(input.dataset.advanceM2);
-    const refresh = () => updateAdvanceAmountPreview(i);
+    const refresh = () => onAdvanceFormChange(i);
     input.addEventListener("input", refresh);
     input.addEventListener("change", refresh);
     refresh();
+  });
+  el.querySelectorAll("[data-advance-date]").forEach((input) => {
+    const i = Number(input.dataset.advanceDate);
+    input.addEventListener("change", () => onAdvanceFormChange(i));
+  });
+  el.querySelectorAll("[data-advance-estimation]").forEach((select) => {
+    const i = Number(select.dataset.advanceEstimation);
+    select.addEventListener("change", () => onAdvanceFormChange(i));
   });
   el.querySelectorAll("[data-remove-advance]").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -598,7 +650,10 @@ async function addConceptAdvance(conceptIndex) {
 
   persistProjectAdvances();
   if (errEl) errEl.textContent = "";
+  updateAdvanceAmountPreview(conceptIndex);
 }
+
+window.flushPendingAdvancesFromDom = flushPendingAdvancesFromDom;
 
 function persistProjectAdvances() {
   if (typeof window.markProjectDirty === "function") {

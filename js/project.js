@@ -507,6 +507,9 @@ function stripComputedFields(project) {
 }
 
 function buildSaveBody() {
+  if (typeof flushPendingAdvancesFromDom === "function") {
+    flushPendingAdvancesFromDom();
+  }
   const zoneInput = document.getElementById("zone3dImage");
   const estimations = collectEstimations();
   return {
