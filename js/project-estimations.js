@@ -49,6 +49,12 @@ function getEstimationTotal(estimationId, concepts) {
   );
 }
 
+function calcTotalPaid(estimations, concepts) {
+  return mergeEstimationsFromConcepts(estimations, concepts)
+    .filter((e) => e.paid)
+    .reduce((sum, e) => sum + getEstimationTotal(e.id, concepts), 0);
+}
+
 function estimationDisplayLabel(est, index) {
   return (est.label || "").trim() || `Estimación ${String(index + 1).padStart(2, "0")}`;
 }

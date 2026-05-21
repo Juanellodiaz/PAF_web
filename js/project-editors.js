@@ -122,6 +122,9 @@ window.pafEstPaidChange = function (idx, checked) {
     ? new Date().toISOString().slice(0, 10)
     : null;
   renderEstimationsEditor();
+  if (typeof window.refreshProjectMetrics === "function") {
+    window.refreshProjectMetrics();
+  }
   void persistProjectAdvances();
 };
 

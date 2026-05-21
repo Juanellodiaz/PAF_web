@@ -83,10 +83,13 @@ function refreshMetricsFromEditors() {
   syncConceptTotals();
   const totalM2 = editorConcepts.reduce((s, c) => s + (Number(c.m2) || 0), 0);
   const totalMoney = editorConcepts.reduce((s, c) => s + c.totalPrice, 0);
+  const totalPaid = calcTotalPaid(editorEstimations, editorConcepts);
   const m2El = document.getElementById("metric-m2");
   const totalEl = document.getElementById("metric-total");
+  const paidEl = document.getElementById("metric-paid");
   if (m2El) m2El.textContent = totalM2;
   if (totalEl) totalEl.textContent = formatMoney(totalMoney);
+  if (paidEl) paidEl.textContent = formatMoney(totalPaid);
   updateProgressChart();
 }
 
@@ -266,6 +269,10 @@ function metricsHtml(p) {
       <span class="metric-value" id="metric-total">${formatMoney(p.conceptsTotal)}</span>
       <span class="metric-label">Inversión total</span>
     </div>
+    <div class="metric-box">
+      <span class="metric-value accent" id="metric-paid">${formatMoney(p.totalPaid)}</span>
+      <span class="metric-label">Total pagado</span>
+    </div>
   `;
 }
 
@@ -279,11 +286,13 @@ function projectPayload(project) {
   const conceptsTotal = concepts.reduce((s, c) => s + c.totalPrice, 0);
   const m2Total = concepts.reduce((s, c) => s + (Number(c.m2) || 0), 0);
   const progress = calcProjectProgress(concepts);
+  const totalPaid = calcTotalPaid(project.estimations, concepts);
   return {
     ...project,
     daysRemaining: daysLeft,
     conceptsTotal,
     m2Total,
+    totalPaid,
     progressPercent: progress.percent,
     progressDoneM2: progress.doneM2,
   };
