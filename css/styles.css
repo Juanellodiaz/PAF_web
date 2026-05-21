@@ -72,7 +72,7 @@ ul { list-style: none; }
 }
 
 .logo img {
-  height: clamp(18px, 2.5vw, 24px);
+  height: clamp(21px, 2.875vw, 28px);
   width: auto;
 }
 
