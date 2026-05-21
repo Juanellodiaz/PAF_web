@@ -70,7 +70,7 @@ function mergeEstimationsFromConcepts(stored, concepts) {
         paid: false,
         paidAt: null,
         notes: "",
-        expanded: false,
+        expanded: true,
       });
     });
   });

@@ -880,11 +880,29 @@ body.page-enter {
   color: var(--accent);
 }
 
+.estimation-card .concept-row-top {
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: 0.5rem;
+}
+
+.estimation-card .concept-toggle {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.estimation-card.is-collapsed .concept-summary {
+  display: inline;
+}
+
 .estimation-head-actions {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex: 1 1 auto;
   flex-shrink: 0;
+  justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .estimation-detail {

@@ -38,9 +38,6 @@ function newEstimation() {
   };
 }
 
-// Asegurar handlers globales tras carga del script
-window.pafToggleEstimation = toggleEstimationRow;
-
 function syncEditorEstimations() {
   const expandedById = new Map(
     editorEstimations.map((e) => [e.id, !!e.expanded])
@@ -630,7 +627,7 @@ function hydrateEstimationsFromProject(project) {
     project.concepts || editorConcepts
   ).map((e) => ({
     ...e,
-    expanded: e.expanded !== false,
+    expanded: true,
   }));
 }
 
@@ -648,8 +645,23 @@ function buildEstimationsEditorHtml(project) {
     .join("");
 }
 
-function bindEstimationEditorEvents(_el) {
-  /* Eventos vía onclick/onchange en el HTML generado */
+function bindEstimationEditorEvents(el) {
+  if (!el || el.dataset.estBound === "1") return;
+  el.dataset.estBound = "1";
+  el.addEventListener("click", (e) => {
+    const toggleBtn = e.target.closest("[data-toggle-est]");
+    if (toggleBtn) {
+      e.preventDefault();
+      toggleEstimationRow(Number(toggleBtn.dataset.toggleEst));
+      return;
+    }
+    const labelBtn = e.target.closest("[data-est-toggle-label]");
+    if (labelBtn) {
+      e.preventDefault();
+      const row = labelBtn.closest("[data-est-index]");
+      if (row) toggleEstimationRow(Number(row.dataset.estIndex));
+    }
+  });
 }
 
 function renderEstimationsEditor() {
