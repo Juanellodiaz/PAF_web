@@ -237,6 +237,19 @@ body.page-enter {
   font-size: 0.65rem;
 }
 
+.client-summary {
+  margin-bottom: 2rem;
+}
+
+.client-summary .metric-sublabel {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  margin-top: 0.2rem;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
 /* Project cards grid */
 .projects-grid {
   display: grid;
@@ -1292,9 +1305,19 @@ body.page-enter {
   }
 }
 
+@media (max-width: 1100px) {
+  .client-summary.metrics-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 @media (max-width: 900px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
+  }
+
+  .client-summary.metrics-row {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .form-row,

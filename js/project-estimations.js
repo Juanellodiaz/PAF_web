@@ -114,19 +114,34 @@ function estimationBreakdownFor(estimationId, estimations) {
   );
 }
 
-function calcTotalPaid(estimations, projectsOrConcepts) {
-  const list = mergeEstimationsFromConcepts(estimations, []);
+function estimationGrandTotal(est, estimations, projectsOrConcepts) {
   const isMultiProject =
     Array.isArray(projectsOrConcepts) &&
     projectsOrConcepts.some((p) => p && p.concepts !== undefined);
+  if (isMultiProject) {
+    return estimationBreakdownFor(est.id, estimations).grandTotal;
+  }
+  return getEstimationTotal(est.id, projectsOrConcepts || []);
+}
+
+function calcTotalPaid(estimations, projectsOrConcepts) {
+  const list = mergeEstimationsFromConcepts(estimations, []);
   return list
     .filter((e) => e.paid)
-    .reduce((sum, e) => {
-      if (isMultiProject) {
-        return sum + estimationBreakdownFor(e.id, list).grandTotal;
-      }
-      return sum + getEstimationTotal(e.id, projectsOrConcepts || []);
-    }, 0);
+    .reduce(
+      (sum, e) => sum + estimationGrandTotal(e, list, projectsOrConcepts),
+      0
+    );
+}
+
+function calcTotalPending(estimations, projectsOrConcepts) {
+  const list = mergeEstimationsFromConcepts(estimations, []);
+  return list
+    .filter((e) => !e.paid)
+    .reduce(
+      (sum, e) => sum + estimationGrandTotal(e, list, projectsOrConcepts),
+      0
+    );
 }
 
 function estimationLinesGroupedHtml(breakdown) {
