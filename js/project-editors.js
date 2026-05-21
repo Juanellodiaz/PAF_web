@@ -34,7 +34,15 @@ function newEstimation() {
     paid: false,
     paidAt: null,
     notes: "",
+    expanded: true,
   };
+}
+
+function syncEditorEstimations() {
+  editorEstimations = mergeEstimationsFromConcepts(
+    editorEstimations,
+    editorConcepts
+  );
 }
 
 function newAdvance(estimationId) {
@@ -90,7 +98,9 @@ function setEditorData(concepts, documents, estimations) {
   editorDocuments = (documents || [])
     .filter((d) => !isMetaDocument(d))
     .map((d) => ({ ...d }));
-  editorEstimations = (estimations || []).map((e) => ({ ...e }));
+  editorEstimations = mergeEstimationsFromConcepts(estimations, editorConcepts).map(
+    (e) => ({ expanded: false, ...e })
+  );
 }
 
 function collectConcepts() {
@@ -117,14 +127,18 @@ function collectConcepts() {
 }
 
 function collectEstimations() {
-  return editorEstimations.map((e) => ({
-    id: e.id,
-    label: (e.label || "").trim(),
-    date: e.date || new Date().toISOString().slice(0, 10),
-    paid: !!e.paid,
-    paidAt: e.paid ? e.paidAt || new Date().toISOString().slice(0, 10) : null,
-    notes: (e.notes || "").trim(),
-  }));
+  syncEditorEstimations();
+  return editorEstimations.map((e) => {
+    const { expanded: _u, collapsed: _c, ...rest } = e;
+    return {
+      ...rest,
+      label: (e.label || "").trim(),
+      date: e.date || new Date().toISOString().slice(0, 10),
+      paid: !!e.paid,
+      paidAt: e.paid ? e.paidAt || new Date().toISOString().slice(0, 10) : null,
+      notes: (e.notes || "").trim(),
+    };
+  });
 }
 
 function collectDocuments() {
@@ -409,6 +423,7 @@ async function addConceptAdvance(conceptIndex) {
 
   if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);
 
+  syncEditorEstimations();
   renderConceptsEditor();
   renderEstimationsEditor();
   updateProgressChart();
@@ -441,50 +456,132 @@ function updateProgressChart() {
   }
 }
 
+function estimationLinesTableHtml(lines) {
+  if (!lines.length) {
+    return '<p class="admin-empty admin-empty-inline">Sin partidas. Agrega avances en los conceptos y asígnalos a esta estimación.</p>';
+  }
+  return `
+    <table class="estimation-lines-table">
+      <thead>
+        <tr><th>Concepto</th><th>m²</th><th>P. unit.</th><th>Importe</th><th>Fecha</th></tr>
+      </thead>
+      <tbody>
+        ${lines
+          .map(
+            (l) => `
+        <tr>
+          <td>${escapeHtml(l.conceptName)}</td>
+          <td>${l.m2}</td>
+          <td>${formatMoney(l.unitPrice)}</td>
+          <td>${formatMoney(l.amount)}</td>
+          <td>${l.date ? formatDate(l.date) : "—"}</td>
+        </tr>`
+          )
+          .join("")}
+      </tbody>
+    </table>`;
+}
+
+function estimationCardHtml(est, idx) {
+  const lines = getEstimationLines(est.id, editorConcepts);
+  const total = lines.reduce((s, l) => s + l.amount, 0);
+  const label = estimationDisplayLabel(est, idx);
+  const expanded = !!est.expanded;
+  const summary = `${label} · ${lines.length} partida(s) · ${formatMoney(total)} · ${est.paid ? "Pagada" : "Pendiente"}`;
+
+  return `
+    <div class="estimation-card concept-row ${est.paid ? "is-paid" : ""} ${expanded ? "" : "is-collapsed"}" data-est-index="${idx}">
+      <div class="concept-row-top estimation-card-head">
+        <button type="button" class="concept-toggle" data-toggle-est="${idx}" aria-expanded="${expanded}">
+          <span class="concept-chevron" aria-hidden="true"></span>
+          <span class="concept-row-num">EST ${String(idx + 1).padStart(2, "0")}</span>
+          <span class="concept-summary">${escapeHtml(summary)}</span>
+        </button>
+        <div class="estimation-head-actions">
+          <span class="estimation-total">${formatMoney(total)}</span>
+          <button type="button" class="btn btn-ghost btn-sm" data-download-est="${idx}">Descargar</button>
+          <button type="button" class="btn-remove" data-remove-est="${idx}" aria-label="Eliminar estimación">×</button>
+        </div>
+      </div>
+      <div class="concept-row-body estimation-detail">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nombre de la estimación</label>
+            <input type="text" data-est-field="label" data-est-index="${idx}" value="${escapeAttr(est.label || label)}" placeholder="${escapeAttr(label)}">
+          </div>
+          <div class="form-group">
+            <label>Fecha</label>
+            <input type="date" data-est-field="date" data-est-index="${idx}" value="${escapeAttr(est.date || "")}">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Notas (opcional)</label>
+          <textarea rows="2" data-est-field="notes" data-est-index="${idx}" placeholder="Observaciones para el cliente…">${escapeHtml(est.notes || "")}</textarea>
+        </div>
+        <p class="subsection-label">Partidas incluidas</p>
+        ${estimationLinesTableHtml(lines)}
+        <div class="estimation-card-actions">
+          <label class="estimation-paid">
+            <input type="checkbox" data-est-paid="${idx}" ${est.paid ? "checked" : ""}>
+            Marcar como pagada
+          </label>
+          <button type="button" class="btn btn-ghost btn-sm" data-toggle-est="${idx}">
+            ${expanded ? "Ocultar detalle" : "Ver detalle"}
+          </button>
+        </div>
+      </div>
+    </div>`;
+}
+
 function renderEstimationsEditor() {
   const el = document.getElementById("estimations-editor");
   if (!el) return;
 
+  syncEditorEstimations();
+
   if (!editorEstimations.length) {
     el.innerHTML =
-      '<p class="admin-empty">Sin estimaciones. Agrega un avance en un concepto o crea una estimación nueva.</p>';
+      '<p class="admin-empty">Sin estimaciones. Agrega un avance en un concepto o pulsa + Estimación.</p>';
     return;
   }
 
   el.innerHTML = editorEstimations
-    .map((est, idx) => {
-      const lines = getEstimationLines(est.id, editorConcepts);
-      const total = lines.reduce((s, l) => s + l.amount, 0);
-      const label = estimationDisplayLabel(est, idx);
-      return `
-      <div class="estimation-card ${est.paid ? "is-paid" : ""}" data-est-index="${idx}">
-        <div class="estimation-card-head">
-          <div>
-            <input type="text" class="estimation-label-input" data-est-field="label" data-est-index="${idx}" value="${escapeAttr(est.label || label)}" placeholder="${escapeAttr(label)}">
-            <p class="estimation-meta">${lines.length} partida(s) · ${formatDate(est.date)}</p>
-          </div>
-          <span class="estimation-total">${formatMoney(total)}</span>
-        </div>
-        <div class="estimation-card-actions">
-          <label class="estimation-paid">
-            <input type="checkbox" data-est-paid="${idx}" ${est.paid ? "checked" : ""}>
-            Pagada
-          </label>
-          <input type="date" class="estimation-date-input" data-est-field="date" data-est-index="${idx}" value="${escapeAttr(est.date || "")}">
-          <button type="button" class="btn btn-ghost btn-sm" data-download-est="${idx}">Descargar</button>
-          <button type="button" class="btn btn-ghost btn-sm" data-remove-est="${idx}">Eliminar</button>
-        </div>
-      </div>`;
-    })
+    .map((est, idx) => estimationCardHtml(est, idx))
     .join("");
 
+  const onEstFieldChange = (e) => {
+    const idx = Number(e.target.dataset.estIndex);
+    const field = e.target.dataset.estField;
+    if (!editorEstimations[idx]) return;
+    editorEstimations[idx][field] = e.target.value;
+    if (field === "label") {
+      const row = el.querySelector(`[data-est-index="${idx}"] .concept-summary`);
+      if (row) {
+        const lines = getEstimationLines(editorEstimations[idx].id, editorConcepts);
+        const total = lines.reduce((s, l) => s + l.amount, 0);
+        const label = estimationDisplayLabel(editorEstimations[idx], idx);
+        row.textContent = `${label} · ${lines.length} partida(s) · ${formatMoney(total)} · ${editorEstimations[idx].paid ? "Pagada" : "Pendiente"}`;
+      }
+    }
+    if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);
+  };
+
   el.querySelectorAll("[data-est-field]").forEach((input) => {
+    input.addEventListener("input", onEstFieldChange);
     input.addEventListener("change", (e) => {
-      const idx = Number(e.target.dataset.estIndex);
-      editorEstimations[idx][e.target.dataset.estField] = e.target.value;
-      if (e.target.dataset.estField === "date") renderEstimationsEditor();
+      onEstFieldChange(e);
+      void persistProjectAdvances();
     });
   });
+
+  el.querySelectorAll("[data-toggle-est]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const idx = Number(btn.dataset.toggleEst);
+      editorEstimations[idx].expanded = !editorEstimations[idx].expanded;
+      renderEstimationsEditor();
+    });
+  });
+
   el.querySelectorAll("[data-est-paid]").forEach((input) => {
     input.addEventListener("change", (e) => {
       const idx = Number(e.target.dataset.estPaid);
@@ -493,8 +590,10 @@ function renderEstimationsEditor() {
         ? new Date().toISOString().slice(0, 10)
         : null;
       renderEstimationsEditor();
+      void persistProjectAdvances();
     });
   });
+
   el.querySelectorAll("[data-download-est]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const idx = Number(btn.dataset.downloadEst);
@@ -503,6 +602,7 @@ function renderEstimationsEditor() {
       }
     });
   });
+
   el.querySelectorAll("[data-remove-est]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const idx = Number(btn.dataset.removeEst);
@@ -516,6 +616,7 @@ function renderEstimationsEditor() {
           a.estimationId === estId ? { ...a, estimationId: "" } : a
         );
       });
+      if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);
       renderConceptsEditor();
       renderEstimationsEditor();
       void persistProjectAdvances();
@@ -730,6 +831,8 @@ function bindEditorActions() {
   });
   document.getElementById("add-estimation")?.addEventListener("click", () => {
     editorEstimations.push(newEstimation());
+    if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);
     renderEstimationsEditor();
+    void persistProjectAdvances();
   });
 }

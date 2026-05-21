@@ -60,10 +60,12 @@ function mergeProjectWithDraft(project, draft) {
   (project.concepts || []).forEach((c) => {
     if (!concepts.find((x) => x.id === c.id)) concepts.push(c);
   });
-  const estimations =
+  const estimations = mergeEstimationsFromConcepts(
     (draft.estimations?.length || 0) >= (project.estimations?.length || 0)
       ? draft.estimations
-      : project.estimations || [];
+      : project.estimations,
+    concepts
+  );
   return { ...project, concepts, estimations };
 }
 

@@ -316,7 +316,7 @@ function buildReadonlyHtml(p) {
 }
 
 function estimationsReadonlyHtml(p, allowPaidToggle) {
-  const list = p.estimations || [];
+  const list = mergeEstimationsFromConcepts(p.estimations, p.concepts);
   if (!list.length) {
     return '<p class="portal-user">Sin estimaciones generadas.</p>';
   }
@@ -325,21 +325,34 @@ function estimationsReadonlyHtml(p, allowPaidToggle) {
       const lines = getEstimationLines(est.id, p.concepts || []);
       const total = lines.reduce((s, l) => s + l.amount, 0);
       const label = estimationDisplayLabel(est, idx);
+      const rows = lines
+        .map(
+          (l) => `
+        <tr>
+          <td>${escapeHtml(l.conceptName)}</td>
+          <td>${l.m2}</td>
+          <td>${formatMoney(l.unitPrice)}</td>
+          <td>${formatMoney(l.amount)}</td>
+        </tr>`
+        )
+        .join("");
       return `
       <div class="estimation-card ${est.paid ? "is-paid" : ""}">
         <div class="estimation-card-head">
           <div>
             <strong>${escapeHtml(label)}</strong>
             <p class="estimation-meta">${lines.length} partida(s) · ${formatDate(est.date)} · ${est.paid ? "Pagada" : "Pendiente"}</p>
+            ${est.notes ? `<p class="estimation-notes-readonly">${escapeHtml(est.notes)}</p>` : ""}
           </div>
           <span class="estimation-total">${formatMoney(total)}</span>
         </div>
+        ${
+          lines.length
+            ? `<table class="estimation-lines-table"><thead><tr><th>Concepto</th><th>m²</th><th>P. unit.</th><th>Importe</th></tr></thead><tbody>${rows}</tbody></table>`
+            : ""
+        }
         <div class="estimation-card-actions">
-          ${
-            allowPaidToggle
-              ? `<label class="estimation-paid"><input type="checkbox" data-client-est-paid="${idx}" ${est.paid ? "checked" : ""}> Pagada</label>`
-              : `<span class="estimation-status-badge ${est.paid ? "paid" : ""}">${est.paid ? "Pagada" : "Pendiente de pago"}</span>`
-          }
+          <span class="estimation-status-badge ${est.paid ? "paid" : ""}">${est.paid ? "Pagada" : "Pendiente de pago"}</span>
           <button type="button" class="btn btn-ghost btn-sm" data-client-download-est="${idx}">Descargar</button>
         </div>
       </div>`;

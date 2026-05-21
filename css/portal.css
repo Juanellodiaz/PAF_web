@@ -874,6 +874,54 @@ body.page-enter {
   color: var(--accent);
 }
 
+.estimation-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.estimation-detail {
+  max-height: 1200px;
+}
+
+.estimation-lines-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5rem 0 1rem;
+  font-size: 0.8rem;
+}
+
+.estimation-lines-table th,
+.estimation-lines-table td {
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.55rem;
+  text-align: left;
+}
+
+.estimation-lines-table th {
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.estimation-notes-readonly {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.35rem;
+  line-height: 1.5;
+}
+
+.estimation-card .concept-row-top {
+  margin-bottom: 0;
+}
+
+.estimation-card:not(.is-collapsed) .concept-row-top {
+  margin-bottom: 0.75rem;
+}
+
 .btn-remove {
   background: none;
   border: none;

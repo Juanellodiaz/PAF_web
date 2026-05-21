@@ -25,6 +25,30 @@ function isSchemaColumnError(err) {
   );
 }
 
+function mergeEstimationsFromConcepts(stored, concepts) {
+  const byId = new Map();
+  (stored || []).forEach((e) => {
+    byId.set(e.id, { ...e });
+  });
+  let n = byId.size;
+  (concepts || []).forEach((c) => {
+    const advances = Array.isArray(c.advances) ? c.advances : [];
+    advances.forEach((a) => {
+      if (!a.estimationId || byId.has(a.estimationId)) return;
+      n += 1;
+      byId.set(a.estimationId, {
+        id: a.estimationId,
+        label: `Estimación ${String(n).padStart(2, "0")}`,
+        date: a.date || new Date().toISOString().slice(0, 10),
+        paid: false,
+        paidAt: null,
+        notes: "",
+      });
+    });
+  });
+  return Array.from(byId.values());
+}
+
 function buildMetaPayload(project) {
   const advancesByConceptId = {};
   (project.concepts || []).forEach((c) => {
@@ -82,7 +106,10 @@ function applyMetaToProject(project) {
     advances: advancesByConceptId[c.id] || [],
   }));
 
-  const estimations = meta.estimations || [];
+  const estimations = mergeEstimationsFromConcepts(
+    meta.estimations || [],
+    concepts
+  );
 
   return {
     ...project,
@@ -110,4 +137,5 @@ module.exports = {
   documentsForSave,
   buildMetaPayload,
   metaDocumentFromProject,
+  mergeEstimationsFromConcepts,
 };

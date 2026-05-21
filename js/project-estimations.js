@@ -53,6 +53,30 @@ function estimationDisplayLabel(est, index) {
   return (est.label || "").trim() || `Estimación ${String(index + 1).padStart(2, "0")}`;
 }
 
+function mergeEstimationsFromConcepts(stored, concepts) {
+  const byId = new Map();
+  (stored || []).forEach((e) => {
+    byId.set(e.id, { ...e });
+  });
+  let n = byId.size;
+  (concepts || []).forEach((c) => {
+    parseAdvances(c).forEach((a) => {
+      if (!a.estimationId || byId.has(a.estimationId)) return;
+      n += 1;
+      byId.set(a.estimationId, {
+        id: a.estimationId,
+        label: `Estimación ${String(n).padStart(2, "0")}`,
+        date: a.date || new Date().toISOString().slice(0, 10),
+        paid: false,
+        paidAt: null,
+        notes: "",
+        expanded: false,
+      });
+    });
+  });
+  return Array.from(byId.values());
+}
+
 function buildEstimationExportHtml(project, estimation, concepts, clientName) {
   const lines = getEstimationLines(estimation.id, concepts);
   const total = lines.reduce((s, l) => s + l.amount, 0);
