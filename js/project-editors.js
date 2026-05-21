@@ -38,6 +38,9 @@ function newEstimation() {
   };
 }
 
+// Asegurar handlers globales tras carga del script
+window.pafToggleEstimation = toggleEstimationRow;
+
 function syncEditorEstimations() {
   const expandedById = new Map(
     editorEstimations.map((e) => [e.id, !!e.expanded])
@@ -48,6 +51,29 @@ function syncEditorEstimations() {
   );
   editorEstimations.forEach((e) => {
     if (expandedById.has(e.id)) e.expanded = expandedById.get(e.id);
+  });
+}
+
+function updateEstimationRowUi(idx) {
+  const est = editorEstimations[idx];
+  if (!est) return;
+  const row = document.querySelector(
+    `#estimations-editor [data-est-index="${idx}"]`
+  );
+  if (!row) return;
+  const expanded = !!est.expanded;
+  const lines = getEstimationLines(est.id, editorConcepts);
+  const total = lines.reduce((s, l) => s + l.amount, 0);
+  const label = estimationDisplayLabel(est, idx);
+  const summary = `${label} · ${lines.length} partida(s) · ${formatMoney(total)} · ${est.paid ? "Pagada" : "Pendiente"}`;
+  row.classList.toggle("is-collapsed", !expanded);
+  const summaryEl = row.querySelector(".concept-summary");
+  if (summaryEl) summaryEl.textContent = summary;
+  row.querySelectorAll("[data-est-toggle-label]").forEach((btn) => {
+    btn.textContent = expanded ? "Ocultar" : "Ver detalle";
+  });
+  row.querySelectorAll("[data-toggle-est]").forEach((btn) => {
+    btn.setAttribute("aria-expanded", String(expanded));
   });
 }
 
@@ -62,15 +88,53 @@ function toggleEstimationRow(idx) {
     renderEstimationsEditor();
     return;
   }
-  row.classList.toggle("is-collapsed", !est.expanded);
-  row.querySelectorAll("[data-toggle-est]").forEach((btn) => {
-    btn.setAttribute("aria-expanded", String(!!est.expanded));
-  });
-  const detailBtn = row.querySelector("[data-est-detail-toggle]");
-  if (detailBtn) {
-    detailBtn.textContent = est.expanded ? "Ocultar detalle" : "Ver detalle";
-  }
+  updateEstimationRowUi(idx);
 }
+
+window.pafToggleEstimation = toggleEstimationRow;
+
+window.pafDownloadEstimation = function (idx) {
+  const est = editorEstimations[idx];
+  if (est && typeof window.exportEstimation === "function") {
+    window.exportEstimation(est);
+  }
+};
+
+window.pafRemoveEstimation = function (idx) {
+  const estId = editorEstimations[idx]?.id;
+  if (!estId) return;
+  if (!confirm("¿Eliminar esta estimación? Los avances quedarán sin estimación asignada.")) {
+    return;
+  }
+  editorEstimations.splice(idx, 1);
+  editorConcepts.forEach((c) => {
+    c.advances = parseAdvances(c).map((a) =>
+      a.estimationId === estId ? { ...a, estimationId: "" } : a
+    );
+  });
+  if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);
+  renderConceptsEditor();
+  renderEstimationsEditor();
+  void persistProjectAdvances();
+};
+
+window.pafEstPaidChange = function (idx, checked) {
+  if (!editorEstimations[idx]) return;
+  editorEstimations[idx].paid = checked;
+  editorEstimations[idx].paidAt = checked
+    ? new Date().toISOString().slice(0, 10)
+    : null;
+  renderEstimationsEditor();
+  void persistProjectAdvances();
+};
+
+window.pafEstFieldChange = function (idx, field, value) {
+  if (!editorEstimations[idx]) return;
+  editorEstimations[idx][field] = value;
+  if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);
+  if (field === "label") updateEstimationRowUi(idx);
+  void persistProjectAdvances();
+};
 
 function newAdvance(estimationId) {
   return {
@@ -126,7 +190,7 @@ function setEditorData(concepts, documents, estimations) {
     .filter((d) => !isMetaDocument(d))
     .map((d) => ({ ...d }));
   editorEstimations = mergeEstimationsFromConcepts(estimations, editorConcepts).map(
-    (e) => ({ expanded: false, ...e })
+    (e) => ({ ...e, expanded: e.expanded !== false })
   );
 }
 
@@ -520,42 +584,40 @@ function estimationCardHtml(est, idx, conceptsSource) {
   return `
     <div class="estimation-card concept-row ${est.paid ? "is-paid" : ""} ${expanded ? "" : "is-collapsed"}" data-est-index="${idx}">
       <div class="concept-row-top estimation-card-head">
-        <button type="button" class="concept-toggle" data-toggle-est="${idx}" aria-expanded="${expanded}">
+        <button type="button" class="concept-toggle" data-toggle-est="${idx}" aria-expanded="${expanded}" onclick="pafToggleEstimation(${idx})">
           <span class="concept-chevron" aria-hidden="true"></span>
           <span class="concept-row-num">EST ${String(idx + 1).padStart(2, "0")}</span>
           <span class="concept-summary">${escapeHtml(summary)}</span>
         </button>
         <div class="estimation-head-actions">
           <span class="estimation-total">${formatMoney(total)}</span>
-          <button type="button" class="btn btn-ghost btn-sm" data-download-est="${idx}">Descargar</button>
-          <button type="button" class="btn-remove" data-remove-est="${idx}" aria-label="Eliminar estimación">×</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-est-toggle-label onclick="pafToggleEstimation(${idx})">${expanded ? "Ocultar" : "Ver detalle"}</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="pafDownloadEstimation(${idx})">Descargar</button>
+          <button type="button" class="btn-remove" onclick="pafRemoveEstimation(${idx})" aria-label="Eliminar estimación">×</button>
         </div>
       </div>
       <div class="concept-row-body estimation-detail">
         <div class="form-row">
           <div class="form-group">
             <label>Nombre de la estimación</label>
-            <input type="text" data-est-field="label" data-est-index="${idx}" value="${escapeAttr(est.label || label)}" placeholder="${escapeAttr(label)}">
+            <input type="text" value="${escapeAttr(est.label || label)}" placeholder="${escapeAttr(label)}" onchange="pafEstFieldChange(${idx},'label',this.value)">
           </div>
           <div class="form-group">
             <label>Fecha</label>
-            <input type="date" data-est-field="date" data-est-index="${idx}" value="${escapeAttr(est.date || "")}">
+            <input type="date" value="${escapeAttr(est.date || "")}" onchange="pafEstFieldChange(${idx},'date',this.value)">
           </div>
         </div>
         <div class="form-group">
           <label>Notas (opcional)</label>
-          <textarea rows="2" data-est-field="notes" data-est-index="${idx}" placeholder="Observaciones para el cliente…">${escapeHtml(est.notes || "")}</textarea>
+          <textarea rows="2" placeholder="Observaciones para el cliente…" onchange="pafEstFieldChange(${idx},'notes',this.value)">${escapeHtml(est.notes || "")}</textarea>
         </div>
         <p class="subsection-label">Partidas incluidas</p>
         ${estimationLinesTableHtml(lines)}
         <div class="estimation-card-actions">
           <label class="estimation-paid">
-            <input type="checkbox" data-est-paid="${idx}" ${est.paid ? "checked" : ""}>
+            <input type="checkbox" ${est.paid ? "checked" : ""} onchange="pafEstPaidChange(${idx}, this.checked)">
             Marcar como pagada
           </label>
-          <button type="button" class="btn btn-ghost btn-sm" data-toggle-est="${idx}" data-est-detail-toggle>
-            ${expanded ? "Ocultar detalle" : "Ver detalle"}
-          </button>
         </div>
       </div>
     </div>`;
@@ -567,8 +629,8 @@ function hydrateEstimationsFromProject(project) {
     project.estimations || [],
     project.concepts || editorConcepts
   ).map((e) => ({
-    expanded: !!e.expanded,
     ...e,
+    expanded: e.expanded !== false,
   }));
 }
 
@@ -586,106 +648,8 @@ function buildEstimationsEditorHtml(project) {
     .join("");
 }
 
-let estimationDelegationReady = false;
-
-function ensureEstimationDelegation() {
-  const section = document.getElementById("estimations-section");
-  if (!section || estimationDelegationReady) return;
-  estimationDelegationReady = true;
-
-  section.addEventListener("click", (e) => {
-    const toggleBtn = e.target.closest("[data-toggle-est]");
-    if (toggleBtn) {
-      e.preventDefault();
-      toggleEstimationRow(Number(toggleBtn.dataset.toggleEst));
-      return;
-    }
-    const dlBtn = e.target.closest("[data-download-est]");
-    if (dlBtn && typeof window.exportEstimation === "function") {
-      const idx = Number(dlBtn.dataset.downloadEst);
-      window.exportEstimation(editorEstimations[idx]);
-      return;
-    }
-    const rmBtn = e.target.closest("[data-remove-est]");
-    if (rmBtn) {
-      const idx = Number(rmBtn.dataset.removeEst);
-      const estId = editorEstimations[idx]?.id;
-      if (!confirm("¿Eliminar esta estimación? Los avances quedarán sin estimación asignada.")) {
-        return;
-      }
-      editorEstimations.splice(idx, 1);
-      editorConcepts.forEach((c) => {
-        c.advances = parseAdvances(c).map((a) =>
-          a.estimationId === estId ? { ...a, estimationId: "" } : a
-        );
-      });
-      if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);
-      renderConceptsEditor();
-      renderEstimationsEditor();
-      void persistProjectAdvances();
-    }
-  });
-
-  section.addEventListener("change", (e) => {
-    const paidInput = e.target.closest("[data-est-paid]");
-    if (paidInput) {
-      const idx = Number(paidInput.dataset.estPaid);
-      editorEstimations[idx].paid = paidInput.checked;
-      editorEstimations[idx].paidAt = paidInput.checked
-        ? new Date().toISOString().slice(0, 10)
-        : null;
-      renderEstimationsEditor();
-      void persistProjectAdvances();
-      return;
-    }
-    const field = e.target.closest("[data-est-field]");
-    if (field) {
-      const idx = Number(field.dataset.estIndex);
-      editorEstimations[idx][field.dataset.estField] = field.value;
-      if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);
-      if (field.dataset.estField === "label") {
-        const row = section.querySelector(`[data-est-index="${idx}"] .concept-summary`);
-        if (row) {
-          const lines = getEstimationLines(editorEstimations[idx].id, editorConcepts);
-          const total = lines.reduce((s, l) => s + l.amount, 0);
-          const label = estimationDisplayLabel(editorEstimations[idx], idx);
-          row.textContent = `${label} · ${lines.length} partida(s) · ${formatMoney(total)} · ${editorEstimations[idx].paid ? "Pagada" : "Pendiente"}`;
-        }
-      }
-      void persistProjectAdvances();
-    }
-  });
-}
-
-function bindEstimationEditorEvents(el) {
-  if (!el) return;
-  ensureEstimationDelegation();
-
-  const onEstFieldChange = (e) => {
-    const idx = Number(e.target.dataset.estIndex);
-    const field = e.target.dataset.estField;
-    if (!editorEstimations[idx]) return;
-    editorEstimations[idx][field] = e.target.value;
-    if (field === "label") {
-      const row = el.querySelector(`[data-est-index="${idx}"] .concept-summary`);
-      if (row) {
-        const lines = getEstimationLines(editorEstimations[idx].id, editorConcepts);
-        const total = lines.reduce((s, l) => s + l.amount, 0);
-        const label = estimationDisplayLabel(editorEstimations[idx], idx);
-        row.textContent = `${label} · ${lines.length} partida(s) · ${formatMoney(total)} · ${editorEstimations[idx].paid ? "Pagada" : "Pendiente"}`;
-      }
-    }
-    if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);
-  };
-
-  el.querySelectorAll("[data-est-field]").forEach((input) => {
-    input.addEventListener("input", onEstFieldChange);
-    input.addEventListener("change", (e) => {
-      onEstFieldChange(e);
-      void persistProjectAdvances();
-    });
-  });
-
+function bindEstimationEditorEvents(_el) {
+  /* Eventos vía onclick/onchange en el HTML generado */
 }
 
 function renderEstimationsEditor() {
@@ -927,5 +891,4 @@ function bindEditorActions() {
     renderEstimationsEditor();
     void persistProjectAdvances();
   });
-  ensureEstimationDelegation();
 }

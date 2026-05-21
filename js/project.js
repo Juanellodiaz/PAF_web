@@ -181,8 +181,6 @@ function renderAdminView(p) {
   renderConceptsEditor();
   renderEstimationsEditor();
   const estPanel = document.getElementById("estimations-editor");
-  if (estPanel) bindEstimationEditorEvents(estPanel);
-  if (typeof ensureEstimationDelegation === "function") ensureEstimationDelegation();
   renderDocumentsEditor();
   bindZone3dUpload();
   updateProgressChart();

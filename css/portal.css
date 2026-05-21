@@ -888,7 +888,13 @@ body.page-enter {
 }
 
 .estimation-detail {
-  max-height: 1200px;
+  max-height: none;
+  overflow: visible;
+}
+
+.estimation-card.is-collapsed .estimation-detail {
+  max-height: 0;
+  overflow: hidden;
 }
 
 .estimation-lines-table {
