@@ -180,7 +180,9 @@ function renderConceptsEditor() {
     });
   });
   el.querySelectorAll("[data-add-advance]").forEach((btn) => {
-    btn.addEventListener("click", () => addConceptAdvance(Number(btn.dataset.addAdvance)));
+    btn.addEventListener("click", () => {
+      void addConceptAdvance(Number(btn.dataset.addAdvance));
+    });
   });
   el.querySelectorAll("[data-remove-advance]").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -189,6 +191,7 @@ function renderConceptsEditor() {
       editorConcepts[ci].advances = parseAdvances(editorConcepts[ci]).filter(
         (_, j) => j !== ai
       );
+      if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);
       renderConceptsEditor();
       renderEstimationsEditor();
       void persistProjectAdvances();
@@ -363,9 +366,10 @@ function resolveEstimationId(selectValue) {
   return est.id;
 }
 
-function addConceptAdvance(conceptIndex) {
+async function addConceptAdvance(conceptIndex) {
   const c = editorConcepts[conceptIndex];
   const errEl = document.querySelector(`[data-advance-error="${conceptIndex}"]`);
+  const addBtn = document.querySelector(`[data-add-advance="${conceptIndex}"]`);
   if (errEl) errEl.textContent = "";
 
   const m2Input = document.querySelector(`[data-advance-m2="${conceptIndex}"]`);
@@ -402,16 +406,26 @@ function addConceptAdvance(conceptIndex) {
   adv.date = date;
 
   if (m2Input) m2Input.value = "";
+
+  if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);
+
   renderConceptsEditor();
   renderEstimationsEditor();
   updateProgressChart();
 
-  void persistProjectAdvances();
+  if (addBtn) addBtn.disabled = true;
+  const saved = await persistProjectAdvances();
+  if (addBtn) addBtn.disabled = false;
+
+  if (!saved && errEl) {
+    errEl.textContent =
+      "No se pudo guardar en el servidor. Revisa la conexión y pulsa Guardar cambios.";
+  }
 }
 
 async function persistProjectAdvances() {
-  if (typeof window.autoSaveProject !== "function") return;
-  await window.autoSaveProject();
+  if (typeof window.autoSaveProject !== "function") return false;
+  return window.autoSaveProject();
 }
 
 function updateProgressChart() {

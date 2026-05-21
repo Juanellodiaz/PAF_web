@@ -23,8 +23,26 @@ let clientDisplayName = "";
   `;
   document.getElementById("logout-btn").addEventListener("click", logout);
 
-  const { project: p } = await api(`/projects/${id}`);
+  let { project: p } = await api(`/projects/${id}`);
+  const draft = loadEditorDraft(id);
+  if (draft && projectNeedsDraftRestore(p, draft)) {
+    p = mergeProjectWithDraft(p, draft);
+    if (isAdmin) {
+      try {
+        await api(`/projects/${id}`, {
+          method: "PUT",
+          body: JSON.stringify(stripComputedFields(p)),
+        });
+        const refreshed = await api(`/projects/${id}`);
+        p = refreshed.project;
+        clearEditorDraft(id);
+      } catch {
+        /* seguir con borrador en editor */
+      }
+    }
+  }
   projectData = p;
+  window.__pafProjectId = id;
 
   if (user.role === "client") {
     clientDisplayName = user.name || "";
@@ -153,6 +171,16 @@ function renderAdminView(p) {
   renderDocumentsEditor();
   bindZone3dUpload();
   updateProgressChart();
+  saveEditorDraft(p.id);
+
+  window.addEventListener("beforeunload", (e) => {
+    if (!isAdmin) return;
+    const draft = loadEditorDraft(p.id);
+    if (draft && projectNeedsDraftRestore(projectData, draft)) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+  });
 }
 
 function bindZone3dUpload() {
@@ -353,10 +381,22 @@ function documentsReadonlyHtml(docs) {
     .join("");
 }
 
+function stripComputedFields(project) {
+  const {
+    daysRemaining,
+    conceptsTotal,
+    m2Total,
+    progressPercent,
+    progressDoneM2,
+    ...rest
+  } = project;
+  return rest;
+}
+
 function buildSaveBody() {
   const zoneInput = document.getElementById("zone3dImage");
   return {
-    ...projectData,
+    ...stripComputedFields(projectData),
     zone3dImage: zoneInput?.value.trim() || projectData.zone3dImage,
     concepts: collectConcepts(),
     documents: collectDocuments(),
@@ -397,8 +437,11 @@ async function saveProject(options = {}) {
       (s, c) => s + (c.advances?.length || 0),
       0
     );
+    clearEditorDraft(projectData.id);
+    saveEditorDraft(projectData.id);
+
     const okMsg = silent
-      ? "✓ Avance guardado automáticamente"
+      ? "✓ Avance guardado en el servidor"
       : advanceCount > 0
         ? `✓ Guardado (${advanceCount} avance${advanceCount === 1 ? "" : "s"})`
         : "✓ Cambios guardados";
@@ -412,7 +455,7 @@ async function saveProject(options = {}) {
         status.textContent = "";
         status.className = "save-status";
       }
-    }, silent ? 3500 : 5000);
+    }, silent ? 5000 : 5000);
     return true;
   } catch (ex) {
     const msg = ex.message || "No se pudo guardar. Intenta de nuevo.";
