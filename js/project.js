@@ -194,10 +194,7 @@ function refreshMetricsFromEditors() {
   const indirectEl = document.getElementById("metric-indirect");
   if (m2El) m2El.textContent = totalM2;
   if (totalEl) {
-    totalEl.innerHTML = formatProjectMoneyDisplay({
-      conceptsTotal: totalMoney,
-      indirectTotal,
-    });
+    totalEl.textContent = formatMoney(totalMoney);
   }
   if (indirectEl) {
     indirectEl.textContent = formatMoney(indirectTotal);
@@ -394,7 +391,7 @@ function metricsHtml(p) {
       <span class="metric-label">m² totales</span>
     </div>
     <div class="metric-box">
-      <span class="metric-value" id="metric-total">${formatProjectMoneyDisplay(p)}</span>
+      <span class="metric-value" id="metric-total">${formatMoney(p.conceptsTotal || 0)}</span>
       <span class="metric-label">Inversión total</span>
     </div>
     <div class="metric-box">
