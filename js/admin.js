@@ -340,7 +340,9 @@ function bindQuickPanel() {
   document.querySelectorAll(".admin-quick-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const mode = btn.dataset.quickMode;
-      if (quickPanel().classList.contains("is-open") && quickPanelMode === mode) {
+      const panel = quickPanel();
+      const isOpen = panel.classList.contains("is-open") && !panel.hidden;
+      if (isOpen && quickPanelMode === mode) {
         closeQuickPanel();
         return;
       }
@@ -668,7 +670,6 @@ async function loadBasicEdit(id) {
   const { project: p } = await api(`/projects/${id}`);
   editingId = id;
   setSubmitLabel();
-  document.getElementById("form-title").textContent = "Editar datos del proyecto";
   document.getElementById("name").value = p.name;
   document.getElementById("clientId").value = p.clientId || "";
   document.getElementById("completionDate").value = p.completionDate;
@@ -681,7 +682,6 @@ async function loadBasicEdit(id) {
 function resetForm() {
   editingId = null;
   setSubmitLabel();
-  document.getElementById("form-title").textContent = "Nuevo proyecto";
   document.getElementById("project-form").reset();
   document.getElementById("form-reset").hidden = true;
   document.getElementById("form-error").textContent = "";
