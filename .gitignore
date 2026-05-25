@@ -1,0 +1,8 @@
+.DS_Store
+.vercel
+*.log
+node_modules/
+assets/uploads/*
+!assets/uploads/.gitkeep
+.env
+.env.local
