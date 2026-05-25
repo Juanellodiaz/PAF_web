@@ -1,10 +1,103 @@
 let clients = [];
 let editingId = null;
 let cachedProjects = [];
+let cachedGlobalEstimations = [];
+let quickPanelMode = "project";
+let advanceProjectCache = null;
 
-const formPanel = () => document.getElementById("project-form-panel");
+const quickPanel = () => document.getElementById("admin-quick-panel");
 const formBackdrop = () => document.getElementById("form-backdrop");
-const newProjectToggle = () => document.getElementById("new-project-toggle");
+
+function newQuickId(prefix) {
+  return `${prefix}-${Math.random().toString(16).slice(2, 10)}`;
+}
+
+function escapeAttr(s) {
+  return String(s ?? "").replace(/"/g, "&quot;");
+}
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+async function loadGlobalEstimations() {
+  try {
+    const { estimations } = await api("/estimations/breakdowns");
+    cachedGlobalEstimations = estimations || [];
+  } catch {
+    cachedGlobalEstimations = [];
+  }
+}
+
+function projectSelectOptions(selectedId, emptyLabel = "— Seleccionar —") {
+  const list = cachedProjects || [];
+  if (!list.length) {
+    return `<option value="">${emptyLabel}</option>`;
+  }
+  return (
+    `<option value="">${emptyLabel}</option>` +
+    list
+      .map(
+        (p) =>
+          `<option value="${escapeAttr(p.id)}"${p.id === selectedId ? " selected" : ""}>${escapeHtml(p.name)}</option>`
+      )
+      .join("")
+  );
+}
+
+function fillProjectSelects() {
+  ["quick-concept-project", "quick-advance-project"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = projectSelectOptions(el.value);
+  });
+}
+
+function calcConceptTotalQuick(m2, unitPrice) {
+  return Math.round((Number(m2) || 0) * (Number(unitPrice) || 0));
+}
+
+function mergeEstimationsForProject(project) {
+  return mergeEstimationsFromConcepts(
+    project.estimations || cachedGlobalEstimations,
+    project.concepts || []
+  );
+}
+
+function estimationOptionsHtml(estimations, selectedId) {
+  const opts = (estimations || [])
+    .map((e, idx) => {
+      const label = (e.label || "").trim() || `Estimación ${String(idx + 1).padStart(2, "0")}`;
+      return `<option value="${escapeAttr(e.id)}"${e.id === selectedId ? " selected" : ""}>${escapeHtml(label)}</option>`;
+    })
+    .join("");
+  return `${opts}<option value="__new__"${selectedId === "__new__" ? " selected" : ""}>+ Crear nueva estimación</option>`;
+}
+
+function resolveQuickEstimationId(selectValue, estimations) {
+  if (selectValue !== "__new__") return selectValue;
+  const est = {
+    id: newQuickId("est"),
+    label: `Estimación ${String(estimations.length + 1).padStart(2, "0")}`,
+    date: todayIso(),
+    paid: false,
+    paidAt: null,
+    notes: "",
+  };
+  estimations.push(est);
+  return est.id;
+}
+
+async function fetchFullProject(id) {
+  const { project } = await api(`/projects/${id}`);
+  return project;
+}
+
+async function putProject(project) {
+  await api(`/projects/${project.id}`, {
+    method: "PUT",
+    body: JSON.stringify({ ...project, id: project.id }),
+  });
+}
 
 function computeAdminDashboardSummary(projects) {
   const list = projects || [];
@@ -93,57 +186,303 @@ function renderAdminMetrics(projects) {
   document.getElementById("admin-metrics").innerHTML = adminSummaryHtml(summary);
 }
 
-function openFormPanel() {
-  const panel = formPanel();
+const QUICK_PANEL_TITLES = {
+  project: "Nuevo proyecto",
+  concept: "Nuevo concepto",
+  advance: "Nuevo avance",
+};
+
+function setQuickPanelMode(mode) {
+  quickPanelMode = mode;
+  document.getElementById("quick-panel-title").textContent =
+    editingId && mode === "project"
+      ? "Editar datos del proyecto"
+      : QUICK_PANEL_TITLES[mode] || QUICK_PANEL_TITLES.project;
+
+  document.querySelectorAll(".quick-panel-form").forEach((form) => {
+    form.hidden = form.dataset.quickForm !== mode;
+  });
+
+  document.querySelectorAll(".admin-quick-btn").forEach((btn) => {
+    const active = btn.dataset.quickMode === mode;
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-expanded", active ? "true" : "false");
+  });
+}
+
+function openQuickPanel(mode) {
+  const panel = quickPanel();
   const backdrop = formBackdrop();
-  const toggle = newProjectToggle();
+  if (mode === "project" && !editingId) resetForm();
+  if (mode === "concept") resetConceptQuickForm();
+  if (mode === "advance") resetAdvanceQuickForm();
+
+  setQuickPanelMode(mode);
   panel.hidden = false;
   backdrop.hidden = false;
   requestAnimationFrame(() => {
     panel.classList.add("is-open");
     backdrop.classList.add("is-open");
   });
-  toggle.setAttribute("aria-expanded", "true");
-  toggle.classList.add("is-active");
 }
 
-function closeFormPanel() {
-  const panel = formPanel();
+function closeQuickPanel() {
+  const panel = quickPanel();
   const backdrop = formBackdrop();
-  const toggle = newProjectToggle();
   panel.classList.remove("is-open");
   backdrop.classList.remove("is-open");
-  toggle.setAttribute("aria-expanded", "false");
-  toggle.classList.remove("is-active");
+  document.querySelectorAll(".admin-quick-btn").forEach((btn) => {
+    btn.classList.remove("is-active");
+    btn.setAttribute("aria-expanded", "false");
+  });
   setTimeout(() => {
     panel.hidden = true;
     backdrop.hidden = true;
   }, 300);
+  if (!editingId) resetForm();
 }
 
-function bindFormPanel() {
-  document.getElementById("new-project-toggle").addEventListener("click", () => {
-    if (formPanel().classList.contains("is-open")) {
-      closeFormPanel();
+function resetConceptQuickForm() {
+  const form = document.getElementById("concept-quick-form");
+  form.reset();
+  document.getElementById("concept-quick-error").textContent = "";
+  document.getElementById("quick-concept-total-preview").textContent = "";
+  fillProjectSelects();
+  updateConceptQuickPreview();
+}
+
+function resetAdvanceQuickForm() {
+  const form = document.getElementById("advance-quick-form");
+  form.reset();
+  document.getElementById("advance-quick-error").textContent = "";
+  document.getElementById("quick-advance-date").value = todayIso();
+  document.getElementById("quick-advance-pending").textContent = "";
+  document.getElementById("quick-advance-preview").textContent = "";
+  advanceProjectCache = null;
+  fillProjectSelects();
+  document.getElementById("quick-advance-concept").innerHTML =
+    '<option value="">— Seleccionar proyecto primero —</option>';
+  document.getElementById("quick-advance-estimation").innerHTML =
+    estimationOptionsHtml(cachedGlobalEstimations, "__new__");
+}
+
+function updateConceptQuickPreview() {
+  const m2 = Number(document.getElementById("quick-concept-m2")?.value) || 0;
+  const unit = Number(document.getElementById("quick-concept-unit")?.value) || 0;
+  const el = document.getElementById("quick-concept-total-preview");
+  if (!el) return;
+  const total = calcConceptTotalQuick(m2, unit);
+  el.textContent = m2 > 0 || unit > 0 ? `Total del concepto: ${formatMoney(total)}` : "";
+}
+
+async function refreshAdvanceQuickFields() {
+  const projectId = document.getElementById("quick-advance-project")?.value;
+  const conceptSelect = document.getElementById("quick-advance-concept");
+  const estSelect = document.getElementById("quick-advance-estimation");
+  const pendingEl = document.getElementById("quick-advance-pending");
+  const previewEl = document.getElementById("quick-advance-preview");
+
+  if (!projectId) {
+    conceptSelect.innerHTML = '<option value="">— Seleccionar proyecto primero —</option>';
+    estSelect.innerHTML = estimationOptionsHtml(cachedGlobalEstimations, "__new__");
+    pendingEl.textContent = "";
+    previewEl.textContent = "";
+    advanceProjectCache = null;
+    return;
+  }
+
+  advanceProjectCache = await fetchFullProject(projectId);
+  const concepts = advanceProjectCache.concepts || [];
+  if (!concepts.length) {
+    conceptSelect.innerHTML =
+      '<option value="">— Sin conceptos (agrega uno primero) —</option>';
+  } else {
+    conceptSelect.innerHTML =
+      '<option value="">— Seleccionar —</option>' +
+      concepts
+        .map((c) => {
+          const pending = conceptAdvancePendingM2(c);
+          return `<option value="${escapeAttr(c.id)}">${escapeHtml(c.name)} (${pending} m² pend.)</option>`;
+        })
+        .join("");
+  }
+
+  const estimations = mergeEstimationsForProject(advanceProjectCache);
+  const defaultEst =
+    estimations.length > 0 ? estimations[estimations.length - 1].id : "__new__";
+  estSelect.innerHTML = estimationOptionsHtml(estimations, defaultEst);
+  updateAdvanceQuickPreview();
+}
+
+function updateAdvanceQuickPreview() {
+  const pendingEl = document.getElementById("quick-advance-pending");
+  const previewEl = document.getElementById("quick-advance-preview");
+  const conceptId = document.getElementById("quick-advance-concept")?.value;
+  const m2 = Number(document.getElementById("quick-advance-m2")?.value) || 0;
+
+  if (!advanceProjectCache || !conceptId) {
+    pendingEl.textContent = "";
+    previewEl.textContent = "";
+    return;
+  }
+
+  const concept = (advanceProjectCache.concepts || []).find((c) => c.id === conceptId);
+  if (!concept) return;
+
+  const pending = conceptAdvancePendingM2(concept);
+  pendingEl.innerHTML = `Pendiente por avanzar: <strong>${pending}</strong> m²`;
+  const amount = Math.round(m2 * (Number(concept.unitPrice) || 0));
+  previewEl.textContent =
+    m2 > 0 ? `Importe del avance: ${formatMoney(amount)}` : "";
+}
+
+function bindQuickPanel() {
+  document.querySelectorAll(".admin-quick-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const mode = btn.dataset.quickMode;
+      if (quickPanel().classList.contains("is-open") && quickPanelMode === mode) {
+        closeQuickPanel();
+        return;
+      }
+      if (mode === "project") resetForm();
+      openQuickPanel(mode);
+    });
+  });
+
+  document.getElementById("quick-panel-close").addEventListener("click", closeQuickPanel);
+  document.getElementById("concept-quick-cancel").addEventListener("click", closeQuickPanel);
+  document.getElementById("advance-quick-cancel").addEventListener("click", closeQuickPanel);
+  formBackdrop().addEventListener("click", closeQuickPanel);
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && quickPanel().classList.contains("is-open")) {
+      closeQuickPanel();
+    }
+  });
+
+  ["quick-concept-m2", "quick-concept-unit"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("input", updateConceptQuickPreview);
+  });
+
+  document
+    .getElementById("quick-advance-project")
+    ?.addEventListener("change", () => refreshAdvanceQuickFields());
+  document
+    .getElementById("quick-advance-concept")
+    ?.addEventListener("change", updateAdvanceQuickPreview);
+  document
+    .getElementById("quick-advance-m2")
+    ?.addEventListener("input", updateAdvanceQuickPreview);
+
+  document
+    .getElementById("concept-quick-form")
+    .addEventListener("submit", onSubmitQuickConcept);
+  document
+    .getElementById("advance-quick-form")
+    .addEventListener("submit", onSubmitQuickAdvance);
+}
+
+async function onSubmitQuickConcept(e) {
+  e.preventDefault();
+  const err = document.getElementById("concept-quick-error");
+  err.textContent = "";
+
+  const projectId = document.getElementById("quick-concept-project").value;
+  const name = document.getElementById("quick-concept-name").value.trim();
+  const m2 = Number(document.getElementById("quick-concept-m2").value) || 0;
+  const unitPrice = Number(document.getElementById("quick-concept-unit").value) || 0;
+
+  if (!projectId) {
+    err.textContent = "Selecciona un proyecto.";
+    return;
+  }
+  if (!name) {
+    err.textContent = "Indica el nombre del concepto.";
+    return;
+  }
+
+  try {
+    const project = await fetchFullProject(projectId);
+    const concept = {
+      id: newQuickId("c"),
+      name,
+      m2,
+      unitPrice,
+      totalPrice: calcConceptTotalQuick(m2, unitPrice),
+      status: "en_aprobacion",
+      advances: [],
+    };
+    project.concepts = [...(project.concepts || []), concept];
+    project.estimations = mergeEstimationsForProject(project);
+    await putProject(project);
+    closeQuickPanel();
+    await refreshDashboard();
+  } catch (ex) {
+    err.textContent = ex.message;
+  }
+}
+
+async function onSubmitQuickAdvance(e) {
+  e.preventDefault();
+  const err = document.getElementById("advance-quick-error");
+  err.textContent = "";
+
+  const projectId = document.getElementById("quick-advance-project").value;
+  const conceptId = document.getElementById("quick-advance-concept").value;
+  const m2 = Number(document.getElementById("quick-advance-m2").value) || 0;
+  const date =
+    document.getElementById("quick-advance-date").value || todayIso();
+  const estValue = document.getElementById("quick-advance-estimation").value;
+
+  if (!projectId || !conceptId) {
+    err.textContent = "Selecciona proyecto y concepto.";
+    return;
+  }
+  if (m2 <= 0) {
+    err.textContent = "Indica los m² del avance.";
+    return;
+  }
+
+  try {
+    const project = advanceProjectCache?.id === projectId
+      ? advanceProjectCache
+      : await fetchFullProject(projectId);
+    const concept = (project.concepts || []).find((c) => c.id === conceptId);
+    if (!concept) {
+      err.textContent = "Concepto no encontrado.";
       return;
     }
-    resetForm();
-    openFormPanel();
-  });
-  document.getElementById("form-close").addEventListener("click", () => {
-    closeFormPanel();
-    if (!editingId) resetForm();
-  });
-  formBackdrop().addEventListener("click", () => {
-    closeFormPanel();
-    if (!editingId) resetForm();
-  });
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && formPanel().classList.contains("is-open")) {
-      closeFormPanel();
-      if (!editingId) resetForm();
+
+    const pending = conceptAdvancePendingM2(concept);
+    if (m2 > pending + 0.001) {
+      err.textContent = `Solo quedan ${pending} m² por registrar en este concepto.`;
+      return;
     }
-  });
+
+    let estimations = mergeEstimationsForProject(project);
+    const estimationId = resolveQuickEstimationId(estValue, estimations);
+    if (!estimationId) {
+      err.textContent = "Selecciona o crea una estimación.";
+      return;
+    }
+
+    const advances = parseAdvances(concept);
+    advances.push({
+      id: newQuickId("adv"),
+      m2,
+      date,
+      estimationId,
+      note: "",
+    });
+    concept.advances = advances;
+    project.estimations = estimations;
+
+    await putProject(project);
+    closeQuickPanel();
+    await refreshDashboard();
+  } catch (ex) {
+    err.textContent = ex.message;
+  }
 }
 
 (async () => {
@@ -167,22 +506,26 @@ function bindFormPanel() {
       )
       .join("");
 
-  bindFormPanel();
+  bindQuickPanel();
+  await loadGlobalEstimations();
   const { projects } = await api("/projects");
   cachedProjects = projects;
+  fillProjectSelects();
   renderAdminMetrics(projects);
   await loadProjects(projects);
 
   document.getElementById("project-form").addEventListener("submit", onSubmit);
   document.getElementById("form-reset").addEventListener("click", () => {
     resetForm();
-    closeFormPanel();
+    closeQuickPanel();
   });
 })();
 
 async function refreshDashboard() {
   const { projects } = await api("/projects");
   cachedProjects = projects;
+  fillProjectSelects();
+  await loadGlobalEstimations();
   renderAdminMetrics(projects);
   await loadProjects(projects);
 }
@@ -293,7 +636,7 @@ async function onSubmit(e) {
         body: JSON.stringify(body),
       });
       resetForm();
-      closeFormPanel();
+      closeQuickPanel();
       await refreshDashboard();
       err.style.color = "var(--accent)";
       err.textContent = "Proyecto creado. Abre Ver / Editar para agregar conceptos.";
@@ -303,7 +646,7 @@ async function onSubmit(e) {
       return;
     }
     resetForm();
-    closeFormPanel();
+    closeQuickPanel();
     await refreshDashboard();
     err.style.color = "var(--accent)";
     err.textContent = "Datos del proyecto actualizados.";
@@ -332,7 +675,7 @@ async function loadBasicEdit(id) {
   document.getElementById("status").value = normalizeProjectStatus(p.status);
   document.getElementById("zone3dImage").value = p.zone3dImage || "";
   document.getElementById("form-reset").hidden = false;
-  openFormPanel();
+  openQuickPanel("project");
 }
 
 function resetForm() {
@@ -349,7 +692,7 @@ async function deleteProject(id) {
   await api(`/projects/${id}`, { method: "DELETE" });
   if (editingId === id) {
     resetForm();
-    closeFormPanel();
+    closeQuickPanel();
   }
   await refreshDashboard();
 }

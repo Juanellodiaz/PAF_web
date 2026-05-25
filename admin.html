@@ -33,28 +33,57 @@
       <section class="admin-metrics-block" aria-label="Resumen de proyectos">
         <div class="admin-metrics metrics-row admin-metrics-row" id="admin-metrics"></div>
       </section>
-      <button
-        type="button"
-        class="admin-new-project-btn"
-        id="new-project-toggle"
-        aria-expanded="false"
-        aria-controls="project-form-panel"
-        title="Nuevo proyecto"
-      >
-        <svg class="admin-new-project-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-          <path d="M12 5v14M5 12h14"/>
-        </svg>
-        <span class="admin-new-project-btn-label">Nuevo</span>
-      </button>
+      <div class="admin-quick-actions" role="group" aria-label="Acciones rápidas">
+        <button
+          type="button"
+          class="admin-quick-btn"
+          data-quick-mode="project"
+          aria-expanded="false"
+          aria-controls="admin-quick-panel"
+          title="Nuevo proyecto"
+        >
+          <svg class="admin-quick-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+          <span class="admin-quick-label">Proyecto</span>
+        </button>
+        <button
+          type="button"
+          class="admin-quick-btn"
+          data-quick-mode="concept"
+          aria-expanded="false"
+          aria-controls="admin-quick-panel"
+          title="Nuevo concepto"
+        >
+          <svg class="admin-quick-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path d="M4 6h16M4 12h10M4 18h6"/>
+          </svg>
+          <span class="admin-quick-label">Concepto</span>
+        </button>
+        <button
+          type="button"
+          class="admin-quick-btn"
+          data-quick-mode="advance"
+          aria-expanded="false"
+          aria-controls="admin-quick-panel"
+          title="Nuevo avance"
+        >
+          <svg class="admin-quick-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path d="M4 20V4M4 20h16M8 16l4-4 4 4"/>
+          </svg>
+          <span class="admin-quick-label">Avance</span>
+        </button>
+      </div>
     </div>
 
     <div class="admin-form-backdrop" id="form-backdrop" hidden></div>
-    <aside class="admin-form-panel" id="project-form-panel" hidden aria-labelledby="form-title">
+    <aside class="admin-form-panel" id="admin-quick-panel" hidden aria-labelledby="quick-panel-title">
       <div class="admin-form-panel-head">
-        <h2 id="form-title">Nuevo proyecto</h2>
-        <button type="button" class="admin-form-close btn btn-ghost btn-sm" id="form-close" aria-label="Cerrar formulario">×</button>
+        <h2 id="quick-panel-title">Nuevo proyecto</h2>
+        <button type="button" class="admin-form-close btn btn-ghost btn-sm" id="quick-panel-close" aria-label="Cerrar">×</button>
       </div>
-      <form class="admin-form admin-form--simple" id="project-form">
+
+      <form class="admin-form admin-form--simple quick-panel-form" id="project-form" data-quick-form="project">
         <p class="admin-section-hint">Crea el proyecto aquí. Agrega conceptos, costos y documentos desde <strong>Ver / Editar</strong>.</p>
         <div class="form-group">
           <label for="name">Nombre del proyecto</label>
@@ -88,6 +117,69 @@
           <button type="button" class="btn btn-ghost btn-sm" id="form-reset" hidden>Cancelar</button>
         </div>
       </form>
+
+      <form class="admin-form admin-form--simple quick-panel-form" id="concept-quick-form" data-quick-form="concept" hidden>
+        <p class="admin-section-hint">Agrega una partida al proyecto sin abrir la ficha completa.</p>
+        <div class="form-group">
+          <label for="quick-concept-project">Proyecto</label>
+          <select id="quick-concept-project" required></select>
+        </div>
+        <div class="form-group">
+          <label for="quick-concept-name">Nombre del concepto</label>
+          <input type="text" id="quick-concept-name" required placeholder="Ej. Microcemento — Sala">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="quick-concept-m2">m²</label>
+            <input type="number" id="quick-concept-m2" min="0" step="0.01" value="0">
+          </div>
+          <div class="form-group">
+            <label for="quick-concept-unit">Precio unitario</label>
+            <input type="number" id="quick-concept-unit" min="0" step="1" value="0">
+          </div>
+        </div>
+        <p class="concepts-total-preview" id="quick-concept-total-preview" aria-live="polite"></p>
+        <p class="form-error" id="concept-quick-error"></p>
+        <div class="portal-actions">
+          <button type="submit" class="btn btn-primary btn-sm">Agregar concepto</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="concept-quick-cancel">Cancelar</button>
+        </div>
+      </form>
+
+      <form class="admin-form admin-form--simple quick-panel-form" id="advance-quick-form" data-quick-form="advance" hidden>
+        <p class="admin-section-hint">Registra m² avanzados y asígnalos a una estimación.</p>
+        <div class="form-group">
+          <label for="quick-advance-project">Proyecto</label>
+          <select id="quick-advance-project" required></select>
+        </div>
+        <div class="form-group">
+          <label for="quick-advance-concept">Concepto</label>
+          <select id="quick-advance-concept" required>
+            <option value="">— Seleccionar proyecto primero —</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="quick-advance-m2">m² de avance</label>
+            <input type="number" id="quick-advance-m2" min="0" step="0.01" required placeholder="Ej. 50">
+          </div>
+          <div class="form-group">
+            <label for="quick-advance-date">Fecha</label>
+            <input type="date" id="quick-advance-date" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="quick-advance-estimation">Estimación</label>
+          <select id="quick-advance-estimation" required></select>
+        </div>
+        <p class="advance-pending" id="quick-advance-pending"></p>
+        <p class="advance-amount-preview" id="quick-advance-preview" aria-live="polite"></p>
+        <p class="form-error" id="advance-quick-error"></p>
+        <div class="portal-actions">
+          <button type="submit" class="btn btn-primary btn-sm">Agregar avance</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="advance-quick-cancel">Cancelar</button>
+        </div>
+      </form>
     </aside>
 
     <div class="admin-projects-panel">
@@ -97,6 +189,7 @@
   </main>
 
   <script src="js/portal.js"></script>
+  <script src="js/project-estimations.js"></script>
   <script src="js/admin.js"></script>
 </body>
 </html>

@@ -786,16 +786,22 @@ body.page-enter {
   background: rgba(255, 255, 255, 0.2);
 }
 
-.admin-new-project-btn {
+.admin-quick-actions {
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-quick-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  width: 4.5rem;
-  min-height: 4.5rem;
-  padding: 0.5rem;
+  width: 4.75rem;
+  min-height: 4.25rem;
+  padding: 0.5rem 0.35rem;
   background: var(--bg-card);
   border: 1px solid var(--border);
   color: var(--text);
@@ -803,21 +809,45 @@ body.page-enter {
   transition: border-color 0.2s, color 0.2s, background 0.2s;
 }
 
-.admin-new-project-btn:hover,
-.admin-new-project-btn.is-active {
+.admin-quick-btn:hover,
+.admin-quick-btn.is-active {
   border-color: var(--accent);
   color: var(--accent);
 }
 
-.admin-new-project-btn-label {
-  font-size: 0.6rem;
+.admin-quick-label {
+  font-size: 0.58rem;
   font-weight: 500;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
+  line-height: 1.2;
+  text-align: center;
 }
 
-.admin-new-project-icon {
+.admin-quick-icon {
   display: block;
+  flex-shrink: 0;
+}
+
+.quick-panel-form[hidden] {
+  display: none !important;
+}
+
+.admin-form-panel .form-row {
+  margin-bottom: 0;
+}
+
+.admin-form-panel .advance-pending {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin: 0.5rem 0 0;
+}
+
+.admin-form-panel .advance-amount-preview {
+  font-size: 0.75rem;
+  color: var(--accent);
+  margin: 0.35rem 0 0;
+  min-height: 1.2em;
 }
 
 .admin-form-backdrop {
@@ -893,11 +923,18 @@ body.page-enter {
     flex-direction: column;
   }
 
-  .admin-new-project-btn {
+  .admin-quick-actions {
     flex-direction: row;
     width: 100%;
+  }
+
+  .admin-quick-btn {
+    flex: 1;
+    flex-direction: row;
+    width: auto;
     min-height: auto;
-    padding: 0.75rem 1rem;
+    padding: 0.75rem 0.5rem;
+    gap: 0.5rem;
   }
 
   .admin-metrics-row {
