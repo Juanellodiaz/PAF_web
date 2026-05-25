@@ -57,7 +57,7 @@ function projectStatusSelectHtml(projectId, currentStatus) {
     (o) =>
       `<option value="${o.value}"${status === o.value ? " selected" : ""}>${o.label}</option>`
   ).join("");
-  return `<select class="admin-status-select" data-status-for="${escapeHtml(projectId)}" data-last-status="${status}" aria-label="Estado del proyecto">${options}</select>`;
+  return `<span class="admin-status-wrap"><select class="admin-status-select btn btn-ghost btn-sm" data-status-for="${escapeHtml(projectId)}" data-last-status="${status}" aria-label="Estado del proyecto">${options}</select></span>`;
 }
 
 function adminSummaryHtml(summary) {

@@ -506,7 +506,11 @@ body.page-enter {
 }
 
 .admin-list-item-start {
-  display: contents;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .admin-list-item-info {
@@ -514,8 +518,7 @@ body.page-enter {
   flex-direction: column;
   gap: 0.35rem;
   min-width: 0;
-  grid-column: 2;
-  grid-row: 1;
+  flex: 1;
 }
 
 .admin-list-item-info strong {
@@ -533,49 +536,70 @@ body.page-enter {
 }
 
 .admin-list-item .progress-ring-card {
-  grid-column: 1;
-  grid-row: 1;
-  align-self: center;
+  flex-shrink: 0;
 }
 
 .admin-list-item > .portal-actions {
-  grid-column: 1 / -1;
-  grid-row: 2;
-  justify-content: flex-start;
+  flex-shrink: 0;
+  justify-content: flex-end;
+  align-items: center;
   gap: 0.5rem;
+  flex-wrap: nowrap;
+  margin-left: auto;
 }
 
 .admin-list-actions {
-  flex-wrap: wrap;
   align-items: center;
 }
 
-.admin-status-select {
-  font-family: var(--font-body, inherit);
-  font-size: 0.65rem;
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  padding: 0.5rem 2rem 0.5rem 0.65rem;
-  min-width: 11rem;
-  max-width: 100%;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border);
-  color: var(--text);
-  cursor: pointer;
+.admin-status-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.admin-status-select.btn {
+  width: auto;
+  min-width: 10.5rem;
+  max-width: 12.5rem;
+  padding-right: 2.25rem;
+  justify-content: flex-start;
+  text-align: left;
+  font-family: var(--font-body);
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23888' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.65rem center;
+  -webkit-appearance: none;
+  cursor: pointer;
 }
 
-.admin-status-select:hover:not(:disabled) {
-  border-color: var(--accent);
+.admin-status-wrap::after {
+  content: "";
+  position: absolute;
+  right: 0.9rem;
+  top: 50%;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--text-dim);
+  transform: translateY(-20%);
+  pointer-events: none;
 }
 
-.admin-status-select:disabled {
-  opacity: 0.5;
+.admin-status-select.btn:hover:not(:disabled) {
+  border-color: var(--text);
+}
+
+.admin-status-select.btn:disabled {
+  opacity: 0.45;
   cursor: wait;
+}
+
+.admin-status-select.btn option {
+  background: var(--bg-card, #111);
+  color: var(--text);
+  font-size: 0.8rem;
+  text-transform: none;
+  letter-spacing: 0.02em;
 }
 
 .metric-value {
@@ -1504,12 +1528,10 @@ body.page-enter {
 }
 
 .admin-list-item {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: auto auto;
+  display: flex;
   align-items: center;
-  column-gap: 1.25rem;
-  row-gap: 1rem;
+  justify-content: space-between;
+  gap: 1.25rem;
   padding: 1.25rem;
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
@@ -1569,33 +1591,37 @@ body.page-enter {
   }
 
   .admin-list-item {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto;
-    justify-items: start;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-list-item-start {
+    width: 100%;
   }
 
   .admin-list-item .progress-ring-card {
-    grid-column: 1;
-    grid-row: 1;
     flex-direction: row;
     align-items: center;
     gap: 0.75rem;
   }
 
-  .admin-list-item-info {
-    grid-column: 1;
-    grid-row: 2;
-  }
-
   .admin-list-item > .portal-actions {
-    grid-column: 1;
-    grid-row: 3;
     width: 100%;
+    margin-left: 0;
+    flex-wrap: wrap;
+    justify-content: flex-start;
   }
 
-  .admin-list-item > .portal-actions .btn {
+  .admin-list-item > .portal-actions .btn,
+  .admin-status-select.btn {
     flex: 1 1 auto;
     min-width: 0;
+    text-align: center;
+    max-width: none;
+  }
+
+  .admin-status-select.btn {
+    justify-content: center;
     text-align: center;
   }
 
