@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" fill="none">
-  <rect width="640" height="400" fill="#0d0d0d"/>
-  <path d="M80 320 L320 80 L560 320 L320 360 Z" stroke="#c8bfb0" stroke-width="1" opacity="0.35"/>
-  <path d="M160 320 L320 140 L480 320 L320 300 Z" stroke="#fff" stroke-width="1" opacity="0.2"/>
-  <line x1="320" y1="80" x2="320" y2="360" stroke="#c8bfb0" stroke-width="0.5" opacity="0.25"/>
-  <line x1="80" y1="320" x2="560" y2="320" stroke="#c8bfb0" stroke-width="0.5" opacity="0.25"/>
-  <text x="320" y="385" text-anchor="middle" fill="#5c5a54" font-family="system-ui,sans-serif" font-size="11" letter-spacing="0.15em">VISTA 3D  ZONA DE TRABAJO</text>
-</svg>

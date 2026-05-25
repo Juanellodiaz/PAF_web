@@ -6,82 +6,65 @@ const formPanel = () => document.getElementById("project-form-panel");
 const formBackdrop = () => document.getElementById("form-backdrop");
 const newProjectToggle = () => document.getElementById("new-project-toggle");
 
-function computeAdminDashboardSummary(projects, estimations) {
+function computeAdminDashboardSummary(projects) {
   const list = projects || [];
-  const estList = estimations || [];
+  const active = list.filter(
+    (p) => normalizeProjectStatus(p.status) === "en_proceso"
+  );
+  const inApproval = list.filter(
+    (p) => normalizeProjectStatus(p.status) === "en_aprobacion"
+  );
 
-  const activeMoney = list
-    .filter((p) => normalizeProjectStatus(p.status) !== "completado")
-    .reduce((s, p) => s + (Number(p.conceptsTotal) || 0), 0);
+  let totalM2 = 0;
+  let doneM2 = 0;
+  active.forEach((p) => {
+    const prog = projectProgress(p);
+    totalM2 += prog.totalM2;
+    doneM2 += prog.doneM2;
+  });
 
-  window.__pafProjectsForEstimations = list;
-  let totalPaid = calcTotalPaid(estList, list);
-  let totalPending = calcTotalPending(estList, list);
+  const activeProgressPercent = totalM2
+    ? Math.min(100, Math.round((doneM2 / totalM2) * 1000) / 10)
+    : 0;
 
-  const estimationMoney = totalPaid + totalPending;
-  if (activeMoney > 0 && estimationMoney < activeMoney) {
-    totalPending = Math.max(0, activeMoney - totalPaid);
-  }
-
-  return { activeMoney, totalPaid, totalPending };
+  return {
+    activeCount: active.length,
+    approvalCount: inApproval.length,
+    activeProgressPercent,
+    activeDoneM2: doneM2,
+    activeTotalM2: totalM2,
+  };
 }
 
 function adminSummaryHtml(summary) {
+  const m2Note =
+    summary.activeTotalM2 > 0
+      ? `${summary.activeDoneM2} / ${summary.activeTotalM2} m²`
+      : "Sin metros registrados";
+
   return `
     <div class="metric-box">
-      <span class="metric-value accent">${formatMoney(summary.activeMoney)}</span>
+      <span class="metric-value accent">${summary.activeCount}</span>
       <span class="metric-label">Proyectos activos</span>
-      <span class="metric-sublabel">En aprobación y en proceso</span>
     </div>
     <div class="metric-box">
-      <span class="metric-value accent">${formatMoney(summary.totalPaid)}</span>
-      <span class="metric-label">Total pagado</span>
-      <span class="metric-sublabel">Estimaciones pagadas</span>
+      <span class="metric-value">${summary.approvalCount}</span>
+      <span class="metric-label">Proyectos por aprobar</span>
     </div>
-    <div class="metric-box">
-      <span class="metric-value">${formatMoney(summary.totalPending)}</span>
-      <span class="metric-label">Pendiente de pago</span>
-      <span class="metric-sublabel">Estimaciones pendientes</span>
+    <div class="metric-box metric-box-progress">
+      <div class="progress-ring-wrap">
+        <div class="progress-ring" style="--pct: ${summary.activeProgressPercent}" aria-hidden="true">
+          <span class="progress-ring-value">${summary.activeProgressPercent}%</span>
+        </div>
+      </div>
+      <span class="metric-label">Avance en activos</span>
+      <span class="metric-sublabel">${m2Note}</span>
     </div>`;
 }
 
-function renderPaymentBar(summary) {
-  const bar = document.getElementById("admin-payment-bar");
-  const paidEl = document.getElementById("admin-bar-paid");
-  const pendingEl = document.getElementById("admin-bar-pending");
-  const total = summary.totalPaid + summary.totalPending;
-
-  if (!total) {
-    bar.hidden = true;
-    return;
-  }
-
-  bar.hidden = false;
-  const paidPct = Math.round((summary.totalPaid / total) * 1000) / 10;
-  const pendingPct = 100 - paidPct;
-  paidEl.style.flex = `${paidPct} 1 0`;
-  pendingEl.style.flex = `${pendingPct} 1 0`;
-  paidEl.title = `Pagado: ${formatMoney(summary.totalPaid)} (${paidPct}%)`;
-  pendingEl.title = `Pendiente: ${formatMoney(summary.totalPending)} (${pendingPct}%)`;
-}
-
-function renderAdminMetrics(projects, estimations) {
-  const summary = computeAdminDashboardSummary(projects, estimations);
+function renderAdminMetrics(projects) {
+  const summary = computeAdminDashboardSummary(projects);
   document.getElementById("admin-metrics").innerHTML = adminSummaryHtml(summary);
-  renderPaymentBar(summary);
-}
-
-async function loadEstimationsForAdmin(projects) {
-  try {
-    const { estimations, projects: allProjects } = await api(
-      "/estimations/breakdowns"
-    );
-    window.__pafProjectsForEstimations = allProjects || projects;
-    return estimations || [];
-  } catch {
-    window.__pafProjectsForEstimations = projects;
-    return [];
-  }
 }
 
 function openFormPanel() {
@@ -161,8 +144,7 @@ function bindFormPanel() {
   bindFormPanel();
   const { projects } = await api("/projects");
   cachedProjects = projects;
-  const estimations = await loadEstimationsForAdmin(projects);
-  renderAdminMetrics(projects, estimations);
+  renderAdminMetrics(projects);
   await loadProjects(projects);
 
   document.getElementById("project-form").addEventListener("submit", onSubmit);
@@ -175,8 +157,7 @@ function bindFormPanel() {
 async function refreshDashboard() {
   const { projects } = await api("/projects");
   cachedProjects = projects;
-  const estimations = await loadEstimationsForAdmin(projects);
-  renderAdminMetrics(projects, estimations);
+  renderAdminMetrics(projects);
   await loadProjects(projects);
 }
 
