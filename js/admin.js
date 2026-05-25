@@ -27,13 +27,22 @@ function computeAdminDashboardSummary(projects) {
     ? Math.min(100, Math.round((doneM2 / totalM2) * 1000) / 10)
     : 0;
 
+  const sumConceptsTotal = (items) =>
+    items.reduce((s, p) => s + (Number(p.conceptsTotal) || 0), 0);
+
   return {
     activeCount: active.length,
+    activeMoney: sumConceptsTotal(active),
     approvalCount: inApproval.length,
+    approvalMoney: sumConceptsTotal(inApproval),
     activeProgressPercent,
     activeDoneM2: doneM2,
     activeTotalM2: totalM2,
   };
+}
+
+function projectCountLabel(n) {
+  return n === 1 ? "1 proyecto" : `${n} proyectos`;
 }
 
 function adminSummaryHtml(summary) {
@@ -44,12 +53,14 @@ function adminSummaryHtml(summary) {
 
   return `
     <div class="metric-box">
-      <span class="metric-value accent">${summary.activeCount}</span>
+      <span class="metric-value accent">${formatMoney(summary.activeMoney)}</span>
       <span class="metric-label">Proyectos activos</span>
+      <span class="metric-sublabel">${projectCountLabel(summary.activeCount)}</span>
     </div>
     <div class="metric-box">
-      <span class="metric-value">${summary.approvalCount}</span>
+      <span class="metric-value">${formatMoney(summary.approvalMoney)}</span>
       <span class="metric-label">Proyectos por aprobar</span>
+      <span class="metric-sublabel">${projectCountLabel(summary.approvalCount)}</span>
     </div>
     <div class="metric-box metric-box-progress">
       <div class="progress-ring-wrap">
