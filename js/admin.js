@@ -20,6 +20,39 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function isPastCompletionDate(dateIso) {
+  const d = (dateIso || "").trim();
+  return d && d < todayIso();
+}
+
+function statusForNewProject(dateIso, selectedStatus) {
+  if (isPastCompletionDate(dateIso)) return "completado";
+  return selectedStatus || "en_aprobacion";
+}
+
+function syncProjectFormCompletionUi() {
+  const dateEl = document.getElementById("completionDate");
+  const statusEl = document.getElementById("status");
+  const hintEl = document.getElementById("completion-date-hint");
+  if (!dateEl || !statusEl) return;
+
+  dateEl.removeAttribute("min");
+
+  const past = isPastCompletionDate(dateEl.value);
+  if (past && !editingId) {
+    statusEl.value = "completado";
+    statusEl.disabled = true;
+  } else {
+    statusEl.disabled = false;
+  }
+
+  if (hintEl) {
+    hintEl.textContent = past
+      ? "Fecha en el pasado: el proyecto se registrará como completado."
+      : "Puedes elegir una fecha pasada para proyectos ya terminados.";
+  }
+}
+
 async function loadGlobalEstimations() {
   try {
     const { estimations } = await api("/estimations/breakdowns");
@@ -107,6 +140,9 @@ function computeAdminDashboardSummary(projects) {
   const inApproval = list.filter(
     (p) => normalizeProjectStatus(p.status) === "en_aprobacion"
   );
+  const completed = list.filter(
+    (p) => normalizeProjectStatus(p.status) === "completado"
+  );
 
   let totalM2 = 0;
   let doneM2 = 0;
@@ -141,6 +177,8 @@ function computeAdminDashboardSummary(projects) {
     activeMoney: sumConceptsTotal(active),
     approvalCount: inApproval.length,
     approvalMoney: sumConceptsTotal(inApproval),
+    completedCount: completed.length,
+    completedMoney: sumConceptsTotal(completed),
     activeProgressPercent,
     activeDoneM2: doneM2,
     activeTotalM2: totalM2,
@@ -184,6 +222,11 @@ function adminSummaryHtml(summary) {
       <span class="metric-value">${formatMoney(summary.approvalMoney)}</span>
       <span class="metric-label">Proyectos por aprobar</span>
       <span class="metric-sublabel">${projectCountLabel(summary.approvalCount)}</span>
+    </div>
+    <div class="metric-box">
+      <span class="metric-value">${formatMoney(summary.completedMoney)}</span>
+      <span class="metric-label">Proyectos culminados</span>
+      <span class="metric-sublabel">${projectCountLabel(summary.completedCount)}</span>
     </div>
     <div class="metric-box metric-box-progress">
       <div class="progress-ring-wrap">
@@ -235,6 +278,7 @@ function openQuickPanel(mode) {
   const panel = quickPanel();
   const backdrop = formBackdrop();
   if (mode === "project" && !editingId) resetForm();
+  if (mode === "project") syncProjectFormCompletionUi();
   if (mode === "concept") resetConceptQuickForm();
   if (mode === "advance") resetAdvanceQuickForm();
   if (mode === "indirect") resetIndirectQuickForm();
@@ -410,6 +454,13 @@ function bindQuickPanel() {
   document
     .getElementById("indirect-quick-cancel")
     ?.addEventListener("click", closeQuickPanel);
+
+  document
+    .getElementById("completionDate")
+    ?.addEventListener("change", syncProjectFormCompletionUi);
+  document
+    .getElementById("completionDate")
+    ?.addEventListener("input", syncProjectFormCompletionUi);
 }
 
 function resetIndirectQuickForm() {
@@ -680,11 +731,17 @@ async function onSubmit(e) {
   err.textContent = "";
   err.style.color = "";
 
+  const completionDate = document.getElementById("completionDate").value;
   const body = {
     name: document.getElementById("name").value.trim(),
     clientId: document.getElementById("clientId").value,
-    completionDate: document.getElementById("completionDate").value,
-    status: document.getElementById("status").value,
+    completionDate,
+    status: editingId
+      ? document.getElementById("status").value
+      : statusForNewProject(
+          completionDate,
+          document.getElementById("status").value
+        ),
     zone3dImage:
       document.getElementById("zone3dImage").value.trim() ||
       "/assets/zone-3d-placeholder.svg",
@@ -753,14 +810,18 @@ async function loadBasicEdit(id) {
   document.getElementById("zone3dImage").value = p.zone3dImage || "";
   document.getElementById("form-reset").hidden = false;
   openQuickPanel("project");
+  syncProjectFormCompletionUi();
 }
 
 function resetForm() {
   editingId = null;
   setSubmitLabel();
   document.getElementById("project-form").reset();
+  document.getElementById("completionDate").removeAttribute("min");
+  document.getElementById("status").disabled = false;
   document.getElementById("form-reset").hidden = true;
   document.getElementById("form-error").textContent = "";
+  syncProjectFormCompletionUi();
 }
 
 async function deleteProject(id) {
