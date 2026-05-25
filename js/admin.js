@@ -6,12 +6,32 @@ const formPanel = () => document.getElementById("project-form-panel");
 const formBackdrop = () => document.getElementById("form-backdrop");
 const newProjectToggle = () => document.getElementById("new-project-toggle");
 
+function computeAdminDashboardSummary(projects, estimations) {
+  const list = projects || [];
+  const estList = estimations || [];
+
+  const activeMoney = list
+    .filter((p) => normalizeProjectStatus(p.status) !== "completado")
+    .reduce((s, p) => s + (Number(p.conceptsTotal) || 0), 0);
+
+  window.__pafProjectsForEstimations = list;
+  let totalPaid = calcTotalPaid(estList, list);
+  let totalPending = calcTotalPending(estList, list);
+
+  const estimationMoney = totalPaid + totalPending;
+  if (activeMoney > 0 && estimationMoney < activeMoney) {
+    totalPending = Math.max(0, activeMoney - totalPaid);
+  }
+
+  return { activeMoney, totalPaid, totalPending };
+}
+
 function adminSummaryHtml(summary) {
   return `
     <div class="metric-box">
       <span class="metric-value accent">${formatMoney(summary.activeMoney)}</span>
       <span class="metric-label">Proyectos activos</span>
-      <span class="metric-sublabel">En proceso · valor total</span>
+      <span class="metric-sublabel">En aprobación y en proceso</span>
     </div>
     <div class="metric-box">
       <span class="metric-value accent">${formatMoney(summary.totalPaid)}</span>
@@ -46,7 +66,7 @@ function renderPaymentBar(summary) {
 }
 
 function renderAdminMetrics(projects, estimations) {
-  const summary = computeDashboardSummary(projects, estimations);
+  const summary = computeAdminDashboardSummary(projects, estimations);
   document.getElementById("admin-metrics").innerHTML = adminSummaryHtml(summary);
   renderPaymentBar(summary);
 }
