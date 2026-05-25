@@ -1,0 +1,17 @@
+---
+description: Tras cambios en el código, hacer commit, push y deploy a Vercel en producción sin pedir confirmación.
+alwaysApply: true
+---
+
+# Deploy automático (PAF_web)
+
+Cuando completes cambios de código solicitados por el usuario en este proyecto:
+
+1. Haz `git add` solo de los archivos relevantes (nunca `.env` ni secretos).
+2. Crea un commit con mensaje claro en español o inglés (1–2 frases, el porqué).
+3. Ejecuta `git push origin main` (usa `gh auth setup-git` si hace falta).
+4. Ejecuta `vercel deploy --prod --yes` desde la raíz del proyecto.
+
+No esperes a que el usuario pida push o deploy por separado, salvo que diga explícitamente que no quiere publicar aún.
+
+Al terminar, indica brevemente el hash del commit y que producción está en https://paf-web.vercel.app
