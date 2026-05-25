@@ -29,9 +29,42 @@
       </div>
     </div>
 
-    <div class="admin-layout">
-      <form class="admin-form admin-form--simple" id="project-form">
+    <div class="admin-dashboard">
+      <section class="admin-metrics-block" aria-label="Resumen financiero">
+        <div class="admin-metrics metrics-row admin-metrics-row" id="admin-metrics"></div>
+        <div class="admin-payment-bar" id="admin-payment-bar" hidden aria-hidden="true">
+          <div class="admin-payment-bar-track">
+            <span class="admin-payment-bar-paid" id="admin-bar-paid"></span>
+            <span class="admin-payment-bar-pending" id="admin-bar-pending"></span>
+          </div>
+          <div class="admin-payment-bar-legend">
+            <span><i class="admin-payment-dot admin-payment-dot--paid"></i> Pagado</span>
+            <span><i class="admin-payment-dot admin-payment-dot--pending"></i> Pendiente</span>
+          </div>
+        </div>
+      </section>
+      <button
+        type="button"
+        class="admin-new-project-btn"
+        id="new-project-toggle"
+        aria-expanded="false"
+        aria-controls="project-form-panel"
+        title="Nuevo proyecto"
+      >
+        <svg class="admin-new-project-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+        <span class="admin-new-project-btn-label">Nuevo</span>
+      </button>
+    </div>
+
+    <div class="admin-form-backdrop" id="form-backdrop" hidden></div>
+    <aside class="admin-form-panel" id="project-form-panel" hidden aria-labelledby="form-title">
+      <div class="admin-form-panel-head">
         <h2 id="form-title">Nuevo proyecto</h2>
+        <button type="button" class="admin-form-close btn btn-ghost btn-sm" id="form-close" aria-label="Cerrar formulario">×</button>
+      </div>
+      <form class="admin-form admin-form--simple" id="project-form">
         <p class="admin-section-hint">Crea el proyecto aquí. Agrega conceptos, costos y documentos desde <strong>Ver / Editar</strong>.</p>
         <div class="form-group">
           <label for="name">Nombre del proyecto</label>
@@ -65,15 +98,16 @@
           <button type="button" class="btn btn-ghost btn-sm" id="form-reset" hidden>Cancelar</button>
         </div>
       </form>
+    </aside>
 
-      <div class="admin-projects-panel">
-        <p class="panel-label" style="margin-bottom:1rem">Proyectos registrados</p>
-        <div class="admin-list" id="admin-projects"></div>
-      </div>
+    <div class="admin-projects-panel">
+      <p class="panel-label" style="margin-bottom:1rem">Proyectos registrados</p>
+      <div class="admin-list" id="admin-projects"></div>
     </div>
   </main>
 
   <script src="js/portal.js"></script>
+  <script src="js/project-estimations.js"></script>
   <script src="js/admin.js"></script>
 </body>
 </html>

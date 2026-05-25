@@ -1,5 +1,121 @@
 let clients = [];
 let editingId = null;
+let cachedProjects = [];
+
+const formPanel = () => document.getElementById("project-form-panel");
+const formBackdrop = () => document.getElementById("form-backdrop");
+const newProjectToggle = () => document.getElementById("new-project-toggle");
+
+function adminSummaryHtml(summary) {
+  return `
+    <div class="metric-box">
+      <span class="metric-value accent">${formatMoney(summary.activeMoney)}</span>
+      <span class="metric-label">Proyectos activos</span>
+      <span class="metric-sublabel">En proceso · valor total</span>
+    </div>
+    <div class="metric-box">
+      <span class="metric-value accent">${formatMoney(summary.totalPaid)}</span>
+      <span class="metric-label">Total pagado</span>
+      <span class="metric-sublabel">Estimaciones pagadas</span>
+    </div>
+    <div class="metric-box">
+      <span class="metric-value">${formatMoney(summary.totalPending)}</span>
+      <span class="metric-label">Pendiente de pago</span>
+      <span class="metric-sublabel">Estimaciones pendientes</span>
+    </div>`;
+}
+
+function renderPaymentBar(summary) {
+  const bar = document.getElementById("admin-payment-bar");
+  const paidEl = document.getElementById("admin-bar-paid");
+  const pendingEl = document.getElementById("admin-bar-pending");
+  const total = summary.totalPaid + summary.totalPending;
+
+  if (!total) {
+    bar.hidden = true;
+    return;
+  }
+
+  bar.hidden = false;
+  const paidPct = Math.round((summary.totalPaid / total) * 1000) / 10;
+  const pendingPct = 100 - paidPct;
+  paidEl.style.flex = `${paidPct} 1 0`;
+  pendingEl.style.flex = `${pendingPct} 1 0`;
+  paidEl.title = `Pagado: ${formatMoney(summary.totalPaid)} (${paidPct}%)`;
+  pendingEl.title = `Pendiente: ${formatMoney(summary.totalPending)} (${pendingPct}%)`;
+}
+
+function renderAdminMetrics(projects, estimations) {
+  const summary = computeDashboardSummary(projects, estimations);
+  document.getElementById("admin-metrics").innerHTML = adminSummaryHtml(summary);
+  renderPaymentBar(summary);
+}
+
+async function loadEstimationsForAdmin(projects) {
+  try {
+    const { estimations, projects: allProjects } = await api(
+      "/estimations/breakdowns"
+    );
+    window.__pafProjectsForEstimations = allProjects || projects;
+    return estimations || [];
+  } catch {
+    window.__pafProjectsForEstimations = projects;
+    return [];
+  }
+}
+
+function openFormPanel() {
+  const panel = formPanel();
+  const backdrop = formBackdrop();
+  const toggle = newProjectToggle();
+  panel.hidden = false;
+  backdrop.hidden = false;
+  requestAnimationFrame(() => {
+    panel.classList.add("is-open");
+    backdrop.classList.add("is-open");
+  });
+  toggle.setAttribute("aria-expanded", "true");
+  toggle.classList.add("is-active");
+}
+
+function closeFormPanel() {
+  const panel = formPanel();
+  const backdrop = formBackdrop();
+  const toggle = newProjectToggle();
+  panel.classList.remove("is-open");
+  backdrop.classList.remove("is-open");
+  toggle.setAttribute("aria-expanded", "false");
+  toggle.classList.remove("is-active");
+  setTimeout(() => {
+    panel.hidden = true;
+    backdrop.hidden = true;
+  }, 300);
+}
+
+function bindFormPanel() {
+  document.getElementById("new-project-toggle").addEventListener("click", () => {
+    if (formPanel().classList.contains("is-open")) {
+      closeFormPanel();
+      return;
+    }
+    resetForm();
+    openFormPanel();
+  });
+  document.getElementById("form-close").addEventListener("click", () => {
+    closeFormPanel();
+    if (!editingId) resetForm();
+  });
+  formBackdrop().addEventListener("click", () => {
+    closeFormPanel();
+    if (!editingId) resetForm();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && formPanel().classList.contains("is-open")) {
+      closeFormPanel();
+      if (!editingId) resetForm();
+    }
+  });
+}
 
 (async () => {
   const user = await requireAuth();
@@ -22,13 +138,29 @@ let editingId = null;
       )
       .join("");
 
-  await loadProjects();
+  bindFormPanel();
+  const { projects } = await api("/projects");
+  cachedProjects = projects;
+  const estimations = await loadEstimationsForAdmin(projects);
+  renderAdminMetrics(projects, estimations);
+  await loadProjects(projects);
+
   document.getElementById("project-form").addEventListener("submit", onSubmit);
-  document.getElementById("form-reset").addEventListener("click", resetForm);
+  document.getElementById("form-reset").addEventListener("click", () => {
+    resetForm();
+    closeFormPanel();
+  });
 })();
 
-async function loadProjects() {
+async function refreshDashboard() {
   const { projects } = await api("/projects");
+  cachedProjects = projects;
+  const estimations = await loadEstimationsForAdmin(projects);
+  renderAdminMetrics(projects, estimations);
+  await loadProjects(projects);
+}
+
+async function loadProjects(projects = cachedProjects) {
   const list = document.getElementById("admin-projects");
 
   if (!projects.length) {
@@ -106,7 +238,8 @@ async function onSubmit(e) {
         body: JSON.stringify(body),
       });
       resetForm();
-      await loadProjects();
+      closeFormPanel();
+      await refreshDashboard();
       err.style.color = "var(--accent)";
       err.textContent = "Proyecto creado. Abre Ver / Editar para agregar conceptos.";
       setTimeout(() => {
@@ -115,7 +248,8 @@ async function onSubmit(e) {
       return;
     }
     resetForm();
-    await loadProjects();
+    closeFormPanel();
+    await refreshDashboard();
     err.style.color = "var(--accent)";
     err.textContent = "Datos del proyecto actualizados.";
     setTimeout(() => {
@@ -143,7 +277,7 @@ async function loadBasicEdit(id) {
   document.getElementById("status").value = normalizeProjectStatus(p.status);
   document.getElementById("zone3dImage").value = p.zone3dImage || "";
   document.getElementById("form-reset").hidden = false;
-  document.getElementById("project-form").scrollIntoView({ behavior: "smooth" });
+  openFormPanel();
 }
 
 function resetForm() {
@@ -152,13 +286,17 @@ function resetForm() {
   document.getElementById("form-title").textContent = "Nuevo proyecto";
   document.getElementById("project-form").reset();
   document.getElementById("form-reset").hidden = true;
+  document.getElementById("form-error").textContent = "";
 }
 
 async function deleteProject(id) {
   if (!confirm("¿Eliminar este proyecto?")) return;
   await api(`/projects/${id}`, { method: "DELETE" });
-  if (editingId === id) resetForm();
-  await loadProjects();
+  if (editingId === id) {
+    resetForm();
+    closeFormPanel();
+  }
+  await refreshDashboard();
 }
 
 function escapeHtml(s) {

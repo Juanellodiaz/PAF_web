@@ -665,15 +665,187 @@ body.page-enter {
 }
 
 /* Admin */
-.admin-layout {
-  display: grid;
-  grid-template-columns: minmax(280px, 1.2fr) minmax(0, 1fr);
-  gap: 2rem;
-  align-items: start;
+.admin-dashboard {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.admin-metrics-block {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-metrics-row {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.admin-payment-bar {
+  margin-top: 1rem;
+}
+
+.admin-payment-bar-track {
+  display: flex;
+  height: 6px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.admin-payment-bar-paid {
+  background: var(--accent);
+  min-width: 0;
+  transition: flex 0.35s ease;
+}
+
+.admin-payment-bar-pending {
+  background: rgba(255, 255, 255, 0.12);
+  min-width: 0;
+  transition: flex 0.35s ease;
+}
+
+.admin-payment-bar-legend {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  letter-spacing: 0.06em;
+}
+
+.admin-payment-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 0.35rem;
+  vertical-align: middle;
+}
+
+.admin-payment-dot--paid {
+  background: var(--accent);
+}
+
+.admin-payment-dot--pending {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.admin-new-project-btn {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 4.5rem;
+  min-height: 4.5rem;
+  padding: 0.5rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+
+.admin-new-project-btn:hover,
+.admin-new-project-btn.is-active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.admin-new-project-btn-label {
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.admin-new-project-icon {
+  display: block;
+}
+
+.admin-form-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 90;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.admin-form-backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.admin-form-panel {
+  position: fixed;
+  top: var(--header-h);
+  left: 0;
+  bottom: 0;
+  z-index: 100;
+  width: min(400px, 92vw);
+  padding: 1.75rem;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+}
+
+.admin-form-panel.is-open {
+  transform: translateX(0);
+}
+
+.admin-form-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.admin-form-panel-head h2 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.admin-form-close {
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0.25rem 0.5rem;
+  flex-shrink: 0;
+}
+
+.admin-form-panel .admin-form {
+  padding: 0;
+  background: transparent;
+  border: none;
+  max-height: none;
+  overflow: visible;
 }
 
 .admin-projects-panel {
   min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .admin-dashboard {
+    flex-direction: column;
+  }
+
+  .admin-new-project-btn {
+    flex-direction: row;
+    width: 100%;
+    min-height: auto;
+    padding: 0.75rem 1rem;
+  }
+
+  .admin-metrics-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .admin-form {

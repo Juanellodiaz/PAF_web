@@ -167,6 +167,35 @@ function calcTotalPending(estimations, projectsOrConcepts) {
     );
 }
 
+function computeDashboardSummary(projects, estimations) {
+  const list = projects || [];
+  const estList = estimations || [];
+
+  const activeMoney = list
+    .filter((p) => normalizeProjectStatus(p.status) === "en_proceso")
+    .reduce((s, p) => s + (Number(p.conceptsTotal) || 0), 0);
+
+  const pendingApprovalCount = list.filter(
+    (p) => normalizeProjectStatus(p.status) === "en_aprobacion"
+  ).length;
+
+  const reviewMoney = list
+    .filter((p) => normalizeProjectStatus(p.status) === "en_aprobacion")
+    .reduce((s, p) => s + (Number(p.conceptsTotal) || 0), 0);
+
+  window.__pafProjectsForEstimations = list;
+  const totalPaid = calcTotalPaid(estList, list);
+  const totalPending = calcTotalPending(estList, list);
+
+  return {
+    activeMoney,
+    pendingApprovalCount,
+    reviewMoney,
+    totalPaid,
+    totalPending,
+  };
+}
+
 function estimationLinesGroupedHtml(breakdown) {
   if (!breakdown?.groups?.length) {
     return '<p class="admin-empty admin-empty-inline">Sin partidas en ningún proyecto. Agrega avances en los conceptos y asígnalos a esta estimación.</p>';
