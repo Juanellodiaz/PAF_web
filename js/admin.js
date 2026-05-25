@@ -45,6 +45,21 @@ function projectCountLabel(n) {
   return n === 1 ? "1 proyecto" : `${n} proyectos`;
 }
 
+const PROJECT_STATUS_OPTIONS = [
+  { value: "en_aprobacion", label: "En aprobación" },
+  { value: "en_proceso", label: "En proceso" },
+  { value: "completado", label: "Completado" },
+];
+
+function projectStatusSelectHtml(projectId, currentStatus) {
+  const status = normalizeProjectStatus(currentStatus);
+  const options = PROJECT_STATUS_OPTIONS.map(
+    (o) =>
+      `<option value="${o.value}"${status === o.value ? " selected" : ""}>${o.label}</option>`
+  ).join("");
+  return `<select class="admin-status-select" data-status-for="${escapeHtml(projectId)}" data-last-status="${status}" aria-label="Estado del proyecto">${options}</select>`;
+}
+
 function adminSummaryHtml(summary) {
   const m2Note =
     summary.activeTotalM2 > 0
@@ -194,7 +209,8 @@ async function loadProjects(projects = cachedProjects) {
             <span class="portal-user">${escapeHtml(clientName)} · ${p.daysRemaining} días · ${n} conceptos · ${formatMoney(p.conceptsTotal)}</span>
           </div>
         </div>
-        <div class="portal-actions">
+        <div class="portal-actions admin-list-actions">
+          ${projectStatusSelectHtml(p.id, p.status)}
           <a href="/project.html?id=${encodeURIComponent(p.id)}" class="btn btn-primary btn-sm">Ver / Editar</a>
           <button type="button" class="btn btn-ghost btn-sm" data-edit="${p.id}">Datos</button>
           <button type="button" class="btn btn-ghost btn-sm" data-delete="${p.id}">Eliminar</button>
@@ -210,6 +226,33 @@ async function loadProjects(projects = cachedProjects) {
   list.querySelectorAll("[data-delete]").forEach((btn) => {
     btn.addEventListener("click", () => deleteProject(btn.dataset.delete));
   });
+  list.querySelectorAll(".admin-status-select").forEach((sel) => {
+    sel.addEventListener("change", () => updateProjectStatus(sel));
+  });
+}
+
+async function updateProjectStatus(selectEl) {
+  const id = selectEl.dataset.statusFor;
+  const newStatus = selectEl.value;
+  const previous = selectEl.dataset.lastStatus;
+  selectEl.disabled = true;
+
+  try {
+    const { project } = await api(`/projects/${id}`);
+    const current = normalizeProjectStatus(project.status);
+    if (current === newStatus) return;
+
+    await api(`/projects/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ ...project, id, status: newStatus }),
+    });
+    await refreshDashboard();
+  } catch (ex) {
+    selectEl.value = previous;
+    alert(ex.message || "No se pudo actualizar el estado");
+  } finally {
+    selectEl.disabled = false;
+  }
 }
 
 async function onSubmit(e) {
