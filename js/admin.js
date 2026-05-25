@@ -132,8 +132,12 @@ async function putProject(project) {
   });
 }
 
-function computeAdminDashboardSummary(projects) {
+const INTERCAMBIO_RATE = 0.4;
+
+function computeAdminDashboardSummary(projects, estimations) {
   const list = projects || [];
+  const estList = estimations || [];
+  window.__pafProjectsForEstimations = list;
   const active = list.filter(
     (p) => normalizeProjectStatus(p.status) === "en_proceso"
   );
@@ -172,6 +176,9 @@ function computeAdminDashboardSummary(projects) {
     portfolioIndirect
   );
 
+  const completedPaid = calcTotalPaid(estList, completed);
+  const completedIntercambio = Math.round(completedPaid * INTERCAMBIO_RATE);
+
   return {
     activeCount: active.length,
     activeMoney: sumConceptsTotal(active),
@@ -179,6 +186,8 @@ function computeAdminDashboardSummary(projects) {
     approvalMoney: sumConceptsTotal(inApproval),
     completedCount: completed.length,
     completedMoney: sumConceptsTotal(completed),
+    completedPaid,
+    completedIntercambio,
     activeProgressPercent,
     activeDoneM2: doneM2,
     activeTotalM2: totalM2,
@@ -223,10 +232,12 @@ function adminSummaryHtml(summary) {
       <span class="metric-label">Proyectos por aprobar</span>
       <span class="metric-sublabel">${projectCountLabel(summary.approvalCount)}</span>
     </div>
-    <div class="metric-box">
+    <div class="metric-box metric-box--completed">
       <span class="metric-value">${formatMoney(summary.completedMoney)}</span>
       <span class="metric-label">Proyectos culminados</span>
       <span class="metric-sublabel">${projectCountLabel(summary.completedCount)}</span>
+      <span class="metric-sublabel metric-sublabel--emph">Pagado: ${formatMoney(summary.completedPaid)}</span>
+      <span class="metric-sublabel">Intercambio 40%: ${formatMoney(summary.completedIntercambio)}</span>
     </div>
     <div class="metric-box metric-box-progress">
       <div class="progress-ring-wrap">
@@ -244,8 +255,8 @@ function adminSummaryHtml(summary) {
     </div>`;
 }
 
-function renderAdminMetrics(projects) {
-  const summary = computeAdminDashboardSummary(projects);
+function renderAdminMetrics(projects, estimations = cachedGlobalEstimations) {
+  const summary = computeAdminDashboardSummary(projects, estimations);
   document.getElementById("admin-metrics").innerHTML = adminSummaryHtml(summary);
 }
 
@@ -638,7 +649,7 @@ async function onSubmitQuickAdvance(e) {
   const { projects } = await api("/projects");
   cachedProjects = projects;
   fillProjectSelects();
-  renderAdminMetrics(projects);
+  renderAdminMetrics(projects, cachedGlobalEstimations);
   await loadProjects(projects);
 
   document.getElementById("project-form").addEventListener("submit", onSubmit);
@@ -653,7 +664,7 @@ async function refreshDashboard() {
   cachedProjects = projects;
   fillProjectSelects();
   await loadGlobalEstimations();
-  renderAdminMetrics(projects);
+  renderAdminMetrics(projects, cachedGlobalEstimations);
   await loadProjects(projects);
 }
 

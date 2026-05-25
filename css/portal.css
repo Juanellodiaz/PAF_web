@@ -437,6 +437,15 @@ body.page-enter {
   margin-top: 0.25rem;
 }
 
+.metric-sublabel--emph {
+  color: var(--text);
+  margin-top: 0.5rem;
+}
+
+.metric-box--completed .metric-sublabel + .metric-sublabel {
+  margin-top: 0.2rem;
+}
+
 .progress-ring-wrap {
   margin-bottom: 0.5rem;
 }
