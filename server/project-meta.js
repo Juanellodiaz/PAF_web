@@ -121,8 +121,15 @@ function buildMetaPayload(project) {
     if (adv.length) advancesByConceptId[c.id] = adv;
   });
   return {
-    v: 3,
+    v: 4,
     advancesByConceptId,
+    indirectCosts: (project.indirectCosts || []).map((item) => ({
+      id: item.id,
+      label: item.label || "",
+      amount: Math.round(Number(item.amount) || 0),
+      date: item.date || "",
+      note: item.note || "",
+    })),
   };
 }
 
@@ -171,7 +178,7 @@ function applyMetaToProject(project) {
   }));
 
   let estimations = project.estimations || [];
-  if (meta.v !== 3) {
+  if (meta.v !== 3 && meta.v !== 4) {
     const storedEstimations = mergeStoredEstimations(
       project.estimations,
       meta.estimations
@@ -180,11 +187,14 @@ function applyMetaToProject(project) {
     estimations = applyPaidFromMeta(estimations, meta.paidByEstimationId);
   }
 
+  const indirectCosts = Array.isArray(meta.indirectCosts) ? meta.indirectCosts : [];
+
   return {
     ...project,
     concepts,
     estimations,
     documents: visibleDocs,
+    indirectCosts,
   };
 }
 

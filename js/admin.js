@@ -46,7 +46,7 @@ function projectSelectOptions(selectedId, emptyLabel = "— Seleccionar —") {
 }
 
 function fillProjectSelects() {
-  ["quick-concept-project", "quick-advance-project"].forEach((id) => {
+  ["quick-concept-project", "quick-advance-project", "quick-indirect-project"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = projectSelectOptions(el.value);
   });
@@ -123,6 +123,19 @@ function computeAdminDashboardSummary(projects) {
   const sumConceptsTotal = (items) =>
     items.reduce((s, p) => s + (Number(p.conceptsTotal) || 0), 0);
 
+  const openProjects = list.filter(
+    (p) => normalizeProjectStatus(p.status) !== "completado"
+  );
+  const portfolioValue = sumConceptsTotal(openProjects);
+  const portfolioIndirect = openProjects.reduce(
+    (s, p) => s + (Number(p.indirectTotal) || 0),
+    0
+  );
+  const portfolioIndirectPercent = calcIndirectPercent(
+    portfolioValue,
+    portfolioIndirect
+  );
+
   return {
     activeCount: active.length,
     activeMoney: sumConceptsTotal(active),
@@ -131,6 +144,8 @@ function computeAdminDashboardSummary(projects) {
     activeProgressPercent,
     activeDoneM2: doneM2,
     activeTotalM2: totalM2,
+    portfolioIndirect,
+    portfolioIndirectPercent,
   };
 }
 
@@ -178,6 +193,11 @@ function adminSummaryHtml(summary) {
       </div>
       <span class="metric-label">Avance en activos</span>
       <span class="metric-sublabel">${m2Note}</span>
+    </div>
+    <div class="metric-box">
+      <span class="metric-value">${summary.portfolioIndirectPercent}%</span>
+      <span class="metric-label">Gastos indirectos</span>
+      <span class="metric-sublabel">${formatMoney(summary.portfolioIndirect)} del portafolio activo</span>
     </div>`;
 }
 
@@ -190,6 +210,7 @@ const QUICK_PANEL_TITLES = {
   project: "Nuevo proyecto",
   concept: "Nuevo concepto",
   advance: "Nuevo avance",
+  indirect: "Gasto indirecto",
 };
 
 function setQuickPanelMode(mode) {
@@ -216,6 +237,7 @@ function openQuickPanel(mode) {
   if (mode === "project" && !editingId) resetForm();
   if (mode === "concept") resetConceptQuickForm();
   if (mode === "advance") resetAdvanceQuickForm();
+  if (mode === "indirect") resetIndirectQuickForm();
 
   setQuickPanelMode(mode);
   panel.hidden = false;
@@ -382,6 +404,58 @@ function bindQuickPanel() {
   document
     .getElementById("advance-quick-form")
     .addEventListener("submit", onSubmitQuickAdvance);
+  document
+    .getElementById("indirect-quick-form")
+    .addEventListener("submit", onSubmitQuickIndirect);
+  document
+    .getElementById("indirect-quick-cancel")
+    ?.addEventListener("click", closeQuickPanel);
+}
+
+function resetIndirectQuickForm() {
+  const form = document.getElementById("indirect-quick-form");
+  form.reset();
+  document.getElementById("indirect-quick-error").textContent = "";
+  document.getElementById("quick-indirect-date").value = todayIso();
+  fillProjectSelects();
+}
+
+async function onSubmitQuickIndirect(e) {
+  e.preventDefault();
+  const err = document.getElementById("indirect-quick-error");
+  err.textContent = "";
+
+  const projectId = document.getElementById("quick-indirect-project").value;
+  const label = document.getElementById("quick-indirect-label").value.trim();
+  const amount = Math.round(Number(document.getElementById("quick-indirect-amount").value) || 0);
+  const date = document.getElementById("quick-indirect-date").value || todayIso();
+  const note = document.getElementById("quick-indirect-note").value.trim();
+
+  if (!projectId) {
+    err.textContent = "Selecciona un proyecto.";
+    return;
+  }
+  if (!label) {
+    err.textContent = "Describe el gasto indirecto.";
+    return;
+  }
+  if (amount <= 0) {
+    err.textContent = "Indica un monto mayor a cero.";
+    return;
+  }
+
+  try {
+    const project = await fetchFullProject(projectId);
+    project.indirectCosts = [
+      ...(project.indirectCosts || []),
+      { id: newQuickId("ind"), label, amount, date, note },
+    ];
+    await putProject(project);
+    closeQuickPanel();
+    await refreshDashboard();
+  } catch (ex) {
+    err.textContent = ex.message;
+  }
 }
 
 async function onSubmitQuickConcept(e) {
@@ -551,7 +625,7 @@ async function loadProjects(projects = cachedProjects) {
           ${progressRingCardHtml(p)}
           <div class="admin-list-item-info">
             <strong>${escapeHtml(p.name)}</strong>
-            <span class="portal-user">${escapeHtml(clientName)} · ${p.daysRemaining} días · ${n} conceptos · ${formatMoney(p.conceptsTotal)}</span>
+            <span class="portal-user">${escapeHtml(clientName)} · ${p.daysRemaining} días · ${n} conceptos · ${formatProjectMoneyDisplay(p)}</span>
           </div>
         </div>
         <div class="portal-actions admin-list-actions">
@@ -617,6 +691,7 @@ async function onSubmit(e) {
     concepts: [],
     estimations: [],
     documents: [],
+    indirectCosts: [],
   };
 
   try {
@@ -630,6 +705,7 @@ async function onSubmit(e) {
           id: editingId,
           concepts: existing.concepts || [],
           documents: existing.documents || [],
+          indirectCosts: existing.indirectCosts || [],
         }),
       });
     } else {

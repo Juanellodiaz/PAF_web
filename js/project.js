@@ -185,14 +185,28 @@ function refreshMetricsFromEditors() {
   syncConceptTotals();
   const totalM2 = editorConcepts.reduce((s, c) => s + (Number(c.m2) || 0), 0);
   const totalMoney = editorConcepts.reduce((s, c) => s + c.totalPrice, 0);
+  const indirectTotal = calcIndirectTotal(editorIndirectCosts);
   refreshEstimationBreakdowns(editorEstimations);
   const totalPaid = calcTotalPaid(editorEstimations, projectsForMetrics());
   const m2El = document.getElementById("metric-m2");
   const totalEl = document.getElementById("metric-total");
   const paidEl = document.getElementById("metric-paid");
+  const indirectEl = document.getElementById("metric-indirect");
   if (m2El) m2El.textContent = totalM2;
-  if (totalEl) totalEl.textContent = formatMoney(totalMoney);
+  if (totalEl) {
+    totalEl.innerHTML = formatProjectMoneyDisplay({
+      conceptsTotal: totalMoney,
+      indirectTotal,
+    });
+  }
+  if (indirectEl) {
+    indirectEl.textContent = formatMoney(indirectTotal);
+    const pct = calcIndirectPercent(totalMoney, indirectTotal);
+    const sub = document.getElementById("metric-indirect-sub");
+    if (sub) sub.textContent = indirectTotal ? `${pct}% del proyecto` : "—";
+  }
   if (paidEl) paidEl.textContent = formatMoney(totalPaid);
+  updateIndirectPreview();
   updateProgressChart();
 }
 
@@ -233,7 +247,17 @@ function renderAdminView(p) {
         </div>
       </div>
       <div id="concepts-editor" class="concepts-editor"></div>
-      <p class="concepts-total-preview" id="concepts-total-preview">Total: ${formatMoney(payload.conceptsTotal)} · ${payload.m2Total} m²</p>
+      <p class="concepts-total-preview" id="concepts-total-preview">Total: ${formatProjectMoneyDisplay(payload)} · ${payload.m2Total} m²</p>
+    </section>
+
+    <section class="admin-section project-edit-section">
+      <div class="admin-section-head">
+        <p class="admin-section-label">Gastos indirectos</p>
+        <button type="button" class="btn btn-ghost btn-sm" id="add-indirect">+ Gasto indirecto</button>
+      </div>
+      <p class="admin-section-hint">Material de protección, cubiertas, insumos no facturados en partidas, etc.</p>
+      <div id="indirect-editor" class="indirect-editor"></div>
+      <p class="concepts-total-preview" id="indirect-total-preview" aria-live="polite"></p>
     </section>
 
     <section id="estimations-section" class="admin-section project-edit-section" style="margin-top:2rem">
@@ -290,11 +314,12 @@ function renderAdminView(p) {
     <p class="form-error" id="save-error"></p>
   `;
 
-  setEditorData(p.concepts, p.documents, p.estimations);
+  setEditorData(p.concepts, p.documents, p.estimations, p.indirectCosts);
   if (typeof hydrateEstimationsFromProject === "function") {
     hydrateEstimationsFromProject(p);
   }
   renderConceptsEditor();
+  renderIndirectEditor();
   renderEstimationsEditor();
   const estPanel = document.getElementById("estimations-editor");
   renderDocumentsEditor();
@@ -369,8 +394,13 @@ function metricsHtml(p) {
       <span class="metric-label">m² totales</span>
     </div>
     <div class="metric-box">
-      <span class="metric-value" id="metric-total">${formatMoney(p.conceptsTotal)}</span>
+      <span class="metric-value" id="metric-total">${formatProjectMoneyDisplay(p)}</span>
       <span class="metric-label">Inversión total</span>
+    </div>
+    <div class="metric-box">
+      <span class="metric-value" id="metric-indirect">${formatMoney(p.indirectTotal || 0)}</span>
+      <span class="metric-label">Gastos indirectos</span>
+      <span class="metric-sublabel" id="metric-indirect-sub">${p.indirectTotal ? `${p.indirectPercent || 0}% del proyecto` : "—"}</span>
     </div>
     <div class="metric-box">
       <span class="metric-value accent" id="metric-paid">${formatMoney(p.totalPaid)}</span>
@@ -386,19 +416,22 @@ function projectPayload(project) {
     0,
     Math.ceil((completion - new Date()) / (1000 * 60 * 60 * 24))
   );
-  const conceptsTotal = concepts.reduce((s, c) => s + c.totalPrice, 0);
+  const conceptsTotal = concepts.reduce((s, c) => s + (Number(c.totalPrice) || 0), 0);
   const m2Total = concepts.reduce((s, c) => s + (Number(c.m2) || 0), 0);
   const progress = calcProjectProgress(concepts);
   const totalPaid = calcTotalPaid(
     project.estimations,
     window.__pafProjectsForEstimations || [{ ...project, concepts }]
   );
+  const indirectTotal = calcIndirectTotal(project.indirectCosts);
   return {
     ...project,
     daysRemaining: daysLeft,
     conceptsTotal,
     m2Total,
     totalPaid,
+    indirectTotal,
+    indirectPercent: calcIndirectPercent(conceptsTotal, indirectTotal),
     progressPercent: progress.percent,
     progressDoneM2: progress.doneM2,
   };
@@ -438,6 +471,20 @@ function buildReadonlyHtml(p) {
           </tbody>
         </table>
         ${!(p.concepts && p.concepts.length) ? '<p class="portal-user" style="margin-top:1rem">Sin conceptos registrados aún.</p>' : ""}
+        <p class="concepts-total-preview" style="margin-top:1rem">${formatProjectMoneyDisplay(p)} · ${p.m2Total || 0} m²</p>
+        ${
+          (p.indirectCosts || []).length
+            ? `<div class="indirect-readonly" style="margin-top:1.5rem">
+          <p class="panel-label">Gastos indirectos</p>
+          <ul class="advance-list">${(p.indirectCosts || [])
+            .map(
+              (item) =>
+                `<li class="advance-item"><span>${escapeHtml(item.label)} · ${formatMoney(item.amount)}${item.date ? ` · ${formatDate(item.date)}` : ""}</span></li>`
+            )
+            .join("")}</ul>
+        </div>`
+            : ""
+        }
       </div>
       <div class="dashboard-panel full client-estimations-section">
         <p class="panel-label">Estimaciones</p>
@@ -486,6 +533,9 @@ function stripComputedFields(project) {
     m2Total,
     progressPercent,
     progressDoneM2,
+    totalPaid,
+    indirectTotal,
+    indirectPercent,
     ...rest
   } = project;
   return rest;
@@ -503,6 +553,8 @@ function buildSaveBody() {
     concepts: collectConcepts(),
     documents: collectDocuments(),
     estimations,
+    indirectCosts:
+      typeof collectIndirectCosts === "function" ? collectIndirectCosts() : [],
   };
 }
 
@@ -527,11 +579,17 @@ async function saveProject(options = {}) {
     projectData = project;
     window.__pafProjectData = projectData;
     await loadEstimationContext();
-    setEditorData(project.concepts, project.documents, project.estimations);
+    setEditorData(
+      project.concepts,
+      project.documents,
+      project.estimations,
+      project.indirectCosts
+    );
     if (typeof hydrateEstimationsFromProject === "function") {
       hydrateEstimationsFromProject(project);
     }
     renderConceptsEditor();
+    renderIndirectEditor();
     renderEstimationsEditor();
     const payload = projectPayload(project);
     const metricsEl = document.getElementById("metrics-row");

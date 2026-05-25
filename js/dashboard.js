@@ -86,7 +86,7 @@ async function loadClientEstimationContext(projects) {
           <div class="project-card-meta">
             <span class="project-status ${normalizeProjectStatus(p.status)}">${statusLabel(p.status)}</span>
             <span>${p.daysRemaining} días restantes</span>
-            <span>${formatMoney(p.conceptsTotal)}</span>
+            <span>${formatProjectMoneyDisplay(p)}</span>
           </div>
         </div>
       </div>

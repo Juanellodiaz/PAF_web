@@ -1,6 +1,7 @@
 let editorConcepts = [];
 let editorDocuments = [];
 let editorEstimations = [];
+let editorIndirectCosts = [];
 
 function isMetaDocument(d) {
   return (
@@ -203,7 +204,7 @@ function syncConceptTotals() {
   });
 }
 
-function setEditorData(concepts, documents, estimations) {
+function setEditorData(concepts, documents, estimations, indirectCosts) {
   editorConcepts = (concepts || []).map((c) => {
     const { collapsed: _ui, ...rest } = c;
     return {
@@ -218,6 +219,97 @@ function setEditorData(concepts, documents, estimations) {
   editorEstimations = mergeEstimationsFromConcepts(estimations, editorConcepts).map(
     (e) => ({ ...e, expanded: e.expanded === true })
   );
+  editorIndirectCosts = (indirectCosts || []).map((item) => ({ ...item }));
+}
+
+function collectIndirectCosts() {
+  return collectIndirectCostsFromList(editorIndirectCosts);
+}
+
+function updateIndirectPreview() {
+  const el = document.getElementById("indirect-total-preview");
+  if (!el) return;
+  syncConceptTotals();
+  const conceptsTotal = editorConcepts.reduce((s, c) => s + c.totalPrice, 0);
+  const indirectTotal = calcIndirectTotal(editorIndirectCosts);
+  const pct = calcIndirectPercent(conceptsTotal, indirectTotal);
+  const note = formatIndirectNote(indirectTotal);
+  el.innerHTML = note
+    ? `Total indirectos: ${formatMoney(indirectTotal)} (${pct}% del proyecto) · ${note}`
+    : "Sin gastos indirectos registrados.";
+}
+
+function indirectRowHtml(item, i) {
+  return `
+    <div class="indirect-row concept-row" data-indirect-index="${i}">
+      <div class="form-row form-row-3">
+        <div class="form-group">
+          <label>Concepto / uso</label>
+          <input type="text" data-indirect-label="${i}" value="${escapeAttr(item.label)}" placeholder="Ej. Material para cubrir muebles">
+        </div>
+        <div class="form-group">
+          <label>Monto</label>
+          <input type="number" min="0" step="1" data-indirect-amount="${i}" value="${Number(item.amount) || 0}">
+        </div>
+        <div class="form-group">
+          <label>Fecha</label>
+          <input type="date" data-indirect-date="${i}" value="${escapeAttr(item.date || "")}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Nota (opcional)</label>
+        <input type="text" data-indirect-note="${i}" value="${escapeAttr(item.note || "")}">
+      </div>
+      <button type="button" class="btn-remove btn-remove-sm" data-remove-indirect="${i}" aria-label="Eliminar gasto">×</button>
+    </div>`;
+}
+
+function renderIndirectEditor() {
+  const el = document.getElementById("indirect-editor");
+  if (!el) return;
+  if (!editorIndirectCosts.length) {
+    el.innerHTML =
+      '<p class="admin-empty">Sin gastos indirectos. Agrega material, protección de mobiliario, etc.</p>';
+    updateIndirectPreview();
+    return;
+  }
+  el.innerHTML = editorIndirectCosts
+    .map((item, i) => indirectRowHtml(item, i))
+    .join("");
+  el.querySelectorAll("[data-indirect-label]").forEach((input) => {
+    input.addEventListener("input", () => {
+      editorIndirectCosts[Number(input.dataset.indirectLabel)].label = input.value;
+      updateIndirectPreview();
+      persistProjectAdvances();
+    });
+  });
+  el.querySelectorAll("[data-indirect-amount]").forEach((input) => {
+    input.addEventListener("input", () => {
+      editorIndirectCosts[Number(input.dataset.indirectAmount)].amount = input.value;
+      updateIndirectPreview();
+      persistProjectAdvances();
+    });
+  });
+  el.querySelectorAll("[data-indirect-date]").forEach((input) => {
+    input.addEventListener("change", () => {
+      editorIndirectCosts[Number(input.dataset.indirectDate)].date = input.value;
+      persistProjectAdvances();
+    });
+  });
+  el.querySelectorAll("[data-indirect-note]").forEach((input) => {
+    input.addEventListener("input", () => {
+      editorIndirectCosts[Number(input.dataset.indirectNote)].note = input.value;
+      persistProjectAdvances();
+    });
+  });
+  el.querySelectorAll("[data-remove-indirect]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      editorIndirectCosts.splice(Number(btn.dataset.removeIndirect), 1);
+      renderIndirectEditor();
+      persistProjectAdvances();
+    });
+  });
+  updateIndirectPreview();
 }
 
 function onAdvanceFormChange(conceptIndex) {
@@ -1029,5 +1121,10 @@ function bindEditorActions() {
     if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);
     renderEstimationsEditor();
     void persistProjectAdvances();
+  });
+  document.getElementById("add-indirect")?.addEventListener("click", () => {
+    editorIndirectCosts.push(newIndirectCost());
+    renderIndirectEditor();
+    persistProjectAdvances();
   });
 }

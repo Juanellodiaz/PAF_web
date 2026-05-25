@@ -51,17 +51,29 @@ function projectPayload(project) {
   const now = new Date();
   const msLeft = completion - now;
   const daysLeft = Math.max(0, Math.ceil(msLeft / (1000 * 60 * 60 * 24)));
-  const conceptsTotal = concepts.reduce((s, c) => s + c.totalPrice, 0);
-  const m2Total = concepts.reduce((s, c) => s + c.m2, 0);
+  const conceptsTotal = concepts.reduce((s, c) => s + (Number(c.totalPrice) || 0), 0);
+  const m2Total = concepts.reduce((s, c) => s + (Number(c.m2) || 0), 0);
   const progress = calcProjectProgress(concepts);
+  const indirectCosts = project.indirectCosts || [];
+  const indirectTotal = indirectCosts.reduce(
+    (s, item) => s + (Number(item.amount) || 0),
+    0
+  );
+  const indirectPercent =
+    conceptsTotal > 0
+      ? Math.min(100, Math.round((indirectTotal / conceptsTotal) * 1000) / 10)
+      : 0;
   return {
     ...project,
     concepts,
     documents: project.documents || [],
     estimations: project.estimations || [],
+    indirectCosts,
     daysRemaining: daysLeft,
     conceptsTotal,
     m2Total,
+    indirectTotal,
+    indirectPercent,
     progressPercent: progress.percent,
     progressDoneM2: progress.doneM2,
   };
@@ -155,6 +167,7 @@ app.post("/api/projects", requireAuth, requireAdmin, async (req, res) => {
       concepts: body.concepts || [],
       documents: body.documents || [],
       estimations: body.estimations || [],
+      indirectCosts: body.indirectCosts || [],
     };
     const saved = await db.saveProject(project);
     res.status(201).json({ project: projectPayload(saved) });

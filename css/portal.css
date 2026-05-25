@@ -735,7 +735,38 @@ body.page-enter {
 }
 
 .admin-metrics-row {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.money-indirect-note,
+.portal-user .money-indirect-note {
+  color: var(--text-dim);
+  font-size: 0.85em;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.indirect-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.indirect-row {
+  position: relative;
+  padding: 1rem 2.5rem 1rem 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+}
+
+.indirect-row .btn-remove {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+}
+
+.indirect-readonly .advance-list {
+  margin-top: 0.75rem;
 }
 
 .admin-payment-bar {
@@ -937,6 +968,12 @@ body.page-enter {
     gap: 0.5rem;
   }
 
+  .admin-metrics-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
   .admin-metrics-row {
     grid-template-columns: 1fr;
   }

@@ -65,6 +65,9 @@ on conflict (id) do nothing;
 -- alter table projects add column if not exists estimations jsonb not null default '[]'::jsonb;
 -- alter table project_concepts add column if not exists advances jsonb not null default '[]'::jsonb;
 
+-- Gastos indirectos por proyecto (material de protección, etc.) se guardan en el
+-- documento interno _PAF_INTERNAL (meta v4), sin columna extra en projects.
+
 -- Migración (tablas ya existentes): permitir tipo "image" en documentos
 -- alter table project_documents drop constraint if exists project_documents_type_check;
 -- alter table project_documents add constraint project_documents_type_check
