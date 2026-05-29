@@ -192,7 +192,9 @@ app.put("/api/projects/:id", requireAuth, requireAdmin, async (req, res) => {
       concepts: body.concepts ?? existing.concepts,
       documents: body.documents ?? existing.documents,
       estimations: body.estimations ?? existing.estimations,
-      indirectCosts: body.indirectCosts ?? existing.indirectCosts,
+      indirectCosts: Array.isArray(body.indirectCosts)
+        ? body.indirectCosts
+        : existing.indirectCosts,
     };
     const saved = await db.saveProject(project);
     res.json({ project: projectPayload(saved) });

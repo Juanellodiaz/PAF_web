@@ -69,9 +69,7 @@ function mergeProjectWithDraft(project, draft) {
     concepts
   );
   const indirectCosts =
-    draft.indirectCosts?.length
-      ? draft.indirectCosts
-      : project.indirectCosts || [];
+    draft.indirectCosts != null ? draft.indirectCosts : project.indirectCosts || [];
   return { ...project, concepts, estimations, indirectCosts };
 }
 

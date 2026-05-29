@@ -331,10 +331,18 @@ function renderIndirectEditor() {
   updateIndirectPreview();
 }
 
+function afterIndirectCostsChanged() {
+  updateIndirectPreview();
+  persistProjectAdvances();
+  if (typeof window.scheduleProjectAutoSave === "function") {
+    window.scheduleProjectAutoSave();
+  }
+}
+
 window.pafAddIndirectCost = function () {
   editorIndirectCosts.push(newIndirectCost());
   renderIndirectEditor();
-  persistProjectAdvances();
+  afterIndirectCostsChanged();
 };
 
 window.pafRemoveIndirectCost = function (index) {
@@ -342,7 +350,7 @@ window.pafRemoveIndirectCost = function (index) {
   if (!Number.isFinite(i) || i < 0 || i >= editorIndirectCosts.length) return;
   editorIndirectCosts.splice(i, 1);
   renderIndirectEditor();
-  persistProjectAdvances();
+  afterIndirectCostsChanged();
 };
 
 window.pafIndirectFieldChange = function (index, field, value) {
@@ -357,8 +365,7 @@ window.pafIndirectFieldChange = function (index, field, value) {
   } else {
     editorIndirectCosts[i].label = value;
   }
-  updateIndirectPreview();
-  persistProjectAdvances();
+  afterIndirectCostsChanged();
 };
 
 window.buildIndirectEditorHtml = buildIndirectEditorHtml;
