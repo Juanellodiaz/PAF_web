@@ -762,7 +762,7 @@ body.page-enter {
 }
 
 .admin-metrics-row {
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, 1fr);
 }
 
 .money-indirect-note,
@@ -846,9 +846,10 @@ body.page-enter {
 
 .admin-quick-actions {
   flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.5rem;
+  align-self: flex-start;
 }
 
 .admin-quick-btn {
@@ -857,7 +858,8 @@ body.page-enter {
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  width: 4.75rem;
+  width: 100%;
+  min-width: 4.75rem;
   min-height: 4.25rem;
   padding: 0.5rem 0.35rem;
   background: var(--bg-card);
@@ -982,14 +984,12 @@ body.page-enter {
   }
 
   .admin-quick-actions {
-    flex-direction: row;
+    grid-template-columns: repeat(2, 1fr);
     width: 100%;
   }
 
   .admin-quick-btn {
-    flex: 1;
     flex-direction: row;
-    width: auto;
     min-height: auto;
     padding: 0.75rem 0.5rem;
     gap: 0.5rem;
@@ -997,12 +997,6 @@ body.page-enter {
 
   .admin-metrics-row {
     grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 1100px) {
-  .admin-metrics-row {
-    grid-template-columns: repeat(3, 1fr);
   }
 }
 
