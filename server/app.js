@@ -10,6 +10,10 @@ const {
   cloneProject,
   duplicateProjectName,
 } = require("./duplicate-project");
+const {
+  appendProjectToOrder,
+  removeProjectFromOrder,
+} = require("./admin-settings");
 const { saveUploadedImage, MAX_BYTES } = require("./uploads");
 const {
   signSession,
@@ -135,6 +139,34 @@ app.get("/api/auth/me", (req, res) => {
   res.json({ user: session });
 });
 
+app.get("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const settings = await db.loadAdminSettings();
+    res.json({ settings });
+  } catch (err) {
+    handleError(res, err);
+  }
+});
+
+app.put("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const body = req.body || {};
+    if (!Array.isArray(body.projectOrder)) {
+      return res.status(400).json({ error: "projectOrder debe ser un arreglo" });
+    }
+    const all = await db.listProjectsForUser(req.user);
+    const validIds = new Set(all.map((p) => p.id));
+    const projectOrder = body.projectOrder.filter((id) => validIds.has(id));
+    for (const p of all) {
+      if (!projectOrder.includes(p.id)) projectOrder.push(p.id);
+    }
+    const settings = await db.saveAdminSettings({ projectOrder });
+    res.json({ settings });
+  } catch (err) {
+    handleError(res, err);
+  }
+});
+
 app.get("/api/projects", requireAuth, async (req, res) => {
   try {
     const projects = (await db.listProjectsForUser(req.user)).map(projectPayload);
@@ -174,6 +206,10 @@ app.post("/api/projects", requireAuth, requireAdmin, async (req, res) => {
       indirectCosts: body.indirectCosts || [],
     };
     const saved = await db.saveProject(project);
+    const settings = await db.loadAdminSettings();
+    await db.saveAdminSettings({
+      projectOrder: appendProjectToOrder(settings.projectOrder, saved.id),
+    });
     res.status(201).json({ project: projectPayload(saved) });
   } catch (err) {
     handleError(res, err);
@@ -220,6 +256,14 @@ app.post(
       );
       const clone = cloneProject(existing, { newName });
       const saved = await db.saveProject(clone);
+      const settings = await db.loadAdminSettings();
+      await db.saveAdminSettings({
+        projectOrder: appendProjectToOrder(
+          settings.projectOrder,
+          saved.id,
+          existing.id
+        ),
+      });
       res.status(201).json({ project: projectPayload(saved) });
     } catch (err) {
       handleError(res, err);
@@ -232,6 +276,10 @@ app.delete("/api/projects/:id", requireAuth, requireAdmin, async (req, res) => {
     const existing = await db.getProject(req.params.id);
     if (!existing) return res.status(404).json({ error: "Proyecto no encontrado" });
     await db.deleteProject(req.params.id);
+    const settings = await db.loadAdminSettings();
+    await db.saveAdminSettings({
+      projectOrder: removeProjectFromOrder(settings.projectOrder, req.params.id),
+    });
     res.json({ ok: true });
   } catch (err) {
     handleError(res, err);

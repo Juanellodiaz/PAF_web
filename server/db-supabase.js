@@ -13,6 +13,12 @@ const {
   normalizeEstimation,
 } = require("./global-estimations");
 const {
+  ADMIN_SETTINGS_DOC_ID,
+  ADMIN_SETTINGS_TITLE,
+  normalizeSettings,
+  sortProjectsByOrder,
+} = require("./admin-settings");
+const {
   enrichProjectWithGlobalEstimations,
   persistGlobalEstimationsFromProject,
 } = require("./estimation-store");
@@ -258,6 +264,40 @@ async function listAllProjectsForBootstrap() {
   return (data || []).map(mapProject);
 }
 
+async function loadAdminSettings() {
+  const { data, error } = await getClient()
+    .from("project_documents")
+    .select("content")
+    .eq("id", ADMIN_SETTINGS_DOC_ID)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data?.content) return normalizeSettings(null);
+  try {
+    return normalizeSettings(JSON.parse(data.content));
+  } catch {
+    return normalizeSettings(null);
+  }
+}
+
+async function saveAdminSettings(settings) {
+  await ensureGlobalProjectRow();
+  const payload = normalizeSettings(settings);
+  const { error } = await getClient()
+    .from("project_documents")
+    .upsert(
+      {
+        id: ADMIN_SETTINGS_DOC_ID,
+        project_id: GLOBAL_PROJECT_ID,
+        type: "consideration",
+        title: ADMIN_SETTINGS_TITLE,
+        content: JSON.stringify(payload),
+      },
+      { onConflict: "id" }
+    );
+  if (error) throw error;
+  return payload;
+}
+
 async function listProjectsForUser(user) {
   let query = getClient().from("projects").select(PROJECT_SELECT);
 
@@ -280,6 +320,10 @@ async function listProjectsForUser(user) {
         listAllProjectsForBootstrap
       )
     );
+  }
+  if (user.role === "admin") {
+    const settings = await loadAdminSettings();
+    return sortProjectsByOrder(enriched, settings.projectOrder);
   }
   return enriched;
 }
@@ -387,4 +431,6 @@ module.exports = {
   saveProject,
   deleteProject,
   loadGlobalEstimations,
+  loadAdminSettings,
+  saveAdminSettings,
 };

@@ -32,4 +32,6 @@ module.exports = {
   saveProject: wrap("saveProject"),
   deleteProject: wrap("deleteProject"),
   loadGlobalEstimations: wrap("loadGlobalEstimations"),
+  loadAdminSettings: wrap("loadAdminSettings"),
+  saveAdminSettings: wrap("saveAdminSettings"),
 };

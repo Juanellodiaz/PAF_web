@@ -230,7 +230,26 @@
     </aside>
 
     <div class="admin-projects-panel">
-      <p class="panel-label" style="margin-bottom:1rem">Proyectos registrados</p>
+      <div class="admin-projects-head">
+        <p class="panel-label">Proyectos registrados</p>
+        <div class="admin-projects-toolbar">
+          <label class="admin-search-wrap">
+            <span class="visually-hidden">Buscar proyecto</span>
+            <input
+              type="search"
+              id="admin-project-search"
+              class="admin-search-input"
+              placeholder="Buscar por nombre o cliente…"
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </label>
+          <p class="admin-search-meta" id="admin-project-search-meta" aria-live="polite"></p>
+        </div>
+      </div>
+      <p class="admin-section-hint admin-reorder-hint" id="admin-reorder-hint">
+        Arrastra ⋮⋮ para reordenar la lista.
+      </p>
       <div class="admin-list" id="admin-projects"></div>
     </div>
   </main>
@@ -238,6 +257,6 @@
   <script src="js/portal.js"></script>
   <script src="js/indirect-costs.js"></script>
   <script src="js/project-estimations.js"></script>
-  <script src="js/admin.js"></script>
+  <script src="js/admin.js?v=32"></script>
 </body>
 </html>

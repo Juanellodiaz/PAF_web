@@ -8,6 +8,10 @@ const {
   enrichProjectWithGlobalEstimations,
   persistGlobalEstimationsFromProject,
 } = require("./estimation-store");
+const {
+  normalizeSettings,
+  sortProjectsByOrder,
+} = require("./admin-settings");
 
 const DB_PATH = path.join(__dirname, "..", "data", "db.json");
 
@@ -54,6 +58,17 @@ function saveGlobalEstimations(estimations) {
   return Promise.resolve(estimations);
 }
 
+function loadAdminSettings() {
+  return Promise.resolve(normalizeSettings(readDb().adminSettings));
+}
+
+function saveAdminSettings(settings) {
+  const db = readDb();
+  db.adminSettings = normalizeSettings(settings);
+  writeDb(db);
+  return Promise.resolve(db.adminSettings);
+}
+
 function listAllProjectsForBootstrap() {
   return Promise.resolve(readDb().projects.map((p) => applyMetaToProject(p)));
 }
@@ -74,6 +89,10 @@ async function listProjectsForUser(user) {
         listAllProjectsForBootstrap
       )
     );
+  }
+  if (user.role === "admin") {
+    const settings = await loadAdminSettings();
+    return sortProjectsByOrder(enriched, settings.projectOrder);
   }
   return enriched;
 }
@@ -136,4 +155,6 @@ module.exports = {
   saveProject,
   deleteProject,
   loadGlobalEstimations,
+  loadAdminSettings,
+  saveAdminSettings,
 };

@@ -4,6 +4,9 @@ let cachedProjects = [];
 let cachedGlobalEstimations = [];
 let quickPanelMode = "project";
 let advanceProjectCache = null;
+let projectOrder = [];
+let projectSearchQuery = "";
+let dragProjectId = null;
 
 const quickPanel = () => document.getElementById("admin-quick-panel");
 const formBackdrop = () => document.getElementById("form-backdrop");
@@ -645,9 +648,14 @@ async function onSubmitQuickAdvance(e) {
       .join("");
 
   bindQuickPanel();
+  bindProjectSearch();
   await loadGlobalEstimations();
+  await loadAdminSettings();
   const { projects } = await api("/projects");
   cachedProjects = projects;
+  if (!projectOrder.length) {
+    projectOrder = projects.map((p) => p.id);
+  }
   fillProjectSelects();
   renderAdminMetrics(projects);
   await loadProjects(projects);
@@ -660,8 +668,12 @@ async function onSubmitQuickAdvance(e) {
 })();
 
 async function refreshDashboard() {
+  await loadAdminSettings();
   const { projects } = await api("/projects");
   cachedProjects = projects;
+  if (!projectOrder.length) {
+    projectOrder = projects.map((p) => p.id);
+  }
   fillProjectSelects();
   await loadGlobalEstimations();
   renderAdminMetrics(projects);
@@ -681,21 +693,177 @@ async function duplicateProject(id) {
   }
 }
 
+function sortProjectsByOrder(projects, order) {
+  const list = projects || [];
+  const ids = Array.isArray(order) ? order : [];
+  if (!ids.length) return [...list];
+  const byId = new Map(list.map((p) => [p.id, p]));
+  const out = [];
+  for (const id of ids) {
+    if (byId.has(id)) {
+      out.push(byId.get(id));
+      byId.delete(id);
+    }
+  }
+  for (const p of byId.values()) out.push(p);
+  return out;
+}
+
+function getSortedProjects(projects = cachedProjects) {
+  return sortProjectsByOrder(projects, projectOrder);
+}
+
+function filterProjectsBySearch(projects, query) {
+  const q = (query || "").trim().toLowerCase();
+  if (!q) return projects;
+  return projects.filter((p) => {
+    const client = clients.find((c) => c.id === p.clientId);
+    const clientName = (client?.name || "").toLowerCase();
+    return (
+      (p.name || "").toLowerCase().includes(q) ||
+      clientName.includes(q) ||
+      (p.id || "").toLowerCase().includes(q)
+    );
+  });
+}
+
+function getProjectsForDisplay() {
+  const sorted = getSortedProjects(cachedProjects);
+  return filterProjectsBySearch(sorted, projectSearchQuery);
+}
+
+async function loadAdminSettings() {
+  try {
+    const { settings } = await api("/admin/settings");
+    projectOrder = settings?.projectOrder || [];
+  } catch {
+    projectOrder = [];
+  }
+}
+
+async function saveProjectOrder(ids) {
+  const { settings } = await api("/admin/settings", {
+    method: "PUT",
+    body: JSON.stringify({ projectOrder: ids }),
+  });
+  projectOrder = settings?.projectOrder || ids;
+  cachedProjects = sortProjectsByOrder(cachedProjects, projectOrder);
+}
+
+function updateProjectSearchMeta(shown, total) {
+  const meta = document.getElementById("admin-project-search-meta");
+  const hint = document.getElementById("admin-reorder-hint");
+  const q = projectSearchQuery.trim();
+  if (meta) {
+    if (!q) {
+      meta.textContent = total ? `${total} proyecto${total === 1 ? "" : "s"}` : "";
+    } else if (!shown) {
+      meta.textContent = "Ningún proyecto coincide con la búsqueda";
+    } else {
+      meta.textContent = `${shown} de ${total} proyecto${total === 1 ? "" : "s"}`;
+    }
+  }
+  if (hint) hint.hidden = !!q;
+}
+
+function bindProjectSearch() {
+  const input = document.getElementById("admin-project-search");
+  if (!input || input.dataset.bound) return;
+  input.dataset.bound = "1";
+  input.addEventListener("input", () => {
+    projectSearchQuery = input.value;
+    loadProjects();
+  });
+}
+
+function bindProjectListDnD(listEl) {
+  if (!listEl || projectSearchQuery.trim()) return;
+
+  listEl.querySelectorAll(".admin-drag-handle").forEach((handle) => {
+    handle.addEventListener("dragstart", (e) => {
+      dragProjectId = handle.dataset.dragProject;
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", dragProjectId);
+      handle.closest(".admin-list-item")?.classList.add("is-dragging");
+    });
+    handle.addEventListener("dragend", () => {
+      dragProjectId = null;
+      listEl
+        .querySelectorAll(".admin-list-item")
+        .forEach((el) => el.classList.remove("is-dragging", "is-drag-over"));
+    });
+  });
+
+  listEl.querySelectorAll(".admin-list-item").forEach((row) => {
+    row.addEventListener("dragover", (e) => {
+      if (!dragProjectId) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      row.classList.add("is-drag-over");
+    });
+    row.addEventListener("dragleave", () => {
+      row.classList.remove("is-drag-over");
+    });
+    row.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      row.classList.remove("is-drag-over");
+      const targetId = row.dataset.projectId;
+      if (!dragProjectId || !targetId || dragProjectId === targetId) return;
+      await reorderProjects(dragProjectId, targetId);
+    });
+  });
+}
+
+async function reorderProjects(sourceId, targetId) {
+  const sorted = getSortedProjects(cachedProjects);
+  const ids = sorted.map((p) => p.id);
+  const from = ids.indexOf(sourceId);
+  const to = ids.indexOf(targetId);
+  if (from < 0 || to < 0) return;
+  ids.splice(from, 1);
+  ids.splice(to, 0, sourceId);
+  try {
+    await saveProjectOrder(ids);
+    loadProjects();
+  } catch (ex) {
+    alert(ex.message || "No se pudo guardar el orden");
+  }
+}
+
 async function loadProjects(projects = cachedProjects) {
   const list = document.getElementById("admin-projects");
+  if (!list) return;
 
-  if (!projects.length) {
-    list.innerHTML = '<div class="admin-list-item"><span>Sin proyectos</span></div>';
+  cachedProjects = projects;
+  const total = cachedProjects.length;
+  const display = getProjectsForDisplay();
+  updateProjectSearchMeta(display.length, total);
+
+  const canReorder = !projectSearchQuery.trim() && display.length > 0;
+
+  if (!display.length) {
+    list.classList.remove("admin-list--reorderable");
+    list.innerHTML = `<div class="admin-list-item admin-list-item--empty"><span>${
+      total
+        ? "Ningún proyecto coincide con la búsqueda"
+        : "Sin proyectos"
+    }</span></div>`;
     return;
   }
 
-  list.innerHTML = projects
+  list.classList.toggle("admin-list--reorderable", canReorder);
+
+  list.innerHTML = display
     .map((p) => {
       const client = clients.find((c) => c.id === p.clientId);
       const clientName = client ? client.name : "Sin asignar";
       const n = (p.concepts && p.concepts.length) || 0;
+      const dragHandle = canReorder
+        ? `<button type="button" class="admin-drag-handle" draggable="true" data-drag-project="${escapeAttr(p.id)}" aria-label="Arrastrar para reordenar" title="Arrastrar para reordenar">⋮⋮</button>`
+        : "";
       return `
-      <div class="admin-list-item">
+      <div class="admin-list-item" data-project-id="${escapeAttr(p.id)}">
+        ${dragHandle}
         <div class="admin-list-item-start">
           ${progressRingCardHtml(p)}
           <div class="admin-list-item-info">
@@ -727,6 +895,8 @@ async function loadProjects(projects = cachedProjects) {
   list.querySelectorAll(".admin-status-select").forEach((sel) => {
     sel.addEventListener("change", () => updateProjectStatus(sel));
   });
+
+  if (canReorder) bindProjectListDnD(list);
 }
 
 async function updateProjectStatus(selectEl) {
