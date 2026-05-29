@@ -213,6 +213,7 @@ function normalizeIndirectItem(item) {
     amount: Number(item?.amount) || 0,
     date: item?.date || new Date().toISOString().slice(0, 10),
     note: item?.note || "",
+    collapsed: item?.collapsed !== false,
   };
 }
 
@@ -254,6 +255,7 @@ function syncIndirectCostsFromDom() {
       amount: row.querySelector("[data-indirect-amount]")?.value ?? prev.amount,
       date: row.querySelector("[data-indirect-date]")?.value ?? prev.date,
       note: row.querySelector("[data-indirect-note]")?.value ?? prev.note,
+      collapsed: prev.collapsed,
     });
   });
   return editorIndirectCosts;
@@ -302,29 +304,54 @@ function indirectEditorInnerHtml() {
   return editorIndirectCosts.map((item, i) => indirectRowHtml(item, i)).join("");
 }
 
+function indirectSummary(item) {
+  const label = (item.label || "").trim() || "Sin concepto";
+  const amount = formatMoney(Number(item.amount) || 0);
+  const date = String(item.date || "").slice(0, 10) || "—";
+  const note = (item.note || "").trim();
+  return note ? `${label} · ${amount} · ${date} · ${note}` : `${label} · ${amount} · ${date}`;
+}
+
+function updateIndirectSummaryLine(i) {
+  const el = document.querySelector(`[data-indirect-summary="${i}"]`);
+  if (el && editorIndirectCosts[i]) {
+    el.textContent = indirectSummary(editorIndirectCosts[i]);
+  }
+}
+
 function indirectRowHtml(item, i) {
+  const collapsed = !!item.collapsed;
   const dateVal = String(item.date || "").slice(0, 10);
   return `
-    <div class="indirect-row" data-indirect-index="${i}" data-indirect-id="${escapeAttr(item.id)}">
-      <div class="form-row form-row-3">
-        <div class="form-group">
-          <label>Concepto / uso</label>
-          <input type="text" data-indirect-label="${i}" value="${escapeAttr(item.label)}" placeholder="Ej. Material para cubrir muebles" oninput="pafIndirectFieldChange(${i}, 'label', this.value)">
+    <div class="concept-row indirect-row ${collapsed ? "is-collapsed" : ""}" data-indirect-index="${i}" data-indirect-id="${escapeAttr(item.id)}">
+      <div class="concept-row-top">
+        <button type="button" class="concept-toggle" onclick="pafToggleIndirectCost(${i})" aria-expanded="${!collapsed}">
+          <span class="concept-chevron" aria-hidden="true"></span>
+          <span class="concept-row-num">GI ${String(i + 1).padStart(2, "0")}</span>
+          <span class="concept-summary" data-indirect-summary="${i}">${escapeHtml(indirectSummary(item))}</span>
+        </button>
+        <button type="button" class="btn-remove" onclick="pafRemoveIndirectCost(${i})" aria-label="Eliminar gasto">×</button>
+      </div>
+      <div class="concept-row-body">
+        <div class="form-row form-row-3">
+          <div class="form-group">
+            <label>Concepto / uso</label>
+            <input type="text" data-indirect-label="${i}" value="${escapeAttr(item.label)}" placeholder="Ej. Material para cubrir muebles" oninput="pafIndirectFieldChange(${i}, 'label', this.value)">
+          </div>
+          <div class="form-group">
+            <label>Monto (MXN)</label>
+            <input type="number" min="0" step="1" data-indirect-amount="${i}" value="${Number(item.amount) || ""}" placeholder="0" oninput="pafIndirectFieldChange(${i}, 'amount', this.value)">
+          </div>
+          <div class="form-group">
+            <label>Fecha</label>
+            <input type="date" data-indirect-date="${i}" value="${escapeAttr(dateVal)}" onchange="pafIndirectFieldChange(${i}, 'date', this.value)">
+          </div>
         </div>
         <div class="form-group">
-          <label>Monto (MXN)</label>
-          <input type="number" min="0" step="1" data-indirect-amount="${i}" value="${Number(item.amount) || ""}" placeholder="0" oninput="pafIndirectFieldChange(${i}, 'amount', this.value)">
-        </div>
-        <div class="form-group">
-          <label>Fecha</label>
-          <input type="date" data-indirect-date="${i}" value="${escapeAttr(dateVal)}" onchange="pafIndirectFieldChange(${i}, 'date', this.value)">
+          <label>Nota (opcional)</label>
+          <input type="text" data-indirect-note="${i}" value="${escapeAttr(item.note || "")}" oninput="pafIndirectFieldChange(${i}, 'note', this.value)">
         </div>
       </div>
-      <div class="form-group">
-        <label>Nota (opcional)</label>
-        <input type="text" data-indirect-note="${i}" value="${escapeAttr(item.note || "")}" oninput="pafIndirectFieldChange(${i}, 'note', this.value)">
-      </div>
-      <button type="button" class="btn-remove btn-remove-sm" onclick="pafRemoveIndirectCost(${i})" aria-label="Eliminar gasto">×</button>
     </div>`;
 }
 
@@ -354,8 +381,28 @@ function afterIndirectCostsChanged() {
   updateIndirectPreview();
 }
 
+window.pafToggleIndirectCost = function (index) {
+  const i = Number(index);
+  if (!Number.isFinite(i) || !editorIndirectCosts[i]) return;
+  syncIndirectCostsFromDom();
+  editorIndirectCosts[i].collapsed = !editorIndirectCosts[i].collapsed;
+  const row = document.querySelector(
+    `.indirect-row[data-indirect-index="${i}"]`
+  );
+  if (!row) {
+    renderIndirectEditor();
+    return;
+  }
+  row.classList.toggle("is-collapsed", editorIndirectCosts[i].collapsed);
+  const btn = row.querySelector(".concept-toggle");
+  if (btn) btn.setAttribute("aria-expanded", String(!editorIndirectCosts[i].collapsed));
+  updateIndirectSummaryLine(i);
+};
+
 window.pafAddIndirectCost = function () {
-  editorIndirectCosts.push(newIndirectCost());
+  const item = normalizeIndirectItem(newIndirectCost());
+  item.collapsed = false;
+  editorIndirectCosts.push(item);
   renderIndirectEditor();
   afterIndirectCostsChanged();
 };
@@ -380,6 +427,7 @@ window.pafIndirectFieldChange = function (index, field, value) {
   } else {
     editorIndirectCosts[i].label = value;
   }
+  updateIndirectSummaryLine(i);
   afterIndirectCostsChanged();
 };
 

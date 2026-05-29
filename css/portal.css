@@ -774,19 +774,7 @@ body.page-enter {
 }
 
 .indirect-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
   min-height: 2rem;
-}
-
-.indirect-row {
-  display: block;
-  position: relative;
-  padding: 1rem 2.5rem 1rem 1rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border);
-  margin-bottom: 0.75rem;
 }
 
 .indirect-row .form-row {
@@ -801,14 +789,8 @@ body.page-enter {
   }
 }
 
-.indirect-editor .indirect-row + .indirect-row {
+.indirect-editor .concept-row + .concept-row {
   margin-top: 0;
-}
-
-.indirect-row .btn-remove {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
 }
 
 .indirect-readonly .advance-list {
@@ -1115,7 +1097,8 @@ body.page-enter {
 }
 
 .concepts-editor,
-.documents-editor {
+.documents-editor,
+.indirect-editor {
   display: flex;
   flex-direction: column;
   gap: 1rem;
