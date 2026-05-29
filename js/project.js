@@ -193,7 +193,7 @@ function refreshMetricsFromEditors() {
   const totalEl = document.getElementById("metric-total");
   const paidEl = document.getElementById("metric-paid");
   const indirectEl = document.getElementById("metric-indirect");
-  if (m2El) m2El.textContent = totalM2;
+  if (m2El) m2El.textContent = formatM2(totalM2);
   if (totalEl) {
     totalEl.textContent = formatMoney(totalMoney);
   }
@@ -264,7 +264,7 @@ function renderAdminView(p) {
         </div>
       </div>
       <div id="concepts-editor" class="concepts-editor"></div>
-      <p class="concepts-total-preview" id="concepts-total-preview">Total: ${formatProjectMoneyDisplay(payload)} · ${payload.m2Total} m²</p>
+      <p class="concepts-total-preview" id="concepts-total-preview">Total: ${formatProjectMoneyDisplay(payload)} · ${formatM2(payload.m2Total)} m²</p>
     </section>
 
     <section class="admin-section project-edit-section">
@@ -411,7 +411,7 @@ function progressRingHtml(p) {
         </div>
       </div>
       <span class="metric-label">Avance del proyecto</span>
-      <span class="metric-sublabel" id="progress-m2-sub">${prog.doneM2} / ${prog.totalM2} m²</span>
+      <span class="metric-sublabel" id="progress-m2-sub">${formatM2(prog.doneM2)} / ${formatM2(prog.totalM2)} m²</span>
     </div>`;
 }
 
@@ -423,7 +423,7 @@ function metricsHtml(p) {
       <span class="metric-label">Días restantes</span>
     </div>
     <div class="metric-box">
-      <span class="metric-value" id="metric-m2">${p.m2Total}</span>
+      <span class="metric-value" id="metric-m2">${formatM2(p.m2Total)}</span>
       <span class="metric-label">m² totales</span>
     </div>
     <div class="metric-box">
@@ -535,7 +535,7 @@ function buildReadonlyHtml(p) {
           </tbody>
         </table>
         ${!(p.concepts && p.concepts.length) ? '<p class="portal-user" style="margin-top:1rem">Sin conceptos registrados aún.</p>' : ""}
-        <p class="concepts-total-preview" style="margin-top:1rem">${formatProjectMoneyDisplay(p)} · ${p.m2Total || 0} m²</p>
+        <p class="concepts-total-preview" style="margin-top:1rem">${formatProjectMoneyDisplay(p)} · ${formatM2(p.m2Total || 0)} m²</p>
         ${
           (p.indirectCosts || []).length
             ? `<div class="indirect-readonly" style="margin-top:1.5rem">

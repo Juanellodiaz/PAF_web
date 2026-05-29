@@ -570,7 +570,7 @@ function updateConceptsSummaryLine() {
   const totalMoney = editorConcepts.reduce((s, c) => s + c.totalPrice, 0);
   const indirectTotal = calcIndirectTotal(editorIndirectCosts);
   const econ = calcConceptEconomics(editorConcepts, indirectTotal);
-  el.textContent = `Venta: ${formatMoney(totalMoney)} · ${totalM2} m² · MO: ${formatMoney(econ.laborTotal)} · Material: ${formatMoney(econ.materialTotal)} · Indirectos: ${formatMoney(indirectTotal)} · Utilidad: ${formatMoney(econ.profitTotal)}`;
+  el.textContent = `Venta: ${formatMoney(totalMoney)} · ${formatM2(totalM2)} m² · MO: ${formatMoney(econ.laborTotal)} · Material: ${formatMoney(econ.materialTotal)} · Indirectos: ${formatMoney(indirectTotal)} · Utilidad: ${formatMoney(econ.profitTotal)}`;
 }
 
 function updateConceptsPreview() {
@@ -921,7 +921,7 @@ function updateProgressChart() {
   const sub = document.getElementById("progress-m2-sub");
   if (ring) ring.style.setProperty("--pct", String(prog.percent));
   if (val) val.textContent = `${prog.percent}%`;
-  if (sub) sub.textContent = `${prog.doneM2} / ${prog.totalM2} m²`;
+  if (sub) sub.textContent = `${formatM2(prog.doneM2)} / ${formatM2(prog.totalM2)} m²`;
 }
 
 function estimationCardHtml(est, idx) {

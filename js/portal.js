@@ -59,7 +59,20 @@ function formatMoney(n) {
     style: "currency",
     currency: "MXN",
     maximumFractionDigits: 0,
-  }).format(n);
+  }).format(Number(n) || 0);
+}
+
+function formatQuantity(n, maxDecimals = 2) {
+  const num = Number(n);
+  if (!Number.isFinite(num)) return "0";
+  return new Intl.NumberFormat("es-MX", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: maxDecimals,
+  }).format(num);
+}
+
+function formatM2(n) {
+  return formatQuantity(n, 2);
 }
 
 function formatDate(iso) {
@@ -102,7 +115,11 @@ function calcProjectProgress(concepts) {
   const percent = totalM2
     ? Math.min(100, Math.round((doneM2 / totalM2) * 1000) / 10)
     : 0;
-  return { totalM2, doneM2, percent };
+  return {
+    totalM2: Math.round(totalM2 * 100) / 100,
+    doneM2: Math.round(doneM2 * 100) / 100,
+    percent,
+  };
 }
 
 function projectProgress(p) {
@@ -120,7 +137,7 @@ function progressRingCardHtml(p) {
   const prog = projectProgress(p);
   const m2Label =
     prog.totalM2 > 0
-      ? `<span class="progress-ring-card-m2">${prog.doneM2} / ${prog.totalM2} m²</span>`
+      ? `<span class="progress-ring-card-m2">${formatM2(prog.doneM2)} / ${formatM2(prog.totalM2)} m²</span>`
       : "";
   return `
     <div class="progress-ring-card" aria-label="Avance del proyecto: ${prog.percent} por ciento">
