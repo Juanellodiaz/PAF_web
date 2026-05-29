@@ -211,7 +211,12 @@ function refreshMetricsFromEditors() {
   if (laborEl) laborEl.textContent = formatMoney(econ.laborTotal);
   if (materialEl) materialEl.textContent = formatMoney(econ.materialTotal);
   if (profitEl) profitEl.textContent = formatMoney(econ.profitTotal);
-  updateIndirectPreview();
+  if (typeof updateConceptsSummaryLine === "function") {
+    updateConceptsSummaryLine();
+  }
+  if (typeof updateIndirectSummaryFooter === "function") {
+    updateIndirectSummaryFooter();
+  }
   updateProgressChart();
 }
 

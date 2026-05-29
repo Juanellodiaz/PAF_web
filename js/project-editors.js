@@ -264,7 +264,7 @@ function collectIndirectCosts() {
   return collectIndirectCostsFromList(editorIndirectCosts);
 }
 
-function updateIndirectPreview() {
+function updateIndirectSummaryFooter() {
   syncConceptTotals();
   const conceptsTotal = editorConcepts.reduce((s, c) => s + c.totalPrice, 0);
   const indirectTotal = calcIndirectTotal(editorIndirectCosts);
@@ -276,6 +276,13 @@ function updateIndirectPreview() {
       ? `Total indirectos: ${formatMoney(indirectTotal)} (${pct}% del proyecto) · ${note}`
       : "Sin gastos indirectos registrados.";
   }
+}
+
+function updateIndirectPreview() {
+  const conceptsTotal = editorConcepts.reduce((s, c) => s + c.totalPrice, 0);
+  const indirectTotal = calcIndirectTotal(editorIndirectCosts);
+  const pct = calcIndirectPercent(conceptsTotal, indirectTotal);
+  updateIndirectSummaryFooter();
   const indirectMetric = document.getElementById("metric-indirect");
   if (indirectMetric) {
     indirectMetric.textContent = formatMoney(indirectTotal);
@@ -285,7 +292,7 @@ function updateIndirectPreview() {
   const econ = calcConceptEconomics(editorConcepts, indirectTotal);
   const profitEl = document.getElementById("metric-profit");
   if (profitEl) profitEl.textContent = formatMoney(econ.profitTotal);
-  if (document.getElementById("concepts-total-preview")) updateConceptsPreview();
+  updateConceptsSummaryLine();
 }
 
 function indirectEditorInnerHtml() {
@@ -335,7 +342,7 @@ function renderIndirectEditor() {
 }
 
 function afterIndirectCostsChanged() {
-  updateIndirectPreview();
+  syncIndirectCostsFromDom();
   if (window.__pafProjectData) {
     window.__pafProjectData.indirectCosts = editorIndirectCosts.map((item) => ({
       ...item,
@@ -344,6 +351,7 @@ function afterIndirectCostsChanged() {
   if (typeof window.markProjectDirty === "function") {
     window.markProjectDirty();
   }
+  updateIndirectPreview();
 }
 
 window.pafAddIndirectCost = function () {
@@ -504,7 +512,7 @@ function collectDocuments() {
     .filter((d) => d.title && d.content);
 }
 
-function updateConceptsPreview() {
+function updateConceptsSummaryLine() {
   const el = document.getElementById("concepts-total-preview");
   if (!el) return;
   syncConceptTotals();
@@ -513,6 +521,10 @@ function updateConceptsPreview() {
   const indirectTotal = calcIndirectTotal(editorIndirectCosts);
   const econ = calcConceptEconomics(editorConcepts, indirectTotal);
   el.textContent = `Venta: ${formatMoney(totalMoney)} · ${totalM2} m² · MO: ${formatMoney(econ.laborTotal)} · Material: ${formatMoney(econ.materialTotal)} · Indirectos: ${formatMoney(indirectTotal)} · Utilidad: ${formatMoney(econ.profitTotal)}`;
+}
+
+function updateConceptsPreview() {
+  updateConceptsSummaryLine();
   if (typeof window.refreshProjectMetrics === "function") {
     window.refreshProjectMetrics();
   }
