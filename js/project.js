@@ -230,6 +230,11 @@ function renderAdminView(p) {
     typeof buildEstimationsEditorHtml === "function"
       ? buildEstimationsEditorHtml(p)
       : "";
+  const indirectCostsSource = p.indirectCosts || projectData?.indirectCosts || [];
+  const indirectBootstrap =
+    typeof buildIndirectEditorHtml === "function"
+      ? buildIndirectEditorHtml(indirectCostsSource)
+      : "";
 
   document.getElementById("project-root").innerHTML = `
     <div class="project-hero">
@@ -258,10 +263,10 @@ function renderAdminView(p) {
     <section class="admin-section project-edit-section">
       <div class="admin-section-head">
         <p class="admin-section-label">Gastos indirectos</p>
-        <button type="button" class="btn btn-ghost btn-sm" id="add-indirect">+ Gasto indirecto</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="add-indirect" onclick="pafAddIndirectCost()">+ Gasto indirecto</button>
       </div>
       <p class="admin-section-hint">Material de protección, cubiertas, insumos no facturados en partidas, etc.</p>
-      <div id="indirect-editor" class="indirect-editor"></div>
+      <div id="indirect-editor" class="indirect-editor">${indirectBootstrap}</div>
       <p class="concepts-total-preview" id="indirect-total-preview" aria-live="polite"></p>
     </section>
 
@@ -323,13 +328,24 @@ function renderAdminView(p) {
     p.concepts,
     p.documents,
     p.estimations,
-    p.indirectCosts || projectData?.indirectCosts || []
+    indirectCostsSource
   );
   if (typeof hydrateEstimationsFromProject === "function") {
     hydrateEstimationsFromProject(p);
   }
   renderConceptsEditor();
   renderIndirectEditor();
+  if (
+    indirectCostsSource.length &&
+    !document.querySelector("#indirect-editor .indirect-row") &&
+    typeof buildIndirectEditorHtml === "function"
+  ) {
+    const indirectEl = document.getElementById("indirect-editor");
+    if (indirectEl) {
+      indirectEl.innerHTML = buildIndirectEditorHtml(indirectCostsSource);
+      updateIndirectPreview();
+    }
+  }
   renderEstimationsEditor();
   const estPanel = document.getElementById("estimations-editor");
   renderDocumentsEditor();

@@ -285,6 +285,13 @@ function updateIndirectPreview() {
   if (document.getElementById("concepts-total-preview")) updateConceptsPreview();
 }
 
+function indirectEditorInnerHtml() {
+  if (!editorIndirectCosts.length) {
+    return '<p class="admin-empty">Sin gastos indirectos. Pulsa + Gasto indirecto para agregar uno.</p>';
+  }
+  return editorIndirectCosts.map((item, i) => indirectRowHtml(item, i)).join("");
+}
+
 function indirectRowHtml(item, i) {
   const dateVal = String(item.date || "").slice(0, 10);
   return `
@@ -292,40 +299,70 @@ function indirectRowHtml(item, i) {
       <div class="form-row form-row-3">
         <div class="form-group">
           <label>Concepto / uso</label>
-          <input type="text" data-indirect-label="${i}" value="${escapeAttr(item.label)}" placeholder="Ej. Material para cubrir muebles">
+          <input type="text" data-indirect-label="${i}" value="${escapeAttr(item.label)}" placeholder="Ej. Material para cubrir muebles" oninput="pafIndirectFieldChange(${i}, 'label', this.value)">
         </div>
         <div class="form-group">
           <label>Monto (MXN)</label>
-          <input type="number" min="0" step="1" data-indirect-amount="${i}" value="${Number(item.amount) || ""}" placeholder="0">
+          <input type="number" min="0" step="1" data-indirect-amount="${i}" value="${Number(item.amount) || ""}" placeholder="0" oninput="pafIndirectFieldChange(${i}, 'amount', this.value)">
         </div>
         <div class="form-group">
           <label>Fecha</label>
-          <input type="date" data-indirect-date="${i}" value="${escapeAttr(dateVal)}">
+          <input type="date" data-indirect-date="${i}" value="${escapeAttr(dateVal)}" onchange="pafIndirectFieldChange(${i}, 'date', this.value)">
         </div>
       </div>
       <div class="form-group">
         <label>Nota (opcional)</label>
-        <input type="text" data-indirect-note="${i}" value="${escapeAttr(item.note || "")}">
+        <input type="text" data-indirect-note="${i}" value="${escapeAttr(item.note || "")}" oninput="pafIndirectFieldChange(${i}, 'note', this.value)">
       </div>
-      <button type="button" class="btn-remove btn-remove-sm" data-remove-indirect="${i}" aria-label="Eliminar gasto">×</button>
+      <button type="button" class="btn-remove btn-remove-sm" onclick="pafRemoveIndirectCost(${i})" aria-label="Eliminar gasto">×</button>
     </div>`;
+}
+
+function buildIndirectEditorHtml(items) {
+  editorIndirectCosts = normalizeIndirectList(items || []);
+  return indirectEditorInnerHtml();
 }
 
 function renderIndirectEditor() {
   const el = document.getElementById("indirect-editor");
   if (!el) return;
   editorIndirectCosts = normalizeIndirectList(editorIndirectCosts);
-  if (!editorIndirectCosts.length) {
-    el.innerHTML =
-      '<p class="admin-empty">Sin gastos indirectos. Pulsa + Gasto indirecto para agregar uno.</p>';
-    updateIndirectPreview();
-    return;
-  }
-  el.innerHTML = editorIndirectCosts
-    .map((item, i) => indirectRowHtml(item, i))
-    .join("");
+  el.innerHTML = indirectEditorInnerHtml();
   updateIndirectPreview();
 }
+
+window.pafAddIndirectCost = function () {
+  editorIndirectCosts.push(newIndirectCost());
+  renderIndirectEditor();
+  persistProjectAdvances();
+};
+
+window.pafRemoveIndirectCost = function (index) {
+  const i = Number(index);
+  if (!Number.isFinite(i) || i < 0 || i >= editorIndirectCosts.length) return;
+  editorIndirectCosts.splice(i, 1);
+  renderIndirectEditor();
+  persistProjectAdvances();
+};
+
+window.pafIndirectFieldChange = function (index, field, value) {
+  const i = Number(index);
+  if (!Number.isFinite(i) || !editorIndirectCosts[i]) return;
+  if (field === "amount") {
+    editorIndirectCosts[i].amount = value;
+  } else if (field === "date") {
+    editorIndirectCosts[i].date = value;
+  } else if (field === "note") {
+    editorIndirectCosts[i].note = value;
+  } else {
+    editorIndirectCosts[i].label = value;
+  }
+  updateIndirectPreview();
+  persistProjectAdvances();
+};
+
+window.buildIndirectEditorHtml = buildIndirectEditorHtml;
+window.renderIndirectEditor = renderIndirectEditor;
 
 function onAdvanceFormChange(conceptIndex) {
   updateAdvanceAmountPreview(conceptIndex);
@@ -1133,52 +1170,7 @@ function bindWorkspaceSectionToggle() {
 window.bindWorkspaceSectionToggle = bindWorkspaceSectionToggle;
 window.updateWorkspaceSectionSummary = updateWorkspaceSectionSummary;
 
-function onIndirectEditorInput(e) {
-  const row = e.target.closest(".indirect-row");
-  if (!row) return;
-  const i = Number(row.dataset.indirectIndex);
-  if (!Number.isFinite(i) || !editorIndirectCosts[i]) return;
-  if (e.target.matches("[data-indirect-label]")) {
-    editorIndirectCosts[i].label = e.target.value;
-  } else if (e.target.matches("[data-indirect-amount]")) {
-    editorIndirectCosts[i].amount = e.target.value;
-  } else if (e.target.matches("[data-indirect-date]")) {
-    editorIndirectCosts[i].date = e.target.value;
-  } else if (e.target.matches("[data-indirect-note]")) {
-    editorIndirectCosts[i].note = e.target.value;
-  } else {
-    return;
-  }
-  updateIndirectPreview();
-  persistProjectAdvances();
-}
-
 function bindEditorActions() {
-  const root = document.getElementById("project-root");
-  if (root && !root.dataset.indirectDelegation) {
-    root.dataset.indirectDelegation = "1";
-    root.addEventListener("click", (e) => {
-      if (e.target.closest("#add-indirect")) {
-        editorIndirectCosts.push(newIndirectCost());
-        renderIndirectEditor();
-        persistProjectAdvances();
-        return;
-      }
-      const removeBtn = e.target.closest("[data-remove-indirect]");
-      if (removeBtn) {
-        const row = removeBtn.closest(".indirect-row");
-        const i = Number(row?.dataset.indirectIndex);
-        if (Number.isFinite(i)) {
-          editorIndirectCosts.splice(i, 1);
-          renderIndirectEditor();
-          persistProjectAdvances();
-        }
-      }
-    });
-    root.addEventListener("input", onIndirectEditorInput);
-    root.addEventListener("change", onIndirectEditorInput);
-  }
-
   document.getElementById("add-concept")?.addEventListener("click", () => {
     editorConcepts.push(newConcept());
     renderConceptsEditor();
