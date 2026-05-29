@@ -368,8 +368,8 @@ function collectConcepts() {
         name: c.name.trim(),
         m2: Number(c.m2) || 0,
         unitPrice: Number(c.unitPrice) || 0,
-        laborCost: conceptLaborCost(c),
-        materialCost: conceptMaterialCost(c),
+        laborCost: Number(c.laborCost) || 0,
+        materialCost: Number(c.materialCost) || 0,
         totalPrice: calcConceptTotal(c),
         advances: parseAdvances(c).map((a) => ({
           id: a.id,
@@ -650,11 +650,11 @@ function conceptRowHtml(c, i) {
         <p class="admin-section-hint concept-costs-hint">Costos internos (no visibles para el cliente)</p>
         <div class="form-row form-row-3 concept-costs-row">
           <div class="form-group">
-            <label>Costo mano de obra</label>
+            <label>Costo mano de obra (por m²)</label>
             <input type="number" min="0" step="1" data-field="laborCost" data-index="${i}" value="${c.laborCost || ""}">
           </div>
           <div class="form-group">
-            <label>Costo material</label>
+            <label>Costo material (por m²)</label>
             <input type="number" min="0" step="1" data-field="materialCost" data-index="${i}" value="${c.materialCost || ""}">
           </div>
           <div class="form-group">

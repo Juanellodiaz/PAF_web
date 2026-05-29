@@ -1,9 +1,21 @@
+function conceptM2(c) {
+  return Number(c?.m2) || 0;
+}
+
+function conceptLaborUnitCost(c) {
+  return Number(c?.laborCost) || 0;
+}
+
+function conceptMaterialUnitCost(c) {
+  return Number(c?.materialCost) || 0;
+}
+
 function conceptLaborCost(c) {
-  return Math.round(Number(c?.laborCost) || 0);
+  return Math.round(conceptLaborUnitCost(c) * conceptM2(c));
 }
 
 function conceptMaterialCost(c) {
-  return Math.round(Number(c?.materialCost) || 0);
+  return Math.round(conceptMaterialUnitCost(c) * conceptM2(c));
 }
 
 function conceptSaleTotal(c) {
