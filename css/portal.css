@@ -417,13 +417,14 @@ body.page-enter {
   gap: 1rem;
 }
 
-.metrics-row--economics {
-  grid-template-columns: repeat(3, 1fr);
+.metrics-row--admin-project {
+  grid-template-columns: repeat(9, minmax(0, 1fr));
 }
 
-.metric-box--internal {
-  border-style: dashed;
-  background: rgba(0, 0, 0, 0.02);
+@media (max-width: 1280px) {
+  .metrics-row--admin-project {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .concept-costs-hint {
@@ -1683,7 +1684,7 @@ body.page-enter {
   }
 
   .metrics-row,
-  .metrics-row--economics {
+  .metrics-row--admin-project {
     grid-template-columns: repeat(2, 1fr);
   }
 

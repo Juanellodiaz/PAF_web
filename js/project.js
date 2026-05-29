@@ -237,11 +237,8 @@ function renderAdminView(p) {
       <p class="portal-user">${statusLabel(p.status)} · Culminación ${formatDate(p.completionDate)} · edita conceptos y documentos abajo</p>
     </div>
 
-    <div class="metrics-row" style="margin-bottom:1rem" id="metrics-row">
-      ${metricsHtml(payload)}
-    </div>
-    <div class="metrics-row metrics-row--economics" style="margin-bottom:2rem" id="metrics-economics-row">
-      ${adminEconomicsMetricsHtml(payload)}
+    <div class="metrics-row metrics-row--admin-project" style="margin-bottom:2rem" id="metrics-row">
+      ${adminProjectMetricsHtml(payload)}
     </div>
 
     <section class="admin-section project-edit-section">
@@ -416,19 +413,20 @@ function metricsHtml(p) {
   `;
 }
 
-function adminEconomicsMetricsHtml(p) {
+function adminProjectMetricsHtml(p) {
   return `
-    <div class="metric-box metric-box--internal">
+    ${metricsHtml(p)}
+    <div class="metric-box">
       <span class="metric-value" id="metric-labor">${formatMoney(p.laborTotal || 0)}</span>
       <span class="metric-label">Mano de obra</span>
       <span class="metric-sublabel">Costo interno</span>
     </div>
-    <div class="metric-box metric-box--internal">
+    <div class="metric-box">
       <span class="metric-value" id="metric-material">${formatMoney(p.materialTotal || 0)}</span>
       <span class="metric-label">Materiales</span>
       <span class="metric-sublabel">Costo interno</span>
     </div>
-    <div class="metric-box metric-box--internal">
+    <div class="metric-box">
       <span class="metric-value accent" id="metric-profit">${formatMoney(p.profitTotal || 0)}</span>
       <span class="metric-label">Utilidad</span>
       <span class="metric-sublabel">Venta − MO − material</span>
@@ -624,9 +622,7 @@ async function saveProject(options = {}) {
     renderEstimationsEditor();
     const payload = projectPayload(project);
     const metricsEl = document.getElementById("metrics-row");
-    if (metricsEl) metricsEl.innerHTML = metricsHtml(payload);
-    const economicsEl = document.getElementById("metrics-economics-row");
-    if (economicsEl) economicsEl.innerHTML = adminEconomicsMetricsHtml(payload);
+    if (metricsEl) metricsEl.innerHTML = adminProjectMetricsHtml(payload);
     updateProgressChart();
     const img = document.getElementById("zone-3d-img");
     if (img) img.src = project.zone3dImage;
