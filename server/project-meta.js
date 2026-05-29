@@ -116,13 +116,20 @@ function applyPaidFromMeta(estimations, paidByEstimationId) {
 
 function buildMetaPayload(project) {
   const advancesByConceptId = {};
+  const costsByConceptId = {};
   (project.concepts || []).forEach((c) => {
+    if (!c?.id) return;
     const adv = Array.isArray(c.advances) ? c.advances : [];
     if (adv.length) advancesByConceptId[c.id] = adv;
+    costsByConceptId[c.id] = {
+      laborCost: Number(c.laborCost) || 0,
+      materialCost: Number(c.materialCost) || 0,
+    };
   });
   return {
     v: 4,
     advancesByConceptId,
+    costsByConceptId,
     indirectCosts: (project.indirectCosts || []).map((item) => ({
       id: item.id,
       label: item.label || "",
@@ -172,10 +179,16 @@ function applyMetaToProject(project) {
   }
 
   const advancesByConceptId = meta.advancesByConceptId || {};
-  const concepts = (project.concepts || []).map((c) => ({
-    ...c,
-    advances: advancesByConceptId[c.id] || [],
-  }));
+  const costsByConceptId = meta.costsByConceptId || {};
+  const concepts = (project.concepts || []).map((c) => {
+    const costs = costsByConceptId[c.id] || {};
+    return {
+      ...c,
+      advances: advancesByConceptId[c.id] || [],
+      laborCost: Number(costs.laborCost) || Number(c.laborCost) || 0,
+      materialCost: Number(costs.materialCost) || Number(c.materialCost) || 0,
+    };
+  });
 
   let estimations = project.estimations || [];
   if (meta.v !== 3 && meta.v !== 4) {
