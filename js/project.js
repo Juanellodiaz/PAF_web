@@ -203,7 +203,7 @@ function refreshMetricsFromEditors() {
     if (sub) sub.textContent = indirectTotal ? `${pct}% del proyecto` : "—";
   }
   if (paidEl) paidEl.textContent = formatMoney(totalPaid);
-  const econ = calcConceptEconomics(editorConcepts);
+  const econ = calcConceptEconomics(editorConcepts, indirectTotal);
   const laborEl = document.getElementById("metric-labor");
   const materialEl = document.getElementById("metric-material");
   const profitEl = document.getElementById("metric-profit");
@@ -429,7 +429,7 @@ function adminProjectMetricsHtml(p) {
     <div class="metric-box">
       <span class="metric-value accent" id="metric-profit">${formatMoney(p.profitTotal || 0)}</span>
       <span class="metric-label">Utilidad</span>
-      <span class="metric-sublabel">Venta − MO − material</span>
+      <span class="metric-sublabel">Venta − MO − material − indirectos</span>
     </div>
   `;
 }
@@ -449,7 +449,7 @@ function projectPayload(project) {
     window.__pafProjectsForEstimations || [{ ...project, concepts }]
   );
   const indirectTotal = calcIndirectTotal(project.indirectCosts);
-  const economics = calcConceptEconomics(concepts);
+  const economics = calcConceptEconomics(concepts, indirectTotal);
   return {
     ...project,
     daysRemaining: daysLeft,

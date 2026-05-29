@@ -229,16 +229,27 @@ function collectIndirectCosts() {
 }
 
 function updateIndirectPreview() {
-  const el = document.getElementById("indirect-total-preview");
-  if (!el) return;
   syncConceptTotals();
   const conceptsTotal = editorConcepts.reduce((s, c) => s + c.totalPrice, 0);
   const indirectTotal = calcIndirectTotal(editorIndirectCosts);
   const pct = calcIndirectPercent(conceptsTotal, indirectTotal);
   const note = formatIndirectNote(indirectTotal);
-  el.innerHTML = note
-    ? `Total indirectos: ${formatMoney(indirectTotal)} (${pct}% del proyecto) · ${note}`
-    : "Sin gastos indirectos registrados.";
+  const el = document.getElementById("indirect-total-preview");
+  if (el) {
+    el.innerHTML = note
+      ? `Total indirectos: ${formatMoney(indirectTotal)} (${pct}% del proyecto) · ${note}`
+      : "Sin gastos indirectos registrados.";
+  }
+  const indirectMetric = document.getElementById("metric-indirect");
+  if (indirectMetric) {
+    indirectMetric.textContent = formatMoney(indirectTotal);
+    const sub = document.getElementById("metric-indirect-sub");
+    if (sub) sub.textContent = indirectTotal ? `${pct}% del proyecto` : "—";
+  }
+  const econ = calcConceptEconomics(editorConcepts, indirectTotal);
+  const profitEl = document.getElementById("metric-profit");
+  if (profitEl) profitEl.textContent = formatMoney(econ.profitTotal);
+  if (document.getElementById("concepts-total-preview")) updateConceptsPreview();
 }
 
 function indirectRowHtml(item, i) {
@@ -446,8 +457,9 @@ function updateConceptsPreview() {
   syncConceptTotals();
   const totalM2 = editorConcepts.reduce((s, c) => s + (Number(c.m2) || 0), 0);
   const totalMoney = editorConcepts.reduce((s, c) => s + c.totalPrice, 0);
-  const econ = calcConceptEconomics(editorConcepts);
-  el.textContent = `Venta: ${formatMoney(totalMoney)} · ${totalM2} m² · MO: ${formatMoney(econ.laborTotal)} · Material: ${formatMoney(econ.materialTotal)} · Utilidad: ${formatMoney(econ.profitTotal)}`;
+  const indirectTotal = calcIndirectTotal(editorIndirectCosts);
+  const econ = calcConceptEconomics(editorConcepts, indirectTotal);
+  el.textContent = `Venta: ${formatMoney(totalMoney)} · ${totalM2} m² · MO: ${formatMoney(econ.laborTotal)} · Material: ${formatMoney(econ.materialTotal)} · Indirectos: ${formatMoney(indirectTotal)} · Utilidad: ${formatMoney(econ.profitTotal)}`;
   if (typeof window.refreshProjectMetrics === "function") {
     window.refreshProjectMetrics();
   }
