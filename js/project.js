@@ -3,7 +3,6 @@ let isAdmin = false;
 let clientDisplayName = "";
 let savedProjectSnapshot = null;
 let projectDirtyFlag = false;
-let projectAutoSaveTimer = null;
 
 function normalizeEstimationForSnapshot(e) {
   return {
@@ -107,15 +106,11 @@ async function loadEstimationContext() {
   const backHref = isAdmin ? "/admin.html" : "/dashboard.html";
   document.querySelector(".portal-header a.logo").href = backHref;
   document.querySelector(".portal-header .portal-actions").innerHTML = `
-    <a href="${backHref}" class="btn btn-ghost btn-sm" id="project-back-link">← ${isAdmin ? "Administración" : "Proyectos"}</a>
+    <a href="${backHref}" class="btn btn-ghost btn-sm">← ${isAdmin ? "Administración" : "Proyectos"}</a>
     ${isAdmin ? '<button type="button" class="btn btn-primary btn-sm" id="save-project-btn">Guardar cambios</button>' : ""}
     <button type="button" class="btn btn-ghost btn-sm" id="logout-btn">Salir</button>
   `;
   document.getElementById("logout-btn").addEventListener("click", logout);
-  document.getElementById("project-back-link")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    void navigateBackFromProject(backHref);
-  });
 
   let { project: p } = await api(`/projects/${id}`);
   const draft = loadEditorDraft(id);
@@ -615,28 +610,6 @@ function buildSaveBody() {
     estimations,
     indirectCosts,
   };
-}
-
-function scheduleProjectAutoSave() {
-  if (!isAdmin || !projectData?.id) return;
-  clearTimeout(projectAutoSaveTimer);
-  projectAutoSaveTimer = setTimeout(() => {
-    if (isProjectDirty()) {
-      void saveProject({ silent: true });
-    }
-  }, 1200);
-}
-
-window.scheduleProjectAutoSave = scheduleProjectAutoSave;
-
-async function navigateBackFromProject(href) {
-  if (isAdmin && isProjectDirty()) {
-    const saved = await saveProject({ silent: true });
-    if (!saved) {
-      if (!confirm("Hay cambios sin guardar. ¿Salir sin guardar?")) return;
-    }
-  }
-  window.location.href = href;
 }
 
 async function saveProject(options = {}) {

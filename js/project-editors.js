@@ -242,7 +242,10 @@ function syncIndirectCostsFromDom() {
   const el = document.getElementById("indirect-editor");
   if (!el) return editorIndirectCosts;
   const rows = [...el.querySelectorAll(".indirect-row")];
-  if (!rows.length) return editorIndirectCosts;
+  if (!rows.length) {
+    editorIndirectCosts = [];
+    return editorIndirectCosts;
+  }
   editorIndirectCosts = rows.map((row, i) => {
     const prev = editorIndirectCosts[i] || {};
     return normalizeIndirectItem({
@@ -333,9 +336,13 @@ function renderIndirectEditor() {
 
 function afterIndirectCostsChanged() {
   updateIndirectPreview();
-  persistProjectAdvances();
-  if (typeof window.scheduleProjectAutoSave === "function") {
-    window.scheduleProjectAutoSave();
+  if (window.__pafProjectData) {
+    window.__pafProjectData.indirectCosts = editorIndirectCosts.map((item) => ({
+      ...item,
+    }));
+  }
+  if (typeof window.markProjectDirty === "function") {
+    window.markProjectDirty();
   }
 }
 
