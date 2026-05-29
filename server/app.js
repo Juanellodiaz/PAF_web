@@ -6,6 +6,10 @@ const db = require("./db");
 const {
   buildAllEstimationBreakdowns,
 } = require("./global-estimations");
+const {
+  cloneProject,
+  duplicateProjectName,
+} = require("./duplicate-project");
 const { saveUploadedImage, MAX_BYTES } = require("./uploads");
 const {
   signSession,
@@ -188,6 +192,7 @@ app.put("/api/projects/:id", requireAuth, requireAdmin, async (req, res) => {
       concepts: body.concepts ?? existing.concepts,
       documents: body.documents ?? existing.documents,
       estimations: body.estimations ?? existing.estimations,
+      indirectCosts: body.indirectCosts ?? existing.indirectCosts,
     };
     const saved = await db.saveProject(project);
     res.json({ project: projectPayload(saved) });
@@ -195,6 +200,30 @@ app.put("/api/projects/:id", requireAuth, requireAdmin, async (req, res) => {
     handleError(res, err);
   }
 });
+
+app.post(
+  "/api/projects/:id/duplicate",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const existing = await db.getProject(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: "Proyecto no encontrado" });
+      }
+      const all = await db.listProjectsForUser(req.user);
+      const newName = duplicateProjectName(
+        existing.name,
+        all.map((p) => p.name)
+      );
+      const clone = cloneProject(existing, { newName });
+      const saved = await db.saveProject(clone);
+      res.status(201).json({ project: projectPayload(saved) });
+    } catch (err) {
+      handleError(res, err);
+    }
+  }
+);
 
 app.delete("/api/projects/:id", requireAuth, requireAdmin, async (req, res) => {
   try {

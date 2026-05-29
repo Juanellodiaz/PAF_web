@@ -668,6 +668,136 @@ async function refreshDashboard() {
   await loadProjects(projects);
 }
 
+const indirectSaveTimers = new Map();
+
+function readIndirectCostsFromList(wrap) {
+  const items = [...wrap.querySelectorAll(".admin-indirect-row")].map((row) => ({
+    id: row.dataset.indirectId || newQuickId("ind"),
+    label: row.querySelector("[data-indirect-label]")?.value ?? "",
+    amount: row.querySelector("[data-indirect-amount]")?.value ?? 0,
+    date: row.querySelector("[data-indirect-date]")?.value ?? todayIso(),
+    note: row.querySelector("[data-indirect-note]")?.value ?? "",
+  }));
+  return collectIndirectCostsFromList(items);
+}
+
+function scheduleIndirectSave(projectId) {
+  clearTimeout(indirectSaveTimers.get(projectId));
+  indirectSaveTimers.set(
+    projectId,
+    setTimeout(() => saveIndirectCostsFromDom(projectId), 700)
+  );
+}
+
+async function saveIndirectCostsFromDom(projectId) {
+  const wrap = document.querySelector(`[data-indirect-list="${projectId}"]`);
+  if (!wrap) return;
+
+  const indirectCosts = readIndirectCostsFromList(wrap);
+  try {
+    const project = await fetchFullProject(projectId);
+    project.indirectCosts = indirectCosts;
+    await putProject(project);
+    const { project: fresh } = await api(`/projects/${projectId}`);
+    const idx = cachedProjects.findIndex((p) => p.id === projectId);
+    if (idx >= 0) cachedProjects[idx] = fresh;
+
+    const item = document.querySelector(`[data-project-item="${projectId}"]`);
+    const sub = item?.querySelector("[data-project-summary]");
+    if (sub) {
+      const n = (fresh.concepts || []).length;
+      sub.textContent = `${sub.dataset.clientName} · ${fresh.daysRemaining} días · ${n} conceptos · ${formatProjectMoneyDisplay(fresh)}`;
+    }
+    renderAdminMetrics(cachedProjects);
+  } catch (ex) {
+    alert(ex.message || "No se pudieron guardar los gastos indirectos");
+  }
+}
+
+function adminIndirectRowHtml(item) {
+  return `
+    <div class="admin-indirect-row" data-indirect-id="${escapeAttr(item.id)}">
+      <input type="text" class="admin-indirect-input" data-indirect-label value="${escapeAttr(item.label)}" placeholder="Descripción" aria-label="Descripción del gasto">
+      <input type="number" class="admin-indirect-input admin-indirect-input--amount" data-indirect-amount min="0" step="1" value="${Number(item.amount) || ""}" placeholder="Monto" aria-label="Monto">
+      <input type="date" class="admin-indirect-input admin-indirect-input--date" data-indirect-date value="${escapeAttr(item.date || todayIso())}" aria-label="Fecha">
+      <button type="button" class="btn-remove btn-remove-sm" data-remove-indirect aria-label="Eliminar gasto">×</button>
+    </div>`;
+}
+
+function adminProjectIndirectsHtml(p) {
+  const items = parseIndirectCosts(p);
+  const rows = items.length
+    ? items.map((item) => adminIndirectRowHtml(item)).join("")
+    : '<p class="admin-indirect-empty">Sin gastos indirectos</p>';
+
+  return `
+    <div class="admin-project-indirects">
+      <p class="admin-project-indirects-label">Gastos indirectos</p>
+      <div class="admin-indirect-list" data-indirect-list="${escapeAttr(p.id)}">${rows}</div>
+      <button type="button" class="btn btn-ghost btn-sm" data-add-indirect="${escapeAttr(p.id)}">+ Gasto indirecto</button>
+    </div>`;
+}
+
+function bindAdminProjectListEvents() {
+  const list = document.getElementById("admin-projects");
+  if (!list || list.dataset.eventsBound) return;
+  list.dataset.eventsBound = "1";
+
+  list.addEventListener("input", (e) => {
+    const row = e.target.closest(".admin-indirect-row");
+    if (!row) return;
+    const wrap = row.closest("[data-indirect-list]");
+    if (wrap?.dataset.indirectList) {
+      scheduleIndirectSave(wrap.dataset.indirectList);
+    }
+  });
+
+  list.addEventListener("click", (e) => {
+    const removeBtn = e.target.closest("[data-remove-indirect]");
+    if (removeBtn) {
+      const wrap = removeBtn.closest("[data-indirect-list]");
+      const row = removeBtn.closest(".admin-indirect-row");
+      if (row && wrap) {
+        row.remove();
+        const empty = wrap.querySelector(".admin-indirect-empty");
+        if (empty) empty.remove();
+        if (!wrap.querySelector(".admin-indirect-row")) {
+          wrap.insertAdjacentHTML(
+            "beforeend",
+            '<p class="admin-indirect-empty">Sin gastos indirectos</p>'
+          );
+        }
+        scheduleIndirectSave(wrap.dataset.indirectList);
+      }
+      return;
+    }
+
+    const addBtn = e.target.closest("[data-add-indirect]");
+    if (addBtn) {
+      const projectId = addBtn.dataset.addIndirect;
+      const wrap = list.querySelector(`[data-indirect-list="${projectId}"]`);
+      if (!wrap) return;
+      wrap.querySelector(".admin-indirect-empty")?.remove();
+      wrap.insertAdjacentHTML("beforeend", adminIndirectRowHtml(newIndirectCost()));
+      const row = wrap.querySelector(".admin-indirect-row:last-child");
+      row?.querySelector("[data-indirect-label]")?.focus();
+    }
+  });
+}
+
+async function duplicateProject(id) {
+  const btn = document.querySelector(`[data-duplicate="${id}"]`);
+  if (btn) btn.disabled = true;
+  try {
+    await api(`/projects/${id}/duplicate`, { method: "POST" });
+    await refreshDashboard();
+  } catch (ex) {
+    alert(ex.message || "No se pudo duplicar el proyecto");
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 async function loadProjects(projects = cachedProjects) {
   const list = document.getElementById("admin-projects");
 
@@ -682,20 +812,24 @@ async function loadProjects(projects = cachedProjects) {
       const clientName = client ? client.name : "Sin asignar";
       const n = (p.concepts && p.concepts.length) || 0;
       return `
-      <div class="admin-list-item">
-        <div class="admin-list-item-start">
-          ${progressRingCardHtml(p)}
-          <div class="admin-list-item-info">
-            <strong>${escapeHtml(p.name)}</strong>
-            <span class="portal-user">${escapeHtml(clientName)} · ${p.daysRemaining} días · ${n} conceptos · ${formatProjectMoneyDisplay(p)}</span>
+      <div class="admin-list-item" data-project-item="${escapeAttr(p.id)}">
+        <div class="admin-list-item-row">
+          <div class="admin-list-item-start">
+            ${progressRingCardHtml(p)}
+            <div class="admin-list-item-info">
+              <strong>${escapeHtml(p.name)}</strong>
+              <span class="portal-user" data-project-summary data-client-name="${escapeAttr(clientName)}">${escapeHtml(clientName)} · ${p.daysRemaining} días · ${n} conceptos · ${formatProjectMoneyDisplay(p)}</span>
+            </div>
+          </div>
+          <div class="portal-actions admin-list-actions">
+            ${projectStatusSelectHtml(p.id, p.status)}
+            <a href="/project.html?id=${encodeURIComponent(p.id)}" class="btn btn-primary btn-sm">Ver / Editar</a>
+            <button type="button" class="btn btn-ghost btn-sm" data-duplicate="${p.id}">Duplicar</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-edit="${p.id}">Datos</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-delete="${p.id}">Eliminar</button>
           </div>
         </div>
-        <div class="portal-actions admin-list-actions">
-          ${projectStatusSelectHtml(p.id, p.status)}
-          <a href="/project.html?id=${encodeURIComponent(p.id)}" class="btn btn-primary btn-sm">Ver / Editar</a>
-          <button type="button" class="btn btn-ghost btn-sm" data-edit="${p.id}">Datos</button>
-          <button type="button" class="btn btn-ghost btn-sm" data-delete="${p.id}">Eliminar</button>
-        </div>
+        ${adminProjectIndirectsHtml(p)}
       </div>
     `;
     })
@@ -707,9 +841,13 @@ async function loadProjects(projects = cachedProjects) {
   list.querySelectorAll("[data-delete]").forEach((btn) => {
     btn.addEventListener("click", () => deleteProject(btn.dataset.delete));
   });
+  list.querySelectorAll("[data-duplicate]").forEach((btn) => {
+    btn.addEventListener("click", () => duplicateProject(btn.dataset.duplicate));
+  });
   list.querySelectorAll(".admin-status-select").forEach((sel) => {
     sel.addEventListener("change", () => updateProjectStatus(sel));
   });
+  bindAdminProjectListEvents();
 }
 
 async function updateProjectStatus(selectEl) {
