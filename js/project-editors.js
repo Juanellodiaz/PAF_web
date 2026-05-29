@@ -293,7 +293,9 @@ function updateIndirectPreview() {
   }
   const econ = calcConceptEconomics(editorConcepts, indirectTotal);
   const profitEl = document.getElementById("metric-profit");
+  const flowProfitEl = document.getElementById("metric-flow-profit");
   if (profitEl) profitEl.textContent = formatMoney(econ.profitTotal);
+  if (flowProfitEl) flowProfitEl.textContent = formatMoney(econ.flowProfitTotal);
   updateConceptsSummaryLine();
 }
 

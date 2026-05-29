@@ -31,6 +31,14 @@ function conceptProfit(c) {
   return conceptSaleTotal(c) - conceptLaborCost(c) - conceptMaterialCost(c);
 }
 
+function calcFlowProfit(saleTotal, laborTotal, materialTotal, indirectTotal = 0) {
+  const sale = Number(saleTotal) || 0;
+  const labor = Number(laborTotal) || 0;
+  const material = Number(materialTotal) || 0;
+  const indirect = Math.round(Number(indirectTotal) || 0);
+  return Math.round(sale * 0.6 - labor - material - indirect);
+}
+
 function calcConceptEconomics(concepts, indirectTotal = 0) {
   const list = concepts || [];
   let laborTotal = 0;
@@ -42,11 +50,18 @@ function calcConceptEconomics(concepts, indirectTotal = 0) {
     saleTotal += conceptSaleTotal(c);
   });
   const indirect = Math.round(Number(indirectTotal) || 0);
+  const profitTotal = saleTotal - laborTotal - materialTotal - indirect;
   return {
     laborTotal,
     materialTotal,
     saleTotal,
     indirectTotal: indirect,
-    profitTotal: saleTotal - laborTotal - materialTotal - indirect,
+    profitTotal,
+    flowProfitTotal: calcFlowProfit(
+      saleTotal,
+      laborTotal,
+      materialTotal,
+      indirect
+    ),
   };
 }

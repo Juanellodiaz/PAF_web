@@ -208,9 +208,11 @@ function refreshMetricsFromEditors() {
   const laborEl = document.getElementById("metric-labor");
   const materialEl = document.getElementById("metric-material");
   const profitEl = document.getElementById("metric-profit");
+  const flowProfitEl = document.getElementById("metric-flow-profit");
   if (laborEl) laborEl.textContent = formatMoney(econ.laborTotal);
   if (materialEl) materialEl.textContent = formatMoney(econ.materialTotal);
   if (profitEl) profitEl.textContent = formatMoney(econ.profitTotal);
+  if (flowProfitEl) flowProfitEl.textContent = formatMoney(econ.flowProfitTotal);
   if (typeof updateConceptsSummaryLine === "function") {
     updateConceptsSummaryLine();
   }
@@ -458,6 +460,11 @@ function adminProjectMetricsHtml(p) {
       <span class="metric-label">Utilidad</span>
       <span class="metric-sublabel">Venta − MO − material − indirectos</span>
     </div>
+    <div class="metric-box">
+      <span class="metric-value accent" id="metric-flow-profit">${formatMoney(p.flowProfitTotal || 0)}</span>
+      <span class="metric-label">Utilidad de flujo</span>
+      <span class="metric-sublabel">60% inversión − MO − material − indirectos</span>
+    </div>
   `;
 }
 
@@ -488,6 +495,7 @@ function projectPayload(project) {
     laborTotal: economics.laborTotal,
     materialTotal: economics.materialTotal,
     profitTotal: economics.profitTotal,
+    flowProfitTotal: economics.flowProfitTotal,
     progressPercent: progress.percent,
     progressDoneM2: progress.doneM2,
   };
