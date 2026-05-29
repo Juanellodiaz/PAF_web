@@ -1708,6 +1708,7 @@ body.page-enter {
 }
 
 .admin-list-item {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1726,8 +1727,24 @@ body.page-enter {
   opacity: 0.45;
 }
 
-.admin-list-item.is-drag-over {
-  box-shadow: inset 0 0 0 1px var(--accent);
+.admin-list.is-dnd-active .admin-list-item.drop-before::before,
+.admin-list.is-dnd-active .admin-list-item.drop-after::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.admin-list.is-dnd-active .admin-list-item.drop-before::before {
+  top: -1px;
+}
+
+.admin-list.is-dnd-active .admin-list-item.drop-after::after {
+  bottom: -1px;
 }
 
 .admin-drag-handle {

@@ -776,6 +776,22 @@ function bindProjectSearch() {
   });
 }
 
+function clearDropIndicators(listEl) {
+  listEl
+    .querySelectorAll(".admin-list-item")
+    .forEach((el) => el.classList.remove("drop-before", "drop-after"));
+}
+
+function placementFromPointer(row, clientY) {
+  const rect = row.getBoundingClientRect();
+  return clientY < rect.top + rect.height / 2 ? "before" : "after";
+}
+
+function setDropIndicator(listEl, row, placement) {
+  clearDropIndicators(listEl);
+  row.classList.add(placement === "before" ? "drop-before" : "drop-after");
+}
+
 function bindProjectListDnD(listEl) {
   if (!listEl || projectSearchQuery.trim()) return;
 
@@ -785,43 +801,73 @@ function bindProjectListDnD(listEl) {
       e.dataTransfer.effectAllowed = "move";
       e.dataTransfer.setData("text/plain", dragProjectId);
       handle.closest(".admin-list-item")?.classList.add("is-dragging");
+      listEl.classList.add("is-dnd-active");
     });
     handle.addEventListener("dragend", () => {
       dragProjectId = null;
+      listEl.classList.remove("is-dnd-active");
       listEl
         .querySelectorAll(".admin-list-item")
-        .forEach((el) => el.classList.remove("is-dragging", "is-drag-over"));
+        .forEach((el) =>
+          el.classList.remove("is-dragging", "drop-before", "drop-after")
+        );
     });
   });
 
-  listEl.querySelectorAll(".admin-list-item").forEach((row) => {
-    row.addEventListener("dragover", (e) => {
-      if (!dragProjectId) return;
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
-      row.classList.add("is-drag-over");
-    });
-    row.addEventListener("dragleave", () => {
-      row.classList.remove("is-drag-over");
-    });
-    row.addEventListener("drop", async (e) => {
-      e.preventDefault();
-      row.classList.remove("is-drag-over");
-      const targetId = row.dataset.projectId;
-      if (!dragProjectId || !targetId || dragProjectId === targetId) return;
-      await reorderProjects(dragProjectId, targetId);
-    });
+  listEl.addEventListener("dragover", (e) => {
+    if (!dragProjectId) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+
+    const row = e.target.closest(".admin-list-item");
+    const items = [...listEl.querySelectorAll(".admin-list-item")];
+
+    if (!row) {
+      const last = items[items.length - 1];
+      if (last) setDropIndicator(listEl, last, "after");
+      return;
+    }
+
+    setDropIndicator(listEl, row, placementFromPointer(row, e.clientY));
+  });
+
+  listEl.addEventListener("dragleave", (e) => {
+    if (!listEl.contains(e.relatedTarget)) {
+      clearDropIndicators(listEl);
+    }
+  });
+
+  listEl.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    const row = e.target.closest(".admin-list-item");
+    clearDropIndicators(listEl);
+    if (!dragProjectId || !row) return;
+
+    const targetId = row.dataset.projectId;
+    const placement = placementFromPointer(row, e.clientY);
+    if (!targetId) return;
+
+    if (dragProjectId === targetId) return;
+
+    await reorderProjects(dragProjectId, targetId, placement);
   });
 }
 
-async function reorderProjects(sourceId, targetId) {
+async function reorderProjects(sourceId, targetId, placement) {
   const sorted = getSortedProjects(cachedProjects);
   const ids = sorted.map((p) => p.id);
   const from = ids.indexOf(sourceId);
-  const to = ids.indexOf(targetId);
-  if (from < 0 || to < 0) return;
+  let insertAt = ids.indexOf(targetId);
+  if (from < 0 || insertAt < 0) return;
+
+  if (placement === "after") insertAt += 1;
+  if (from < insertAt) insertAt -= 1;
+
+  if (from === insertAt) return;
+
   ids.splice(from, 1);
-  ids.splice(to, 0, sourceId);
+  ids.splice(insertAt, 0, sourceId);
+
   try {
     await saveProjectOrder(ids);
     loadProjects();
