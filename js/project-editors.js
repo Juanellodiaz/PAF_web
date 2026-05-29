@@ -206,6 +206,20 @@ function syncConceptTotals() {
   });
 }
 
+function normalizeIndirectItem(item) {
+  return {
+    id: item?.id || newEditorId("ind"),
+    label: item?.label || "",
+    amount: Number(item?.amount) || 0,
+    date: item?.date || new Date().toISOString().slice(0, 10),
+    note: item?.note || "",
+  };
+}
+
+function normalizeIndirectList(list) {
+  return parseIndirectCosts(list).map(normalizeIndirectItem);
+}
+
 function setEditorData(concepts, documents, estimations, indirectCosts) {
   editorConcepts = (concepts || []).map((c) => {
     const { collapsed: _ui, ...rest } = c;
@@ -221,10 +235,29 @@ function setEditorData(concepts, documents, estimations, indirectCosts) {
   editorEstimations = mergeEstimationsFromConcepts(estimations, editorConcepts).map(
     (e) => ({ ...e, expanded: e.expanded === true })
   );
-  editorIndirectCosts = (indirectCosts || []).map((item) => ({ ...item }));
+  editorIndirectCosts = normalizeIndirectList(indirectCosts);
+}
+
+function syncIndirectCostsFromDom() {
+  const el = document.getElementById("indirect-editor");
+  if (!el) return editorIndirectCosts;
+  const rows = [...el.querySelectorAll(".indirect-row")];
+  if (!rows.length) return editorIndirectCosts;
+  editorIndirectCosts = rows.map((row, i) => {
+    const prev = editorIndirectCosts[i] || {};
+    return normalizeIndirectItem({
+      id: row.dataset.indirectId || prev.id,
+      label: row.querySelector("[data-indirect-label]")?.value ?? prev.label,
+      amount: row.querySelector("[data-indirect-amount]")?.value ?? prev.amount,
+      date: row.querySelector("[data-indirect-date]")?.value ?? prev.date,
+      note: row.querySelector("[data-indirect-note]")?.value ?? prev.note,
+    });
+  });
+  return editorIndirectCosts;
 }
 
 function collectIndirectCosts() {
+  syncIndirectCostsFromDom();
   return collectIndirectCostsFromList(editorIndirectCosts);
 }
 
@@ -253,20 +286,21 @@ function updateIndirectPreview() {
 }
 
 function indirectRowHtml(item, i) {
+  const dateVal = String(item.date || "").slice(0, 10);
   return `
-    <div class="indirect-row concept-row" data-indirect-index="${i}">
+    <div class="indirect-row" data-indirect-index="${i}" data-indirect-id="${escapeAttr(item.id)}">
       <div class="form-row form-row-3">
         <div class="form-group">
           <label>Concepto / uso</label>
           <input type="text" data-indirect-label="${i}" value="${escapeAttr(item.label)}" placeholder="Ej. Material para cubrir muebles">
         </div>
         <div class="form-group">
-          <label>Monto</label>
-          <input type="number" min="0" step="1" data-indirect-amount="${i}" value="${Number(item.amount) || 0}">
+          <label>Monto (MXN)</label>
+          <input type="number" min="0" step="1" data-indirect-amount="${i}" value="${Number(item.amount) || ""}" placeholder="0">
         </div>
         <div class="form-group">
           <label>Fecha</label>
-          <input type="date" data-indirect-date="${i}" value="${escapeAttr(item.date || "")}">
+          <input type="date" data-indirect-date="${i}" value="${escapeAttr(dateVal)}">
         </div>
       </div>
       <div class="form-group">
@@ -280,48 +314,16 @@ function indirectRowHtml(item, i) {
 function renderIndirectEditor() {
   const el = document.getElementById("indirect-editor");
   if (!el) return;
+  editorIndirectCosts = normalizeIndirectList(editorIndirectCosts);
   if (!editorIndirectCosts.length) {
     el.innerHTML =
-      '<p class="admin-empty">Sin gastos indirectos. Agrega material, protección de mobiliario, etc.</p>';
+      '<p class="admin-empty">Sin gastos indirectos. Pulsa + Gasto indirecto para agregar uno.</p>';
     updateIndirectPreview();
     return;
   }
   el.innerHTML = editorIndirectCosts
     .map((item, i) => indirectRowHtml(item, i))
     .join("");
-  el.querySelectorAll("[data-indirect-label]").forEach((input) => {
-    input.addEventListener("input", () => {
-      editorIndirectCosts[Number(input.dataset.indirectLabel)].label = input.value;
-      updateIndirectPreview();
-      persistProjectAdvances();
-    });
-  });
-  el.querySelectorAll("[data-indirect-amount]").forEach((input) => {
-    input.addEventListener("input", () => {
-      editorIndirectCosts[Number(input.dataset.indirectAmount)].amount = input.value;
-      updateIndirectPreview();
-      persistProjectAdvances();
-    });
-  });
-  el.querySelectorAll("[data-indirect-date]").forEach((input) => {
-    input.addEventListener("change", () => {
-      editorIndirectCosts[Number(input.dataset.indirectDate)].date = input.value;
-      persistProjectAdvances();
-    });
-  });
-  el.querySelectorAll("[data-indirect-note]").forEach((input) => {
-    input.addEventListener("input", () => {
-      editorIndirectCosts[Number(input.dataset.indirectNote)].note = input.value;
-      persistProjectAdvances();
-    });
-  });
-  el.querySelectorAll("[data-remove-indirect]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      editorIndirectCosts.splice(Number(btn.dataset.removeIndirect), 1);
-      renderIndirectEditor();
-      persistProjectAdvances();
-    });
-  });
   updateIndirectPreview();
 }
 
@@ -1131,7 +1133,52 @@ function bindWorkspaceSectionToggle() {
 window.bindWorkspaceSectionToggle = bindWorkspaceSectionToggle;
 window.updateWorkspaceSectionSummary = updateWorkspaceSectionSummary;
 
+function onIndirectEditorInput(e) {
+  const row = e.target.closest(".indirect-row");
+  if (!row) return;
+  const i = Number(row.dataset.indirectIndex);
+  if (!Number.isFinite(i) || !editorIndirectCosts[i]) return;
+  if (e.target.matches("[data-indirect-label]")) {
+    editorIndirectCosts[i].label = e.target.value;
+  } else if (e.target.matches("[data-indirect-amount]")) {
+    editorIndirectCosts[i].amount = e.target.value;
+  } else if (e.target.matches("[data-indirect-date]")) {
+    editorIndirectCosts[i].date = e.target.value;
+  } else if (e.target.matches("[data-indirect-note]")) {
+    editorIndirectCosts[i].note = e.target.value;
+  } else {
+    return;
+  }
+  updateIndirectPreview();
+  persistProjectAdvances();
+}
+
 function bindEditorActions() {
+  const root = document.getElementById("project-root");
+  if (root && !root.dataset.indirectDelegation) {
+    root.dataset.indirectDelegation = "1";
+    root.addEventListener("click", (e) => {
+      if (e.target.closest("#add-indirect")) {
+        editorIndirectCosts.push(newIndirectCost());
+        renderIndirectEditor();
+        persistProjectAdvances();
+        return;
+      }
+      const removeBtn = e.target.closest("[data-remove-indirect]");
+      if (removeBtn) {
+        const row = removeBtn.closest(".indirect-row");
+        const i = Number(row?.dataset.indirectIndex);
+        if (Number.isFinite(i)) {
+          editorIndirectCosts.splice(i, 1);
+          renderIndirectEditor();
+          persistProjectAdvances();
+        }
+      }
+    });
+    root.addEventListener("input", onIndirectEditorInput);
+    root.addEventListener("change", onIndirectEditorInput);
+  }
+
   document.getElementById("add-concept")?.addEventListener("click", () => {
     editorConcepts.push(newConcept());
     renderConceptsEditor();
@@ -1160,10 +1207,5 @@ function bindEditorActions() {
     if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);
     renderEstimationsEditor();
     void persistProjectAdvances();
-  });
-  document.getElementById("add-indirect")?.addEventListener("click", () => {
-    editorIndirectCosts.push(newIndirectCost());
-    renderIndirectEditor();
-    persistProjectAdvances();
   });
 }

@@ -23,6 +23,7 @@ function projectStateSnapshot() {
     concepts: body.concepts || [],
     documents: body.documents || [],
     estimations: (body.estimations || []).map(normalizeEstimationForSnapshot),
+    indirectCosts: body.indirectCosts || [],
   });
 }
 
@@ -318,7 +319,12 @@ function renderAdminView(p) {
     <p class="form-error" id="save-error"></p>
   `;
 
-  setEditorData(p.concepts, p.documents, p.estimations, p.indirectCosts);
+  setEditorData(
+    p.concepts,
+    p.documents,
+    p.estimations,
+    p.indirectCosts || projectData?.indirectCosts || []
+  );
   if (typeof hydrateEstimationsFromProject === "function") {
     hydrateEstimationsFromProject(p);
   }

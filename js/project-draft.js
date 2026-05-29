@@ -19,6 +19,10 @@ function saveEditorDraft(projectId) {
         return rest;
       }),
       estimations: editorEstimations || [],
+      indirectCosts:
+        typeof syncIndirectCostsFromDom === "function"
+          ? syncIndirectCostsFromDom()
+          : editorIndirectCosts || [],
     };
     sessionStorage.setItem(draftKey(projectId), JSON.stringify(payload));
   } catch {
@@ -64,7 +68,11 @@ function mergeProjectWithDraft(project, draft) {
     mergeStoredEstimations(project.estimations, draft.estimations),
     concepts
   );
-  return { ...project, concepts, estimations };
+  const indirectCosts =
+    draft.indirectCosts?.length
+      ? draft.indirectCosts
+      : project.indirectCosts || [];
+  return { ...project, concepts, estimations, indirectCosts };
 }
 
 function projectNeedsDraftRestore(project, draft) {
