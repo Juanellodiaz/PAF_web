@@ -19,6 +19,8 @@ function newConcept() {
     name: "",
     m2: 0,
     unitPrice: 0,
+    laborCost: 0,
+    materialCost: 0,
     totalPrice: 0,
     status: "en_aprobacion",
     advances: [],
@@ -366,6 +368,8 @@ function collectConcepts() {
         name: c.name.trim(),
         m2: Number(c.m2) || 0,
         unitPrice: Number(c.unitPrice) || 0,
+        laborCost: conceptLaborCost(c),
+        materialCost: conceptMaterialCost(c),
         totalPrice: calcConceptTotal(c),
         advances: parseAdvances(c).map((a) => ({
           id: a.id,
@@ -442,7 +446,8 @@ function updateConceptsPreview() {
   syncConceptTotals();
   const totalM2 = editorConcepts.reduce((s, c) => s + (Number(c.m2) || 0), 0);
   const totalMoney = editorConcepts.reduce((s, c) => s + c.totalPrice, 0);
-  el.textContent = `Total: ${formatMoney(totalMoney)} · ${totalM2} m²`;
+  const econ = calcConceptEconomics(editorConcepts);
+  el.textContent = `Venta: ${formatMoney(totalMoney)} · ${totalM2} m² · MO: ${formatMoney(econ.laborTotal)} · Material: ${formatMoney(econ.materialTotal)} · Utilidad: ${formatMoney(econ.profitTotal)}`;
   if (typeof window.refreshProjectMetrics === "function") {
     window.refreshProjectMetrics();
   }
@@ -626,11 +631,11 @@ function conceptRowHtml(c, i) {
             <input type="number" min="0" step="0.01" data-field="m2" data-index="${i}" value="${c.m2 || ""}">
           </div>
           <div class="form-group">
-            <label>Precio unit. (MXN)</label>
+            <label>Precio unit. cliente (MXN)</label>
             <input type="number" min="0" step="1" data-field="unitPrice" data-index="${i}" value="${c.unitPrice || ""}">
           </div>
           <div class="form-group">
-            <label>Total</label>
+            <label>Total venta</label>
             <input type="text" readonly class="input-readonly" data-total-preview="${i}" value="${formatMoney(calcConceptTotal(c))}">
           </div>
           <div class="form-group">
@@ -640,6 +645,21 @@ function conceptRowHtml(c, i) {
               <option value="en_proceso" ${c.status === "en_proceso" || c.status === "in_progress" ? "selected" : ""}>En proceso</option>
               <option value="completado" ${c.status === "completado" || c.status === "completed" ? "selected" : ""}>Completado</option>
             </select>
+          </div>
+        </div>
+        <p class="admin-section-hint concept-costs-hint">Costos internos (no visibles para el cliente)</p>
+        <div class="form-row form-row-3 concept-costs-row">
+          <div class="form-group">
+            <label>Costo mano de obra</label>
+            <input type="number" min="0" step="1" data-field="laborCost" data-index="${i}" value="${c.laborCost || ""}">
+          </div>
+          <div class="form-group">
+            <label>Costo material</label>
+            <input type="number" min="0" step="1" data-field="materialCost" data-index="${i}" value="${c.materialCost || ""}">
+          </div>
+          <div class="form-group">
+            <label>Utilidad</label>
+            <input type="text" readonly class="input-readonly" data-profit-preview="${i}" value="${formatMoney(conceptProfit(c))}">
           </div>
         </div>
         ${conceptAdvancesBlock(c, i)}
@@ -676,7 +696,12 @@ function setAllConceptsCollapsed(collapsed) {
 function onConceptFieldChange(e) {
   const i = Number(e.target.dataset.index);
   const field = e.target.dataset.field;
-  if (field === "m2" || field === "unitPrice") {
+  if (
+    field === "m2" ||
+    field === "unitPrice" ||
+    field === "laborCost" ||
+    field === "materialCost"
+  ) {
     editorConcepts[i][field] = Number(e.target.value) || 0;
     if (field === "unitPrice") updateAdvanceAmountPreview(i);
   } else {
@@ -684,6 +709,8 @@ function onConceptFieldChange(e) {
   }
   const totalEl = document.querySelector(`[data-total-preview="${i}"]`);
   if (totalEl) totalEl.value = formatMoney(calcConceptTotal(editorConcepts[i]));
+  const profitEl = document.querySelector(`[data-profit-preview="${i}"]`);
+  if (profitEl) profitEl.value = formatMoney(conceptProfit(editorConcepts[i]));
   updateConceptSummaryLine(i);
   updateConceptsPreview();
   updateProgressChart();

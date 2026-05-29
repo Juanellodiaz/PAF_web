@@ -203,6 +203,13 @@ function refreshMetricsFromEditors() {
     if (sub) sub.textContent = indirectTotal ? `${pct}% del proyecto` : "—";
   }
   if (paidEl) paidEl.textContent = formatMoney(totalPaid);
+  const econ = calcConceptEconomics(editorConcepts);
+  const laborEl = document.getElementById("metric-labor");
+  const materialEl = document.getElementById("metric-material");
+  const profitEl = document.getElementById("metric-profit");
+  if (laborEl) laborEl.textContent = formatMoney(econ.laborTotal);
+  if (materialEl) materialEl.textContent = formatMoney(econ.materialTotal);
+  if (profitEl) profitEl.textContent = formatMoney(econ.profitTotal);
   updateIndirectPreview();
   updateProgressChart();
 }
@@ -230,8 +237,11 @@ function renderAdminView(p) {
       <p class="portal-user">${statusLabel(p.status)} · Culminación ${formatDate(p.completionDate)} · edita conceptos y documentos abajo</p>
     </div>
 
-    <div class="metrics-row" style="margin-bottom:2rem" id="metrics-row">
+    <div class="metrics-row" style="margin-bottom:1rem" id="metrics-row">
       ${metricsHtml(payload)}
+    </div>
+    <div class="metrics-row metrics-row--economics" style="margin-bottom:2rem" id="metrics-economics-row">
+      ${adminEconomicsMetricsHtml(payload)}
     </div>
 
     <section class="admin-section project-edit-section">
@@ -406,6 +416,26 @@ function metricsHtml(p) {
   `;
 }
 
+function adminEconomicsMetricsHtml(p) {
+  return `
+    <div class="metric-box metric-box--internal">
+      <span class="metric-value" id="metric-labor">${formatMoney(p.laborTotal || 0)}</span>
+      <span class="metric-label">Mano de obra</span>
+      <span class="metric-sublabel">Costo interno</span>
+    </div>
+    <div class="metric-box metric-box--internal">
+      <span class="metric-value" id="metric-material">${formatMoney(p.materialTotal || 0)}</span>
+      <span class="metric-label">Materiales</span>
+      <span class="metric-sublabel">Costo interno</span>
+    </div>
+    <div class="metric-box metric-box--internal">
+      <span class="metric-value accent" id="metric-profit">${formatMoney(p.profitTotal || 0)}</span>
+      <span class="metric-label">Utilidad</span>
+      <span class="metric-sublabel">Venta − MO − material</span>
+    </div>
+  `;
+}
+
 function projectPayload(project) {
   const concepts = project.concepts || [];
   const completion = new Date(project.completionDate);
@@ -421,6 +451,7 @@ function projectPayload(project) {
     window.__pafProjectsForEstimations || [{ ...project, concepts }]
   );
   const indirectTotal = calcIndirectTotal(project.indirectCosts);
+  const economics = calcConceptEconomics(concepts);
   return {
     ...project,
     daysRemaining: daysLeft,
@@ -429,6 +460,9 @@ function projectPayload(project) {
     totalPaid,
     indirectTotal,
     indirectPercent: calcIndirectPercent(conceptsTotal, indirectTotal),
+    laborTotal: economics.laborTotal,
+    materialTotal: economics.materialTotal,
+    profitTotal: economics.profitTotal,
     progressPercent: progress.percent,
     progressDoneM2: progress.doneM2,
   };
@@ -591,6 +625,8 @@ async function saveProject(options = {}) {
     const payload = projectPayload(project);
     const metricsEl = document.getElementById("metrics-row");
     if (metricsEl) metricsEl.innerHTML = metricsHtml(payload);
+    const economicsEl = document.getElementById("metrics-economics-row");
+    if (economicsEl) economicsEl.innerHTML = adminEconomicsMetricsHtml(payload);
     updateProgressChart();
     const img = document.getElementById("zone-3d-img");
     if (img) img.src = project.zone3dImage;

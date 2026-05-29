@@ -417,6 +417,23 @@ body.page-enter {
   gap: 1rem;
 }
 
+.metrics-row--economics {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.metric-box--internal {
+  border-style: dashed;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.concept-costs-hint {
+  margin: 0.75rem 0 0.35rem;
+}
+
+.concept-costs-row {
+  margin-bottom: 0.5rem;
+}
+
 .metric-box {
   padding: 1.25rem;
   border: 1px solid var(--border);
@@ -435,6 +452,15 @@ body.page-enter {
   font-size: 0.7rem;
   color: var(--text-dim);
   margin-top: 0.25rem;
+}
+
+.metric-sublabel--emph {
+  color: var(--text);
+  margin-top: 0.5rem;
+}
+
+.metric-box--completed .metric-sublabel + .metric-sublabel {
+  margin-top: 0.2rem;
 }
 
 .progress-ring-wrap {
@@ -1656,7 +1682,8 @@ body.page-enter {
     grid-template-columns: 1fr;
   }
 
-  .metrics-row {
+  .metrics-row,
+  .metrics-row--economics {
     grid-template-columns: repeat(2, 1fr);
   }
 
