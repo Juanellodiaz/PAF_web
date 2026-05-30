@@ -11,6 +11,10 @@ const {
   duplicateProjectName,
 } = require("./duplicate-project");
 const {
+  appendProjectToOrder,
+  removeProjectFromOrder,
+} = require("./admin-settings");
+const {
   rebuildEstimationsFromOrphanAdvances,
 } = require("./rebuild-estimations");
 const { saveUploadedImage, MAX_BYTES } = require("./uploads");
