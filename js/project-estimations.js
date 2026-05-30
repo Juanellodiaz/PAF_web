@@ -72,10 +72,9 @@ function projectsForEstimationBreakdown() {
   }
   const list = window.__pafProjectsForEstimations || [];
   const projectId = window.__pafProjectId;
-  if (!projectId || typeof collectConcepts !== "function") return list;
-  const concepts = collectConcepts();
+  if (!projectId || typeof editorConcepts === "undefined") return list;
   return list.map((p) =>
-    p.id === projectId ? { ...p, concepts } : p
+    p.id === projectId ? { ...p, concepts: editorConcepts } : p
   );
 }
 

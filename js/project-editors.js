@@ -2,6 +2,8 @@ let editorConcepts = [];
 let editorDocuments = [];
 let editorEstimations = [];
 let editorIndirectCosts = [];
+const deletedEstimationIds = new Set();
+window.__pafDeletedEstimationIds = deletedEstimationIds;
 
 function isMetaDocument(d) {
   return (
@@ -120,6 +122,7 @@ window.pafRemoveEstimation = function (idx) {
     return;
   }
   editorEstimations.splice(idx, 1);
+  deletedEstimationIds.add(estId);
   refreshEstimationBreakdowns(editorEstimations);
   editorConcepts.forEach((c) => {
     c.advances = parseAdvances(c).map((a) =>
@@ -438,11 +441,6 @@ window.renderIndirectEditor = renderIndirectEditor;
 
 function onAdvanceFormChange(conceptIndex) {
   updateAdvanceAmountPreview(conceptIndex);
-  const m2 =
-    Number(
-      document.querySelector(`[data-advance-m2="${conceptIndex}"]`)?.value
-    ) || 0;
-  if (m2 > 0) persistProjectAdvances();
 }
 
 function flushPendingAdvancesFromDom() {
@@ -532,8 +530,20 @@ function readPaidStateFromEditor() {
 }
 
 function collectEstimations() {
+  syncEditorEstimations();
   const paidById = readPaidStateFromEditor();
-  return editorEstimations.map((e) => {
+  const global = window.__pafGlobalEstimations || [];
+  const orphanGlobal = global.filter(
+    (g) =>
+      g?.id &&
+      !deletedEstimationIds.has(g.id) &&
+      !editorEstimations.some((e) => e.id === g.id)
+  );
+  const list = mergeEstimationsFromConcepts(
+    mergeStoredEstimations(editorEstimations, orphanGlobal),
+    editorConcepts
+  );
+  return list.map((e) => {
     const paidState = paidById.get(e.id);
     const paid = paidState ? paidState.paid : !!e.paid;
     const paidAt = paid
@@ -925,7 +935,6 @@ function updateProgressChart() {
 }
 
 function estimationCardHtml(est, idx) {
-  refreshEstimationBreakdowns(editorEstimations);
   const breakdown = estimationBreakdownFor(est.id);
   const total = breakdown.grandTotal || 0;
   const lineCount = breakdown.lineCount || 0;
@@ -978,8 +987,9 @@ function estimationCardHtml(est, idx) {
 
 function hydrateEstimationsFromProject(project) {
   if (!project) return;
+  const global = window.__pafGlobalEstimations || project.estimations || [];
   editorEstimations = mergeEstimationsFromConcepts(
-    project.estimations || [],
+    mergeStoredEstimations(global, project.estimations || []),
     project.concepts || editorConcepts
   ).map((e) => ({
     ...e,

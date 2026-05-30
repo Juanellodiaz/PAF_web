@@ -27,16 +27,41 @@ async function bootstrapGlobalEstimations(
   listAllProjectsForBootstrap
 ) {
   let global = await loadGlobal();
-  if (global.length || !listAllProjectsForBootstrap) return global;
+  if (!global.length && listAllProjectsForBootstrap) {
+    const all = await listAllProjectsForBootstrap();
+    for (const p of all) {
+      const fromProject = collectEstimationsFromProject(p);
+      if (fromProject.length) {
+        global = mergeEstimationRecords(global, fromProject);
+      }
+    }
+    if (global.length) await saveGlobal(global);
+  }
+
+  if (!listAllProjectsForBootstrap) return global;
 
   const all = await listAllProjectsForBootstrap();
+  let repaired = false;
   for (const p of all) {
-    const fromProject = collectEstimationsFromProject(p);
-    if (fromProject.length) {
-      global = mergeEstimationRecords(global, fromProject);
+    for (const c of p.concepts || []) {
+      for (const a of c.advances || []) {
+        if (!a.estimationId) continue;
+        if (global.some((e) => e.id === a.estimationId)) continue;
+        global = mergeEstimationRecords(global, [
+          {
+            id: a.estimationId,
+            label: "",
+            date: a.date || new Date().toISOString().slice(0, 10),
+            paid: false,
+            paidAt: null,
+            notes: "",
+          },
+        ]);
+        repaired = true;
+      }
     }
   }
-  if (global.length) await saveGlobal(global);
+  if (repaired) await saveGlobal(global);
   return global;
 }
 
@@ -63,12 +88,22 @@ async function persistGlobalEstimationsFromProject(
 ) {
   const incoming = (project.estimations || []).map(normalizeEstimation);
   const previous = await loadGlobal();
-  const incomingIds = new Set(incoming.map((e) => e.id));
+  const deletedIds = new Set(
+    (Array.isArray(project.deletedEstimationIds)
+      ? project.deletedEstimationIds
+      : []
+    ).filter(Boolean)
+  );
+
+  const merged = mergeEstimationRecords(previous, incoming);
+  const final = merged.filter((e) => !deletedIds.has(e.id));
+
+  const finalIds = new Set(final.map((e) => e.id));
   const removedIds = previous
-    .filter((e) => e?.id && !incomingIds.has(e.id))
+    .filter((e) => e?.id && !finalIds.has(e.id))
     .map((e) => e.id);
 
-  await saveGlobal(incoming);
+  await saveGlobal(final);
 
   if (!removedIds.length || !listAllProjectsForBootstrap || !saveProjectForScrub) {
     return;
@@ -85,7 +120,7 @@ async function persistGlobalEstimationsFromProject(
     await saveProjectForScrub({
       ...p,
       concepts,
-      estimations: incoming,
+      estimations: final,
       documents: p.documents || [],
     });
   }

@@ -74,7 +74,7 @@ async function loadEstimationContext() {
     window.__pafProjectsForEstimations = projects || [];
     window.__pafGlobalEstimations = estimations || [];
     window.__pafEstimationBreakdowns = {};
-    if (projectData && estimations?.length) {
+    if (projectData && estimations) {
       projectData.estimations = estimations;
     }
     if (projectData?.id) {
@@ -622,6 +622,9 @@ function buildSaveBody() {
     documents: collectDocuments(),
     estimations,
     indirectCosts,
+    deletedEstimationIds: [
+      ...(window.__pafDeletedEstimationIds || []),
+    ],
   };
 }
 
@@ -671,6 +674,9 @@ async function saveProject(options = {}) {
     );
     clearEditorDraft(projectData.id);
     saveEditorDraft(projectData.id);
+    if (window.__pafDeletedEstimationIds) {
+      window.__pafDeletedEstimationIds.clear();
+    }
     markProjectSaved();
 
     const okMsg =
