@@ -3,6 +3,10 @@ const {
   collectEstimationsFromProject,
   normalizeEstimation,
 } = require("./global-estimations");
+const {
+  hasOrphanAdvances,
+  rebuildEstimationsFromOrphanAdvances,
+} = require("./rebuild-estimations");
 
 function scrubConceptsEstimationIds(concepts, removedIds) {
   const removed = new Set(removedIds);
@@ -24,44 +28,61 @@ function scrubConceptsEstimationIds(concepts, removedIds) {
 async function bootstrapGlobalEstimations(
   loadGlobal,
   saveGlobal,
-  listAllProjectsForBootstrap
+  listAllProjectsForBootstrap,
+  saveProjectForScrub
 ) {
   let global = await loadGlobal();
-  if (!global.length && listAllProjectsForBootstrap) {
-    const all = await listAllProjectsForBootstrap();
-    for (const p of all) {
-      const fromProject = collectEstimationsFromProject(p);
-      if (fromProject.length) {
-        global = mergeEstimationRecords(global, fromProject);
-      }
-    }
-    if (global.length) await saveGlobal(global);
-  }
 
   if (!listAllProjectsForBootstrap) return global;
 
   const all = await listAllProjectsForBootstrap();
-  let repaired = false;
+  for (const p of all) {
+    global = mergeEstimationRecords(global, collectEstimationsFromProject(p));
+  }
+
+  if (hasOrphanAdvances(all)) {
+    const result = rebuildEstimationsFromOrphanAdvances(all, global);
+    global = result.global;
+    if (result.changed) {
+      await saveGlobal(global);
+      if (saveProjectForScrub) {
+        for (const before of all) {
+          const after = result.projects.find((proj) => proj.id === before.id);
+          if (!after) continue;
+          if (JSON.stringify(before.concepts) === JSON.stringify(after.concepts)) {
+            continue;
+          }
+          await saveProjectForScrub({
+            ...after,
+            estimations: global,
+            documents: after.documents || [],
+          });
+        }
+      }
+      return global;
+    }
+  }
+
   for (const p of all) {
     for (const c of p.concepts || []) {
       for (const a of c.advances || []) {
         if (!a.estimationId) continue;
         if (global.some((e) => e.id === a.estimationId)) continue;
         global = mergeEstimationRecords(global, [
-          {
+          normalizeEstimation({
             id: a.estimationId,
             label: "",
             date: a.date || new Date().toISOString().slice(0, 10),
             paid: false,
             paidAt: null,
             notes: "",
-          },
+          }),
         ]);
-        repaired = true;
       }
     }
   }
-  if (repaired) await saveGlobal(global);
+
+  if (global.length) await saveGlobal(global);
   return global;
 }
 
@@ -69,12 +90,14 @@ async function enrichProjectWithGlobalEstimations(
   project,
   loadGlobal,
   saveGlobal,
-  listAllProjectsForBootstrap
+  listAllProjectsForBootstrap,
+  saveProjectForScrub
 ) {
   const global = await bootstrapGlobalEstimations(
     loadGlobal,
     saveGlobal,
-    listAllProjectsForBootstrap
+    listAllProjectsForBootstrap,
+    saveProjectForScrub
   );
   return { ...project, estimations: global };
 }

@@ -21,6 +21,7 @@ const {
 const {
   enrichProjectWithGlobalEstimations,
   persistGlobalEstimationsFromProject,
+  bootstrapGlobalEstimations,
 } = require("./estimation-store");
 
 let client;
@@ -220,7 +221,7 @@ async function ensureGlobalProjectRow() {
   if (error) throw error;
 }
 
-async function loadGlobalEstimations() {
+async function readGlobalEstimationsRaw() {
   const { data, error } = await getClient()
     .from("project_documents")
     .select("content")
@@ -234,6 +235,15 @@ async function loadGlobalEstimations() {
   } catch {
     return [];
   }
+}
+
+async function loadGlobalEstimations() {
+  return bootstrapGlobalEstimations(
+    readGlobalEstimationsRaw,
+    saveGlobalEstimations,
+    listAllProjectsForBootstrap,
+    saveProjectStoredBody
+  );
 }
 
 async function saveGlobalEstimations(estimations) {
@@ -315,9 +325,10 @@ async function listProjectsForUser(user) {
     enriched.push(
       await enrichProjectWithGlobalEstimations(
         p,
-        loadGlobalEstimations,
+        readGlobalEstimationsRaw,
         saveGlobalEstimations,
-        listAllProjectsForBootstrap
+        listAllProjectsForBootstrap,
+        saveProjectStoredBody
       )
     );
   }
@@ -341,9 +352,10 @@ async function getProject(id) {
   const mapped = mapProject(data);
   return enrichProjectWithGlobalEstimations(
     mapped,
-    loadGlobalEstimations,
+    readGlobalEstimationsRaw,
     saveGlobalEstimations,
-    listAllProjectsForBootstrap
+    listAllProjectsForBootstrap,
+    saveProjectStoredBody
   );
 }
 
@@ -400,16 +412,17 @@ async function saveProjectStoredBody(project) {
   });
   return enrichProjectWithGlobalEstimations(
     fallback,
-    loadGlobalEstimations,
+    readGlobalEstimationsRaw,
     saveGlobalEstimations,
-    listAllProjectsForBootstrap
+    listAllProjectsForBootstrap,
+    saveProjectStoredBody
   );
 }
 
 async function saveProject(project) {
   await persistGlobalEstimationsFromProject(
     project,
-    loadGlobalEstimations,
+    readGlobalEstimationsRaw,
     saveGlobalEstimations,
     listAllProjectsForBootstrap,
     saveProjectStoredBody
@@ -431,6 +444,7 @@ module.exports = {
   saveProject,
   deleteProject,
   loadGlobalEstimations,
+  saveGlobalEstimations,
   loadAdminSettings,
   saveAdminSettings,
 };

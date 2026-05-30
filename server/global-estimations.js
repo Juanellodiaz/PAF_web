@@ -60,6 +60,7 @@ function collectEstimationsFromProject(project) {
     try {
       const meta = JSON.parse(metaDoc.content);
       (meta.estimations || []).forEach((e) => list.push(e));
+      (meta.estimationsArchive || []).forEach((e) => list.push(e));
     } catch {
       /* ignore */
     }

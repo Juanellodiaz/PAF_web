@@ -11,9 +11,8 @@ const {
   duplicateProjectName,
 } = require("./duplicate-project");
 const {
-  appendProjectToOrder,
-  removeProjectFromOrder,
-} = require("./admin-settings");
+  rebuildEstimationsFromOrphanAdvances,
+} = require("./rebuild-estimations");
 const { saveUploadedImage, MAX_BYTES } = require("./uploads");
 const {
   signSession,
@@ -138,6 +137,39 @@ app.get("/api/auth/me", (req, res) => {
   if (!session) return res.status(401).json({ error: "No autenticado" });
   res.json({ user: session });
 });
+
+app.post(
+  "/api/admin/rebuild-estimations",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const projects = await db.listProjectsForUser(req.user);
+      const global = await db.loadGlobalEstimations();
+      const result = rebuildEstimationsFromOrphanAdvances(projects, global);
+      if (result.changed) {
+        await db.saveGlobalEstimations(result.global);
+        for (const p of result.projects) {
+          const before = projects.find((x) => x.id === p.id);
+          if (
+            before &&
+            JSON.stringify(before.concepts) !== JSON.stringify(p.concepts)
+          ) {
+            await db.saveProject({ ...p, estimations: result.global });
+          }
+        }
+      }
+      res.json({
+        ok: true,
+        orphanCount: result.orphanCount,
+        created: result.created,
+        total: result.global.length,
+      });
+    } catch (err) {
+      handleError(res, err);
+    }
+  }
+);
 
 app.get("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
   try {

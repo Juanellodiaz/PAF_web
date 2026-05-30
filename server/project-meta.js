@@ -117,15 +117,29 @@ function applyPaidFromMeta(estimations, paidByEstimationId) {
 function buildMetaPayload(project) {
   const advancesByConceptId = {};
   const costsByConceptId = {};
+  const usedEstimationIds = new Set();
   (project.concepts || []).forEach((c) => {
     if (!c?.id) return;
     const adv = Array.isArray(c.advances) ? c.advances : [];
     if (adv.length) advancesByConceptId[c.id] = adv;
+    adv.forEach((a) => {
+      if (a?.estimationId) usedEstimationIds.add(a.estimationId);
+    });
     costsByConceptId[c.id] = {
       laborCost: Number(c.laborCost) || 0,
       materialCost: Number(c.materialCost) || 0,
     };
   });
+  const estimationsArchive = (project.estimations || [])
+    .filter((e) => e?.id && usedEstimationIds.has(e.id))
+    .map((e) => ({
+      id: e.id,
+      label: e.label || "",
+      date: e.date || "",
+      paid: !!e.paid,
+      paidAt: e.paid ? e.paidAt || null : null,
+      notes: e.notes || "",
+    }));
   return {
     v: 4,
     advancesByConceptId,
@@ -137,6 +151,7 @@ function buildMetaPayload(project) {
       date: item.date || "",
       note: item.note || "",
     })),
+    estimationsArchive,
   };
 }
 
