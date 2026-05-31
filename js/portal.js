@@ -141,16 +141,20 @@ function projectProgress(p) {
 
 function progressRingCardHtml(p) {
   const prog = projectProgress(p);
-  const m2Label =
+  const m2Text =
     prog.totalM2 > 0
-      ? `<span class="progress-ring-card-m2">${formatM2(prog.doneM2)} / ${formatM2(prog.totalM2)} m²</span>`
-      : "";
+      ? `${formatM2(prog.doneM2)} / ${formatM2(prog.totalM2)} m²`
+      : "0 m²";
+  const m2Class =
+    prog.totalM2 > 0
+      ? "progress-ring-card-m2"
+      : "progress-ring-card-m2 progress-ring-card-m2--placeholder";
   return `
     <div class="progress-ring-card" aria-label="Avance del proyecto: ${prog.percent} por ciento">
       <div class="progress-ring progress-ring--card" style="--pct: ${prog.percent}">
         <span class="progress-ring-value">${prog.percent}%</span>
       </div>
-      ${m2Label}
+      <span class="${m2Class}">${m2Text}</span>
     </div>`;
 }
 

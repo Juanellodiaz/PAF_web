@@ -441,9 +441,94 @@ body.page-enter {
   text-align: center;
 }
 
-.metric-box-progress {
+/* Vista proyecto: alinear cifras con el anillo de avance (72px) */
+.metrics-row--admin-project .metric-box,
+.metrics-row:not(.metrics-row--admin-project):not(.client-summary) .metric-box {
+  display: grid;
+  grid-template-rows: 4.5rem auto minmax(1.15em, auto);
+  justify-items: center;
+  align-content: start;
+}
+
+.metrics-row--admin-project .metric-box-progress .progress-ring-wrap,
+.metrics-row:not(.metrics-row--admin-project):not(.client-summary)
+  .metric-box-progress
+  .progress-ring-wrap {
+  grid-row: 1;
+  align-self: center;
+  height: 4.5rem;
+  margin-bottom: 0;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.metrics-row--admin-project .metric-box:not(.metric-box-progress) .metric-value,
+.metrics-row:not(.metrics-row--admin-project):not(.client-summary)
+  .metric-box:not(.metric-box-progress)
+  .metric-value {
+  grid-row: 1;
+  align-self: center;
+  min-height: 4.5rem;
+  margin-bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+}
+
+.metrics-row--admin-project .metric-label,
+.metrics-row:not(.metrics-row--admin-project):not(.client-summary) .metric-label {
+  grid-row: 2;
+  margin-top: 0.5rem;
+}
+
+.metrics-row--admin-project .metric-sublabel,
+.metrics-row:not(.metrics-row--admin-project):not(.client-summary) .metric-sublabel {
+  grid-row: 3;
+  margin-top: 0.25rem;
+}
+
+/* Panel admin — resumen: solo alinear la fila superior; sublabels variables */
+.admin-metrics-row .metric-box {
+  display: grid;
+  grid-template-rows: 4.5rem auto;
+  justify-items: center;
+  align-content: start;
+}
+
+.admin-metrics-row .metric-box-progress .progress-ring-wrap {
+  grid-row: 1;
+  align-self: center;
+  height: 4.5rem;
+  margin-bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-metrics-row .metric-box:not(.metric-box-progress) .metric-value {
+  grid-row: 1;
+  align-self: center;
+  min-height: 4.5rem;
+  margin-bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+}
+
+.admin-metrics-row .metric-label {
+  grid-row: 2;
+  margin-top: 0.5rem;
+}
+
+.admin-metrics-row .metric-sublabel {
+  grid-row: auto;
+  margin-top: 0.25rem;
+}
+
+.metric-box-progress {
   align-items: center;
   justify-content: center;
 }
@@ -522,6 +607,7 @@ body.page-enter {
   align-items: center;
   gap: 0.35rem;
   flex-shrink: 0;
+  min-width: 5.5rem;
 }
 
 .progress-ring-card-m2 {
@@ -530,6 +616,12 @@ body.page-enter {
   text-transform: uppercase;
   color: var(--text-dim);
   white-space: nowrap;
+  min-height: 1.2em;
+  line-height: 1.2;
+}
+
+.progress-ring-card-m2--placeholder {
+  visibility: hidden;
 }
 
 .admin-list-item-main {
