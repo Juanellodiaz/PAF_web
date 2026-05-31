@@ -854,7 +854,9 @@ function setActionFeedback(btn, { state, message = "" }) {
   if (state === "loading") feedback.classList.add("is-loading");
   if (state === "success") feedback.classList.add("is-success");
   if (state === "error") feedback.classList.add("is-error");
-  if (label) label.textContent = message;
+  if (label) label.textContent = "";
+  if (message) feedback.setAttribute("aria-label", message);
+  else feedback.removeAttribute("aria-label");
 }
 
 function hideActionFeedback(btn, delayMs = 1500) {
@@ -865,8 +867,7 @@ function hideActionFeedback(btn, delayMs = 1500) {
 
   const timer = setTimeout(() => {
     feedback?.classList.remove("is-loading", "is-success", "is-error");
-    const label = wrap.querySelector(".admin-action-label");
-    if (label) label.textContent = "";
+    feedback?.removeAttribute("aria-label");
     actionFeedbackTimers.delete(key);
   }, delayMs);
   actionFeedbackTimers.set(key, timer);
