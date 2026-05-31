@@ -2240,6 +2240,10 @@ body.page-enter {
 
 .admin-move-folder-wrap {
   position: relative;
+}
+
+.admin-move-folder-head {
+  position: relative;
   display: inline-flex;
 }
 

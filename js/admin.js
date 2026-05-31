@@ -737,24 +737,32 @@ function actionButtonHtml(action, projectId, label) {
 
 function moveFolderButtonHtml(projectId) {
   return `
-    <span class="admin-move-folder-wrap">
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm admin-icon-btn admin-move-folder-trigger"
-        data-move-trigger="${escapeAttr(projectId)}"
-        title="Mover a carpeta"
-        aria-label="Mover a carpeta"
-        aria-haspopup="menu"
-        aria-expanded="false"
-      >${ADMIN_ACTION_ICONS.folderMove}</button>
-      <div class="admin-move-folder-menu" hidden role="menu">
-        ${projectFolders
-          .map(
-            (f) =>
-              `<button type="button" class="admin-move-folder-option" role="menuitem" data-move-project="${escapeAttr(projectId)}" data-move-folder="${escapeAttr(f.id)}">${escapeHtml(f.name)}</button>`
-          )
-          .join("")}
-      </div>
+    <span class="admin-action-wrap admin-action-wrap--slot admin-move-folder-wrap" data-action-wrap="move-${escapeAttr(projectId)}">
+      <span class="admin-move-folder-head">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm admin-icon-btn admin-move-folder-trigger"
+          data-move-trigger="${escapeAttr(projectId)}"
+          title="Mover a carpeta"
+          aria-label="Mover a carpeta"
+          aria-haspopup="menu"
+          aria-expanded="false"
+        >${ADMIN_ACTION_ICONS.folderMove}</button>
+        <div class="admin-move-folder-menu" hidden role="menu">
+          ${projectFolders
+            .map(
+              (f) =>
+                `<button type="button" class="admin-move-folder-option" role="menuitem" data-move-project="${escapeAttr(projectId)}" data-move-folder="${escapeAttr(f.id)}">${escapeHtml(f.name)}</button>`
+            )
+            .join("")}
+        </div>
+      </span>
+      <span class="admin-action-feedback admin-action-feedback--slot" role="status" aria-live="polite">
+        <span class="admin-action-progress" aria-hidden="true">
+          <span class="admin-action-progress-fill"></span>
+        </span>
+        <span class="admin-action-label"></span>
+      </span>
     </span>`;
 }
 
@@ -792,8 +800,11 @@ function bindMoveFolderMenus(list) {
       e.stopPropagation();
       const projectId = opt.dataset.moveProject;
       const folderId = opt.dataset.moveFolder;
+      const trigger = opt
+        .closest(".admin-move-folder-wrap")
+        ?.querySelector(".admin-move-folder-trigger");
       closeAllMoveFolderMenus();
-      await moveProjectToFolder(projectId, folderId);
+      await moveProjectToFolder(projectId, folderId, trigger);
     });
   });
 
@@ -1139,17 +1150,41 @@ async function deleteProjectFolder(folderId) {
   }
 }
 
-async function moveProjectToFolder(projectId, folderId) {
+async function moveProjectToFolder(projectId, folderId, triggerBtn) {
+  const btn =
+    triggerBtn ||
+    document.querySelector(`[data-move-trigger="${CSS.escape(projectId)}"]`);
+
   removeProjectFromLayoutState(projectId);
   const folder = projectFolders.find((f) => f.id === folderId);
   if (folder && !folder.projectIds.includes(projectId)) {
     folder.projectIds.push(projectId);
   }
+
+  if (btn) {
+    btn.disabled = true;
+    setActionFeedback(btn, { state: "loading", message: "Moviendo…" });
+  }
+
   try {
     await saveProjectLayout();
+    if (btn) {
+      setActionFeedback(btn, { state: "success", message: "Movido" });
+      hideActionFeedback(btn, 1400);
+    }
     loadProjects();
   } catch (ex) {
-    alert(ex.message || "No se pudo mover el proyecto");
+    if (btn) {
+      setActionFeedback(btn, {
+        state: "error",
+        message: ex.message || "No se pudo mover",
+      });
+      hideActionFeedback(btn, 2800);
+    } else {
+      alert(ex.message || "No se pudo mover el proyecto");
+    }
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
