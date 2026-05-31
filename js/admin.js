@@ -1318,27 +1318,44 @@ function bindProjectListDnD(listEl) {
       return;
     }
 
-    const folderSection = e.target.closest(".admin-folder[data-folder-section]");
-    const folderHead =
-      e.target.closest(".admin-folder-head") ||
-      folderSection?.querySelector(".admin-folder-head");
-    if (folderHead) {
+    const row = e.target.closest(".admin-list-item");
+    if (row) {
+      clearFolderDropTargets(listEl);
+      setDropIndicator(listEl, row, placementFromPointer(row, e.clientY));
+      return;
+    }
+
+    const folderHead = e.target.closest(".admin-folder-head");
+    if (folderHead && !folderHead.classList.contains("admin-folder-head--static")) {
       clearDropIndicators(listEl);
       clearFolderDropTargets(listEl);
       folderHead.classList.add("is-drop-target");
       return;
     }
 
-    const row = e.target.closest(".admin-list-item");
-    clearFolderDropTargets(listEl);
-    if (!row) {
-      const items = [...listEl.querySelectorAll(".admin-list-item")];
+    const folderBody = e.target.closest(".admin-folder-body");
+    if (folderBody) {
+      const items = [...folderBody.querySelectorAll(".admin-list-item")];
       const last = items[items.length - 1];
-      if (last) setDropIndicator(listEl, last, "after");
+      clearFolderDropTargets(listEl);
+      if (last) {
+        setDropIndicator(listEl, last, "after");
+      } else {
+        const head = folderBody
+          .closest(".admin-folder")
+          ?.querySelector(".admin-folder-head:not(.admin-folder-head--static)");
+        if (head) {
+          clearDropIndicators(listEl);
+          head.classList.add("is-drop-target");
+        }
+      }
       return;
     }
 
-    setDropIndicator(listEl, row, placementFromPointer(row, e.clientY));
+    clearFolderDropTargets(listEl);
+    const items = [...listEl.querySelectorAll(".admin-list-item")];
+    const last = items[items.length - 1];
+    if (last) setDropIndicator(listEl, last, "after");
   });
 
   listEl.addEventListener("dragleave", (e) => {
@@ -1363,25 +1380,23 @@ function bindProjectListDnD(listEl) {
       return;
     }
 
-    const folderSection = e.target.closest(".admin-folder[data-folder-section]");
-    const folderHead =
-      e.target.closest(".admin-folder-head") ||
-      folderSection?.querySelector(".admin-folder-head");
-    clearDropIndicators(listEl);
-    clearFolderDropTargets(listEl);
-    if (dragProjectId && folderHead?.dataset.folderId) {
-      await moveProjectToFolder(dragProjectId, folderHead.dataset.folderId);
+    const row = e.target.closest(".admin-list-item");
+    if (dragProjectId && row) {
+      const targetId = row.dataset.projectId;
+      const placement = placementFromPointer(row, e.clientY);
+      if (targetId && dragProjectId !== targetId) {
+        await reorderProjects(dragProjectId, targetId, placement);
+      }
       return;
     }
 
-    const row = e.target.closest(".admin-list-item");
-    if (!dragProjectId || !row) return;
-
-    const targetId = row.dataset.projectId;
-    const placement = placementFromPointer(row, e.clientY);
-    if (!targetId || dragProjectId === targetId) return;
-
-    await reorderProjects(dragProjectId, targetId, placement);
+    if (dragProjectId) {
+      const folderSection = e.target.closest(".admin-folder[data-folder-section]");
+      const folderId = folderSection?.dataset.folderSection;
+      if (folderId) {
+        await moveProjectToFolder(dragProjectId, folderId);
+      }
+    }
   });
 }
 
@@ -1430,14 +1445,16 @@ async function reorderProjects(sourceId, targetId, placement) {
 
   removeProjectFromLayoutState(sourceId);
   const targetLoc = findProjectLocation(targetId);
-  let insertAt = targetLoc ? targetLoc.index : getUngroupedProjectIds().length;
+  if (!targetLoc) return;
+
+  let insertAt = targetLoc.index;
   if (placement === "after") insertAt += 1;
 
-  if (targetLoc?.kind === "folder") {
+  if (targetLoc.kind === "folder") {
     const folder = projectFolders.find((f) => f.id === targetLoc.folderId);
     if (folder) folder.projectIds.splice(insertAt, 0, sourceId);
   } else {
-    const ungrouped = getUngroupedProjectIds().filter((id) => id !== sourceId);
+    const ungrouped = getUngroupedProjectIds();
     ungrouped.splice(insertAt, 0, sourceId);
     projectOrder = deriveFlatProjectOrder(ungrouped);
   }
