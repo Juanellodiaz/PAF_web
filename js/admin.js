@@ -9,8 +9,8 @@ let projectFolders = [];
 let projectSearchQuery = "";
 let dragProjectId = null;
 let dragFolderId = null;
-let adminBusyHideTimer = null;
 let folderDialogResolve = null;
+const actionFeedbackTimers = new Map();
 
 const quickPanel = () => document.getElementById("admin-quick-panel");
 const formBackdrop = () => document.getElementById("form-backdrop");
@@ -707,89 +707,75 @@ async function refreshDashboard() {
   await loadProjects(projects);
 }
 
-function setAdminBusyState(state) {
-  const card = document.getElementById("admin-busy-card");
-  const ring = card?.querySelector(".admin-busy-ring");
-  const check = card?.querySelector(".admin-busy-check");
-  const errIcon = card?.querySelector(".admin-busy-error");
-  if (!card) return;
-
-  card.classList.remove("admin-busy-card--success", "admin-busy-card--error");
-  if (state === "success") card.classList.add("admin-busy-card--success");
-  if (state === "error") card.classList.add("admin-busy-card--error");
-
-  const loading = state === "loading";
-  if (ring) ring.hidden = !loading;
-  if (check) check.hidden = state !== "success";
-  if (errIcon) errIcon.hidden = state !== "error";
+function actionButtonHtml(action, projectId, label) {
+  return `
+    <span class="admin-action-wrap" data-action-wrap="${escapeAttr(action)}-${escapeAttr(projectId)}">
+      <button type="button" class="btn btn-ghost btn-sm" data-${action}="${escapeAttr(projectId)}">${label}</button>
+      <span class="admin-action-feedback" hidden role="status" aria-live="polite">
+        <span class="admin-action-progress" aria-hidden="true">
+          <span class="admin-action-progress-fill"></span>
+        </span>
+        <span class="admin-action-label"></span>
+      </span>
+    </span>`;
 }
 
-function showAdminBusy({ title, detail = "", state = "loading" }) {
-  const overlay = document.getElementById("admin-busy-overlay");
-  const titleEl = document.getElementById("admin-busy-title");
-  const detailEl = document.getElementById("admin-busy-detail");
-  if (!overlay) return;
+function setActionFeedback(btn, { state, message = "" }) {
+  const wrap = btn?.closest(".admin-action-wrap");
+  const feedback = wrap?.querySelector(".admin-action-feedback");
+  const label = wrap?.querySelector(".admin-action-label");
+  if (!wrap || !feedback) return;
 
-  clearTimeout(adminBusyHideTimer);
-  if (titleEl) titleEl.textContent = title;
-  if (detailEl) detailEl.textContent = detail;
-  setAdminBusyState(state);
+  const key = wrap.dataset.actionWrap || "";
+  const existing = actionFeedbackTimers.get(key);
+  if (existing) clearTimeout(existing);
 
-  overlay.hidden = false;
-  overlay.setAttribute("aria-hidden", "false");
-  requestAnimationFrame(() => overlay.classList.add("is-visible"));
+  feedback.hidden = false;
+  feedback.classList.remove("is-loading", "is-success", "is-error");
+  if (state === "loading") feedback.classList.add("is-loading");
+  if (state === "success") feedback.classList.add("is-success");
+  if (state === "error") feedback.classList.add("is-error");
+  if (label) label.textContent = message;
+  wrap.classList.add("has-feedback");
 }
 
-function hideAdminBusy(delayMs = 0) {
-  const overlay = document.getElementById("admin-busy-overlay");
-  if (!overlay) return;
+function hideActionFeedback(btn, delayMs = 1500) {
+  const wrap = btn?.closest(".admin-action-wrap");
+  if (!wrap) return;
+  const key = wrap.dataset.actionWrap || "";
+  const feedback = wrap.querySelector(".admin-action-feedback");
 
-  adminBusyHideTimer = setTimeout(() => {
-    overlay.classList.remove("is-visible");
-    overlay.setAttribute("aria-hidden", "true");
-    setTimeout(() => {
-      overlay.hidden = true;
-      setAdminBusyState("loading");
-    }, 360);
+  const timer = setTimeout(() => {
+    if (feedback) feedback.hidden = true;
+    feedback?.classList.remove("is-loading", "is-success", "is-error");
+    wrap.classList.remove("has-feedback");
+    actionFeedbackTimers.delete(key);
   }, delayMs);
+  actionFeedbackTimers.set(key, timer);
 }
 
 async function duplicateProject(id) {
-  const btn = document.querySelector(`[data-duplicate="${id}"]`);
-  const item = document.querySelector(
-    `.admin-list-item[data-project-id="${CSS.escape(id)}"]`
+  const btn = document.querySelector(
+    `[data-duplicate="${CSS.escape(id)}"]`
   );
-  const project = cachedProjects.find((p) => p.id === id);
-  const name = project?.name || "proyecto";
+  if (btn?.disabled) return;
 
   if (btn) btn.disabled = true;
-  item?.classList.add("is-duplicating");
-
-  showAdminBusy({
-    title: "Duplicando proyecto",
-    detail: `Copiando conceptos, avances y costos de «${name}»…`,
-    state: "loading",
-  });
+  setActionFeedback(btn, { state: "loading", message: "Duplicando…" });
 
   try {
     await api(`/projects/${id}/duplicate`, { method: "POST" });
-    showAdminBusy({
-      title: "Proyecto duplicado",
-      detail: `La copia de «${name}» ya está en la lista.`,
-      state: "success",
-    });
+    setActionFeedback(btn, { state: "success", message: "Duplicado" });
     await refreshDashboard();
-    hideAdminBusy(1500);
+    hideActionFeedback(btn, 1400);
   } catch (ex) {
-    showAdminBusy({
-      title: "No se pudo duplicar",
-      detail: ex.message || "Intenta de nuevo en unos segundos.",
+    setActionFeedback(btn, {
       state: "error",
+      message: ex.message || "No se pudo duplicar",
     });
-    hideAdminBusy(3200);
+    hideActionFeedback(btn, 2800);
   } finally {
     if (btn) btn.disabled = false;
-    item?.classList.remove("is-duplicating");
   }
 }
 
@@ -1118,9 +1104,9 @@ function renderProjectListItem(p, canReorder) {
       <div class="portal-actions admin-list-actions">
         ${projectStatusSelectHtml(p.id, p.status)}
         ${folderOptions}
-        <button type="button" class="btn btn-ghost btn-sm" data-duplicate="${p.id}">Duplicar</button>
+        ${actionButtonHtml("duplicate", p.id, "Duplicar")}
         <button type="button" class="btn btn-ghost btn-sm" data-edit="${p.id}">Editar</button>
-        <button type="button" class="btn btn-ghost btn-sm" data-delete="${p.id}">Eliminar</button>
+        ${actionButtonHtml("delete", p.id, "Eliminar")}
       </div>
     </div>`;
 }
@@ -1660,12 +1646,29 @@ function resetForm() {
 
 async function deleteProject(id) {
   if (!confirm("¿Eliminar este proyecto?")) return;
-  await api(`/projects/${id}`, { method: "DELETE" });
-  if (editingId === id) {
-    resetForm();
-    closeQuickPanel();
+
+  const btn = document.querySelector(`[data-delete="${CSS.escape(id)}"]`);
+  if (btn?.disabled) return;
+
+  if (btn) btn.disabled = true;
+  setActionFeedback(btn, { state: "loading", message: "Eliminando…" });
+
+  try {
+    await api(`/projects/${id}`, { method: "DELETE" });
+    if (editingId === id) {
+      resetForm();
+      closeQuickPanel();
+    }
+    setActionFeedback(btn, { state: "success", message: "Eliminado" });
+    await refreshDashboard();
+  } catch (ex) {
+    setActionFeedback(btn, {
+      state: "error",
+      message: ex.message || "No se pudo eliminar",
+    });
+    hideActionFeedback(btn, 2800);
+    if (btn) btn.disabled = false;
   }
-  await refreshDashboard();
 }
 
 function escapeHtml(s) {
