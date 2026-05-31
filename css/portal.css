@@ -2091,12 +2091,32 @@ body.page-enter {
 
 .admin-folder-chevron {
   flex-shrink: 0;
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 1rem;
-  font-size: 1.1rem;
-  line-height: 1;
-  color: var(--accent);
-  text-align: center;
+  height: 1rem;
+  color: var(--text-dim);
+  transition: transform 0.25s var(--ease), color 0.2s ease;
+}
+
+.admin-folder-chevron::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  transform: translateY(1px);
+}
+
+.admin-folder-toggle-area:hover .admin-folder-chevron,
+.admin-folder-toggle-area:focus-visible .admin-folder-chevron {
+  color: var(--text);
+}
+
+.admin-folder-toggle-area[aria-expanded="false"] .admin-folder-chevron {
+  transform: rotate(-90deg);
 }
 
 .admin-folder-name {

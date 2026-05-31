@@ -1244,7 +1244,6 @@ function renderProjectListItem(p, canReorder) {
 }
 
 function renderFolderHead(folder, count, canReorder) {
-  const chevron = folder.collapsed ? "›" : "⌄";
   const dragHandle = canReorder
     ? `<button type="button" class="admin-folder-drag" draggable="true" data-drag-folder="${escapeAttr(folder.id)}" aria-label="Arrastrar carpeta" title="Arrastrar carpeta">⋮⋮</button>`
     : "";
@@ -1258,7 +1257,7 @@ function renderFolderHead(folder, count, canReorder) {
         aria-expanded="${folder.collapsed ? "false" : "true"}"
         aria-label="${folder.collapsed ? "Expandir" : "Colapsar"} carpeta ${escapeAttr(folder.name)}"
       >
-        <span class="admin-folder-chevron" aria-hidden="true">${chevron}</span>
+        <span class="admin-folder-chevron" aria-hidden="true"></span>
         <span class="admin-folder-name">${escapeHtml(folder.name)}</span>
       </button>
       <div class="admin-folder-meta">
