@@ -256,9 +256,26 @@
     </div>
   </main>
 
+  <div class="admin-busy-overlay" id="admin-busy-overlay" hidden aria-hidden="true">
+    <div class="admin-busy-card" id="admin-busy-card" role="status" aria-live="polite">
+      <div class="admin-busy-icon" id="admin-busy-icon" aria-hidden="true">
+        <div class="admin-busy-ring"></div>
+        <svg class="admin-busy-check" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" hidden>
+          <path d="M5 12l5 5 9-9"/>
+        </svg>
+        <svg class="admin-busy-error" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" hidden>
+          <path d="M12 8v5M12 16h.01"/>
+          <circle cx="12" cy="12" r="9"/>
+        </svg>
+      </div>
+      <p class="admin-busy-title" id="admin-busy-title">Duplicando proyecto</p>
+      <p class="admin-busy-detail" id="admin-busy-detail"></p>
+    </div>
+  </div>
+
   <script src="js/portal.js"></script>
   <script src="js/indirect-costs.js"></script>
   <script src="js/project-estimations.js"></script>
-  <script src="js/admin.js?v=41"></script>
+  <script src="js/admin.js?v=42"></script>
 </body>
 </html>

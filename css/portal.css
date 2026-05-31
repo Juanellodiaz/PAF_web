@@ -932,6 +932,168 @@ body.page-enter {
   min-height: 1.2em;
 }
 
+/* Admin — feedback de operaciones largas (duplicar, etc.) */
+.admin-busy-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(8, 8, 8, 0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.35s var(--ease), visibility 0.35s var(--ease);
+}
+
+.admin-busy-overlay.is-visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.admin-busy-card {
+  width: min(22rem, 100%);
+  padding: 2rem 1.75rem;
+  text-align: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+  transform: translateY(8px) scale(0.98);
+  opacity: 0;
+  transition:
+    transform 0.4s var(--ease),
+    opacity 0.4s var(--ease),
+    border-color 0.3s ease;
+}
+
+.admin-busy-overlay.is-visible .admin-busy-card {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+.admin-busy-card--success {
+  border-color: rgba(200, 191, 176, 0.35);
+}
+
+.admin-busy-card--error {
+  border-color: rgba(220, 120, 100, 0.35);
+}
+
+.admin-busy-icon {
+  position: relative;
+  width: 3.25rem;
+  height: 3.25rem;
+  margin: 0 auto 1.25rem;
+}
+
+.admin-busy-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-top-color: var(--accent);
+  animation: adminBusySpin 0.85s linear infinite;
+}
+
+.admin-busy-card--success .admin-busy-ring,
+.admin-busy-card--error .admin-busy-ring {
+  opacity: 0;
+  animation: none;
+}
+
+.admin-busy-check,
+.admin-busy-error {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  color: var(--accent);
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.3s var(--ease), transform 0.35s var(--ease);
+}
+
+.admin-busy-card--success .admin-busy-check:not([hidden]),
+.admin-busy-card--error .admin-busy-error:not([hidden]) {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.admin-busy-card--error .admin-busy-error {
+  color: #d4a090;
+}
+
+.admin-busy-title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+
+.admin-busy-detail {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+  max-width: 18rem;
+  margin: 0 auto;
+}
+
+.admin-list-item.is-duplicating {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.admin-list-item.is-duplicating::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    rgba(200, 191, 176, 0.07) 45%,
+    transparent 90%
+  );
+  animation: adminDupShimmer 1.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes adminBusySpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes adminDupShimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-busy-ring {
+    animation: none;
+    border-top-color: var(--accent);
+    opacity: 0.85;
+  }
+
+  .admin-busy-card,
+  .admin-busy-overlay {
+    transition: none;
+  }
+
+  .admin-list-item.is-duplicating::after {
+    animation: none;
+    background: rgba(200, 191, 176, 0.05);
+  }
+}
+
 .admin-form-backdrop {
   position: fixed;
   inset: 0;

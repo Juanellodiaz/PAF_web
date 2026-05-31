@@ -7,6 +7,7 @@ let advanceProjectCache = null;
 let projectOrder = [];
 let projectSearchQuery = "";
 let dragProjectId = null;
+let adminBusyHideTimer = null;
 
 const quickPanel = () => document.getElementById("admin-quick-panel");
 const formBackdrop = () => document.getElementById("form-backdrop");
@@ -686,16 +687,89 @@ async function refreshDashboard() {
   await loadProjects(projects);
 }
 
+function setAdminBusyState(state) {
+  const card = document.getElementById("admin-busy-card");
+  const ring = card?.querySelector(".admin-busy-ring");
+  const check = card?.querySelector(".admin-busy-check");
+  const errIcon = card?.querySelector(".admin-busy-error");
+  if (!card) return;
+
+  card.classList.remove("admin-busy-card--success", "admin-busy-card--error");
+  if (state === "success") card.classList.add("admin-busy-card--success");
+  if (state === "error") card.classList.add("admin-busy-card--error");
+
+  const loading = state === "loading";
+  if (ring) ring.hidden = !loading;
+  if (check) check.hidden = state !== "success";
+  if (errIcon) errIcon.hidden = state !== "error";
+}
+
+function showAdminBusy({ title, detail = "", state = "loading" }) {
+  const overlay = document.getElementById("admin-busy-overlay");
+  const titleEl = document.getElementById("admin-busy-title");
+  const detailEl = document.getElementById("admin-busy-detail");
+  if (!overlay) return;
+
+  clearTimeout(adminBusyHideTimer);
+  if (titleEl) titleEl.textContent = title;
+  if (detailEl) detailEl.textContent = detail;
+  setAdminBusyState(state);
+
+  overlay.hidden = false;
+  overlay.setAttribute("aria-hidden", "false");
+  requestAnimationFrame(() => overlay.classList.add("is-visible"));
+}
+
+function hideAdminBusy(delayMs = 0) {
+  const overlay = document.getElementById("admin-busy-overlay");
+  if (!overlay) return;
+
+  adminBusyHideTimer = setTimeout(() => {
+    overlay.classList.remove("is-visible");
+    overlay.setAttribute("aria-hidden", "true");
+    setTimeout(() => {
+      overlay.hidden = true;
+      setAdminBusyState("loading");
+    }, 360);
+  }, delayMs);
+}
+
 async function duplicateProject(id) {
   const btn = document.querySelector(`[data-duplicate="${id}"]`);
+  const item = document.querySelector(
+    `.admin-list-item[data-project-id="${CSS.escape(id)}"]`
+  );
+  const project = cachedProjects.find((p) => p.id === id);
+  const name = project?.name || "proyecto";
+
   if (btn) btn.disabled = true;
+  item?.classList.add("is-duplicating");
+
+  showAdminBusy({
+    title: "Duplicando proyecto",
+    detail: `Copiando conceptos, avances y costos de «${name}»…`,
+    state: "loading",
+  });
+
   try {
     await api(`/projects/${id}/duplicate`, { method: "POST" });
+    showAdminBusy({
+      title: "Proyecto duplicado",
+      detail: `La copia de «${name}» ya está en la lista.`,
+      state: "success",
+    });
     await refreshDashboard();
+    hideAdminBusy(1500);
   } catch (ex) {
-    alert(ex.message || "No se pudo duplicar el proyecto");
+    showAdminBusy({
+      title: "No se pudo duplicar",
+      detail: ex.message || "Intenta de nuevo en unos segundos.",
+      state: "error",
+    });
+    hideAdminBusy(3200);
   } finally {
     if (btn) btn.disabled = false;
+    item?.classList.remove("is-duplicating");
   }
 }
 
