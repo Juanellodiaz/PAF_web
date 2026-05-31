@@ -11,6 +11,14 @@ let dragProjectId = null;
 let dragFolderId = null;
 let folderDialogResolve = null;
 const actionFeedbackTimers = new Map();
+let moveFolderDocBound = false;
+
+const ADMIN_ACTION_ICONS = {
+  folderMove: `<svg class="admin-action-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 8h6l2 2h8a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z"/><path d="M12 11v5"/><path d="M9.5 13.5 12 16l2.5-2.5"/></svg>`,
+  duplicate: `<svg class="admin-action-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="1"/><path d="M4 4h12v12"/></svg>`,
+  edit: `<svg class="admin-action-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>`,
+  delete: `<svg class="admin-action-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M7 7l1 12h8l1-12"/></svg>`,
+};
 
 const quickPanel = () => document.getElementById("admin-quick-panel");
 const formBackdrop = () => document.getElementById("form-backdrop");
@@ -709,10 +717,16 @@ async function refreshDashboard() {
 }
 
 function actionButtonHtml(action, projectId, label) {
+  const icon = ADMIN_ACTION_ICONS[action] || "";
+  const editClass = action === "edit" ? " admin-action-wrap--edit" : "";
+  const feedbackA11y =
+    action === "edit"
+      ? ' role="presentation" aria-hidden="true"'
+      : ' role="status" aria-live="polite"';
   return `
-    <span class="admin-action-wrap" data-action-wrap="${escapeAttr(action)}-${escapeAttr(projectId)}">
-      <button type="button" class="btn btn-ghost btn-sm" data-${action}="${escapeAttr(projectId)}">${label}</button>
-      <span class="admin-action-feedback" hidden role="status" aria-live="polite">
+    <span class="admin-action-wrap admin-action-wrap--slot${editClass}" data-action-wrap="${escapeAttr(action)}-${escapeAttr(projectId)}">
+      <button type="button" class="btn btn-ghost btn-sm admin-icon-btn" data-${action}="${escapeAttr(projectId)}" title="${escapeAttr(label)}" aria-label="${escapeAttr(label)}">${icon}</button>
+      <span class="admin-action-feedback admin-action-feedback--slot"${feedbackA11y}>
         <span class="admin-action-progress" aria-hidden="true">
           <span class="admin-action-progress-fill"></span>
         </span>
@@ -721,17 +735,75 @@ function actionButtonHtml(action, projectId, label) {
     </span>`;
 }
 
-function editActionButtonHtml(projectId) {
+function moveFolderButtonHtml(projectId) {
   return `
-    <span class="admin-action-wrap admin-action-wrap--edit" data-action-wrap="edit-${escapeAttr(projectId)}">
-      <button type="button" class="btn btn-ghost btn-sm" data-edit="${escapeAttr(projectId)}">Editar</button>
-      <span class="admin-action-feedback admin-action-feedback--slot" role="presentation" aria-hidden="true">
-        <span class="admin-action-progress">
-          <span class="admin-action-progress-fill"></span>
-        </span>
-        <span class="admin-action-label"></span>
-      </span>
+    <span class="admin-move-folder-wrap">
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm admin-icon-btn admin-move-folder-trigger"
+        data-move-trigger="${escapeAttr(projectId)}"
+        title="Mover a carpeta"
+        aria-label="Mover a carpeta"
+        aria-haspopup="menu"
+        aria-expanded="false"
+      >${ADMIN_ACTION_ICONS.folderMove}</button>
+      <div class="admin-move-folder-menu" hidden role="menu">
+        ${projectFolders
+          .map(
+            (f) =>
+              `<button type="button" class="admin-move-folder-option" role="menuitem" data-move-project="${escapeAttr(projectId)}" data-move-folder="${escapeAttr(f.id)}">${escapeHtml(f.name)}</button>`
+          )
+          .join("")}
+      </div>
     </span>`;
+}
+
+function closeAllMoveFolderMenus() {
+  document.querySelectorAll(".admin-move-folder-wrap").forEach((wrap) => {
+    const menu = wrap.querySelector(".admin-move-folder-menu");
+    const btn = wrap.querySelector(".admin-move-folder-trigger");
+    if (menu) menu.hidden = true;
+    if (btn) {
+      btn.setAttribute("aria-expanded", "false");
+      btn.classList.remove("is-active");
+    }
+  });
+}
+
+function bindMoveFolderMenus(list) {
+  list.querySelectorAll(".admin-move-folder-trigger").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const wrap = btn.closest(".admin-move-folder-wrap");
+      const menu = wrap?.querySelector(".admin-move-folder-menu");
+      if (!menu) return;
+      const wasOpen = !menu.hidden;
+      closeAllMoveFolderMenus();
+      if (!wasOpen) {
+        menu.hidden = false;
+        btn.setAttribute("aria-expanded", "true");
+        btn.classList.add("is-active");
+      }
+    });
+  });
+
+  list.querySelectorAll(".admin-move-folder-option").forEach((opt) => {
+    opt.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const projectId = opt.dataset.moveProject;
+      const folderId = opt.dataset.moveFolder;
+      closeAllMoveFolderMenus();
+      await moveProjectToFolder(projectId, folderId);
+    });
+  });
+
+  if (!moveFolderDocBound) {
+    moveFolderDocBound = true;
+    document.addEventListener("click", closeAllMoveFolderMenus);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeAllMoveFolderMenus();
+    });
+  }
 }
 
 function setEditHighlight(projectId) {
@@ -763,35 +835,27 @@ function setActionFeedback(btn, { state, message = "" }) {
   const label = wrap?.querySelector(".admin-action-label");
   if (!wrap || !feedback) return;
 
-  const isEditSlot = wrap.classList.contains("admin-action-wrap--edit");
   const key = wrap.dataset.actionWrap || "";
   const existing = actionFeedbackTimers.get(key);
   if (existing) clearTimeout(existing);
 
-  if (!isEditSlot) feedback.hidden = false;
   feedback.classList.remove("is-loading", "is-success", "is-error", "is-active");
   if (state === "loading") feedback.classList.add("is-loading");
   if (state === "success") feedback.classList.add("is-success");
   if (state === "error") feedback.classList.add("is-error");
   if (label) label.textContent = message;
-  if (!isEditSlot) wrap.classList.add("has-feedback");
 }
 
 function hideActionFeedback(btn, delayMs = 1500) {
   const wrap = btn?.closest(".admin-action-wrap");
   if (!wrap) return;
-  const isEditSlot = wrap.classList.contains("admin-action-wrap--edit");
   const key = wrap.dataset.actionWrap || "";
   const feedback = wrap.querySelector(".admin-action-feedback");
 
   const timer = setTimeout(() => {
-    if (!isEditSlot && feedback) feedback.hidden = true;
     feedback?.classList.remove("is-loading", "is-success", "is-error");
-    if (!isEditSlot) wrap.classList.remove("has-feedback");
-    else {
-      const label = wrap.querySelector(".admin-action-label");
-      if (label) label.textContent = "";
-    }
+    const label = wrap.querySelector(".admin-action-label");
+    if (label) label.textContent = "";
     actionFeedbackTimers.delete(key);
   }, delayMs);
   actionFeedbackTimers.set(key, timer);
@@ -1119,19 +1183,7 @@ function renderProjectListItem(p, canReorder) {
     : "";
   const projectUrl = `/project.html?id=${encodeURIComponent(p.id)}`;
   const folderOptions =
-    canReorder && usesFolderLayout()
-      ? `<span class="admin-move-folder-wrap">
-          <select class="admin-move-folder-select btn btn-ghost btn-sm" data-move-project="${escapeAttr(p.id)}" aria-label="Mover a carpeta" title="Mover a carpeta">
-            <option value="">Mover a…</option>
-            ${projectFolders
-              .map(
-                (f) =>
-                  `<option value="${escapeAttr(f.id)}">${escapeHtml(f.name)}</option>`
-              )
-              .join("")}
-          </select>
-        </span>`
-      : "";
+    canReorder && usesFolderLayout() ? moveFolderButtonHtml(p.id) : "";
   return `
     <div class="admin-list-item" data-project-id="${escapeAttr(p.id)}">
       ${dragHandle}
@@ -1147,9 +1199,11 @@ function renderProjectListItem(p, canReorder) {
       <div class="portal-actions admin-list-actions">
         ${projectStatusSelectHtml(p.id, p.status)}
         ${folderOptions}
-        ${actionButtonHtml("duplicate", p.id, "Duplicar")}
-        ${editActionButtonHtml(p.id)}
-        ${actionButtonHtml("delete", p.id, "Eliminar")}
+        <div class="admin-action-group">
+          ${actionButtonHtml("duplicate", p.id, "Duplicar")}
+          ${actionButtonHtml("edit", p.id, "Editar")}
+          ${actionButtonHtml("delete", p.id, "Eliminar")}
+        </div>
       </div>
     </div>`;
 }
@@ -1211,15 +1265,7 @@ function bindProjectListActions(list) {
   list.querySelectorAll(".admin-folder-drag").forEach((btn) => {
     btn.addEventListener("click", (e) => e.stopPropagation());
   });
-  list.querySelectorAll(".admin-move-folder-select").forEach((sel) => {
-    sel.addEventListener("change", async () => {
-      const folderId = sel.value;
-      if (!folderId) return;
-      const projectId = sel.dataset.moveProject;
-      sel.value = "";
-      await moveProjectToFolder(projectId, folderId);
-    });
-  });
+  bindMoveFolderMenus(list);
 }
 
 function updateProjectSearchMeta(shown, total) {
