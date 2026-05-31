@@ -122,13 +122,19 @@ function calcProjectProgress(concepts) {
   };
 }
 
+function roundM2(n) {
+  return Math.round(Number(n) * 100) / 100;
+}
+
 function projectProgress(p) {
   const calc = calcProjectProgress(p.concepts || []);
   return {
     percent:
       typeof p.progressPercent === "number" ? p.progressPercent : calc.percent,
     doneM2:
-      typeof p.progressDoneM2 === "number" ? p.progressDoneM2 : calc.doneM2,
+      typeof p.progressDoneM2 === "number"
+        ? roundM2(p.progressDoneM2)
+        : calc.doneM2,
     totalM2: calc.totalM2,
   };
 }

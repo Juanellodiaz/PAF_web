@@ -190,8 +190,8 @@ function computeAdminDashboardSummary(projects) {
     completedFlujo,
     completedIntercambio,
     activeProgressPercent,
-    activeDoneM2: doneM2,
-    activeTotalM2: totalM2,
+    activeDoneM2: Math.round(doneM2 * 100) / 100,
+    activeTotalM2: Math.round(totalM2 * 100) / 100,
     portfolioIndirect,
     portfolioIndirectPercent,
   };
@@ -219,7 +219,7 @@ function projectStatusSelectHtml(projectId, currentStatus) {
 function adminSummaryHtml(summary) {
   const m2Note =
     summary.activeTotalM2 > 0
-      ? `${summary.activeDoneM2} / ${summary.activeTotalM2} m²`
+      ? `${formatM2(summary.activeDoneM2)} / ${formatM2(summary.activeTotalM2)} m²`
       : "Sin metros registrados";
 
   return `
