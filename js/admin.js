@@ -1145,7 +1145,7 @@ function renderFolderHead(folder, count, canReorder) {
       </button>
       <div class="admin-folder-meta">
         <span class="admin-folder-count">${count} proyecto${count === 1 ? "" : "s"}</span>
-        <button type="button" class="admin-folder-rename btn btn-ghost btn-sm" data-rename-folder="${escapeAttr(folder.id)}">Renombrar</button>
+        <button type="button" class="admin-folder-rename btn btn-ghost btn-sm" data-rename-folder="${escapeAttr(folder.id)}">Rename</button>
         <button type="button" class="admin-folder-delete btn btn-ghost btn-sm" data-delete-folder="${escapeAttr(folder.id)}" aria-label="Eliminar carpeta ${escapeAttr(folder.name)}" title="Eliminar carpeta">×</button>
       </div>
     </div>`;
