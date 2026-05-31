@@ -25,13 +25,22 @@ function scrubConceptsEstimationIds(concepts, removedIds) {
   return { concepts: next, changed };
 }
 
+function estimationsFingerprint(estimations) {
+  return JSON.stringify(
+    (estimations || []).map((e) => normalizeEstimation(e)).sort((a, b) =>
+      a.id.localeCompare(b.id)
+    )
+  );
+}
+
 async function bootstrapGlobalEstimations(
   loadGlobal,
   saveGlobal,
   listAllProjectsForBootstrap,
   saveProjectForScrub
 ) {
-  let global = await loadGlobal();
+  const previous = await loadGlobal();
+  let global = previous;
 
   if (!listAllProjectsForBootstrap) return global;
 
@@ -82,8 +91,14 @@ async function bootstrapGlobalEstimations(
     }
   }
 
-  if (global.length) await saveGlobal(global);
+  if (estimationsFingerprint(global) !== estimationsFingerprint(previous)) {
+    await saveGlobal(global);
+  }
   return global;
+}
+
+function attachGlobalEstimations(projects, global) {
+  return (projects || []).map((p) => ({ ...p, estimations: global }));
 }
 
 async function enrichProjectWithGlobalEstimations(
@@ -151,6 +166,7 @@ async function persistGlobalEstimationsFromProject(
 
 module.exports = {
   bootstrapGlobalEstimations,
+  attachGlobalEstimations,
   enrichProjectWithGlobalEstimations,
   persistGlobalEstimationsFromProject,
   scrubConceptsEstimationIds,

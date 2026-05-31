@@ -8,6 +8,7 @@ const {
   enrichProjectWithGlobalEstimations,
   persistGlobalEstimationsFromProject,
   bootstrapGlobalEstimations,
+  attachGlobalEstimations,
 } = require("./estimation-store");
 const {
   normalizeSettings,
@@ -88,18 +89,14 @@ async function listProjectsForUser(user) {
     user.role === "admin"
       ? db.projects
       : db.projects.filter((p) => p.clientId === user.id);
-  const enriched = [];
-  for (const p of list) {
-    enriched.push(
-      await enrichProjectWithGlobalEstimations(
-        applyMetaToProject(p),
-        () => Promise.resolve(readDb().globalEstimations || []),
-        saveGlobalEstimations,
-        listAllProjectsForBootstrap,
-        saveProjectStoredBody
-      )
-    );
-  }
+  const mapped = list.map((p) => applyMetaToProject(p));
+  const global = await bootstrapGlobalEstimations(
+    readGlobalEstimationsRaw,
+    saveGlobalEstimations,
+    listAllProjectsForBootstrap,
+    saveProjectStoredBody
+  );
+  const enriched = attachGlobalEstimations(mapped, global);
   if (user.role === "admin") {
     const settings = await loadAdminSettings();
     return sortProjectsByOrder(enriched, settings.projectOrder);

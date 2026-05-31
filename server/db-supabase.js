@@ -22,6 +22,7 @@ const {
   enrichProjectWithGlobalEstimations,
   persistGlobalEstimationsFromProject,
   bootstrapGlobalEstimations,
+  attachGlobalEstimations,
 } = require("./estimation-store");
 
 let client;
@@ -320,18 +321,13 @@ async function listProjectsForUser(user) {
   const mapped = (data || [])
     .filter((row) => row.id !== GLOBAL_PROJECT_ID)
     .map(mapProject);
-  const enriched = [];
-  for (const p of mapped) {
-    enriched.push(
-      await enrichProjectWithGlobalEstimations(
-        p,
-        readGlobalEstimationsRaw,
-        saveGlobalEstimations,
-        listAllProjectsForBootstrap,
-        saveProjectStoredBody
-      )
-    );
-  }
+  const global = await bootstrapGlobalEstimations(
+    readGlobalEstimationsRaw,
+    saveGlobalEstimations,
+    listAllProjectsForBootstrap,
+    saveProjectStoredBody
+  );
+  const enriched = attachGlobalEstimations(mapped, global);
   if (user.role === "admin") {
     const settings = await loadAdminSettings();
     return sortProjectsByOrder(enriched, settings.projectOrder);

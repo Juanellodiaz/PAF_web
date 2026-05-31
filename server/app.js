@@ -351,7 +351,7 @@ app.post(
 app.get("/api/estimations/breakdowns", requireAuth, async (req, res) => {
   try {
     const projects = await db.listProjectsForUser(req.user);
-    const estimations = await db.loadGlobalEstimations();
+    const estimations = projects[0]?.estimations || [];
     const breakdowns = buildAllEstimationBreakdowns(estimations, projects);
     res.json({ estimations, breakdowns, projects });
   } catch (err) {

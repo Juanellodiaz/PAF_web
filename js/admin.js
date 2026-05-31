@@ -56,12 +56,10 @@ function syncProjectFormCompletionUi() {
   }
 }
 
-async function loadGlobalEstimations() {
-  try {
-    const { estimations } = await api("/estimations/breakdowns");
-    cachedGlobalEstimations = estimations || [];
-  } catch {
-    cachedGlobalEstimations = [];
+function syncGlobalEstimationsFromProjects(projects) {
+  const list = projects || [];
+  if (list[0]?.estimations?.length) {
+    cachedGlobalEstimations = list[0].estimations;
   }
 }
 
@@ -636,7 +634,15 @@ async function onSubmitQuickAdvance(e) {
   document.getElementById("user-greeting").textContent = `${user.name} — Administrador`;
   document.getElementById("logout-btn").addEventListener("click", logout);
 
-  const { users } = await api("/users");
+  bindQuickPanel();
+  bindProjectSearch();
+
+  const [{ users }, { settings: settingsRes }, { projects }] = await Promise.all([
+    api("/users"),
+    api("/admin/settings"),
+    api("/projects"),
+  ]);
+
   clients = users;
   document.getElementById("clientId").innerHTML =
     '<option value="">— Seleccionar —</option>' +
@@ -647,12 +653,9 @@ async function onSubmitQuickAdvance(e) {
       )
       .join("");
 
-  bindQuickPanel();
-  bindProjectSearch();
-  await loadGlobalEstimations();
-  await loadAdminSettings();
-  const { projects } = await api("/projects");
+  projectOrder = settingsRes?.settings?.projectOrder || [];
   cachedProjects = projects;
+  syncGlobalEstimationsFromProjects(projects);
   if (!projectOrder.length) {
     projectOrder = projects.map((p) => p.id);
   }
@@ -668,14 +671,17 @@ async function onSubmitQuickAdvance(e) {
 })();
 
 async function refreshDashboard() {
-  await loadAdminSettings();
-  const { projects } = await api("/projects");
+  const [{ settings: settingsRes }, { projects }] = await Promise.all([
+    api("/admin/settings"),
+    api("/projects"),
+  ]);
+  projectOrder = settingsRes?.settings?.projectOrder || projectOrder;
   cachedProjects = projects;
+  syncGlobalEstimationsFromProjects(projects);
   if (!projectOrder.length) {
     projectOrder = projects.map((p) => p.id);
   }
   fillProjectSelects();
-  await loadGlobalEstimations();
   renderAdminMetrics(projects);
   await loadProjects(projects);
 }
