@@ -754,17 +754,27 @@ body.page-enter {
 
 .admin-status-field {
   position: relative;
-  display: block;
+  display: inline-flex;
+  flex-direction: column;
   box-sizing: border-box;
-  min-width: 6.75rem;
+  width: fit-content;
   max-width: 9.5rem;
   height: calc(2.35rem + 0.35rem + 2px);
-  padding: 0 1.1rem 0 0;
+}
+
+.admin-status-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  height: 2.35rem;
+  max-width: 100%;
 }
 
 .admin-status-select {
   display: block;
-  width: 100%;
+  width: auto;
+  min-width: 0;
+  max-width: calc(100% - 0.85rem);
   height: 2.35rem;
   padding: 0;
   margin: 0;
@@ -781,20 +791,16 @@ body.page-enter {
   cursor: pointer;
   line-height: 2.35rem;
   transition: color 0.2s ease;
+  field-sizing: content;
 }
 
-.admin-status-field::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  top: calc(2.35rem / 2);
+.admin-status-chevron {
+  flex-shrink: 0;
   width: 0;
   height: 0;
   border-left: 4px solid transparent;
   border-right: 4px solid transparent;
   border-top: 5px solid var(--text-dim);
-  transform: translateY(-50%);
-  pointer-events: none;
   transition: border-top-color 0.2s ease;
 }
 
@@ -817,8 +823,8 @@ body.page-enter {
   animation: adminActionIndeterminate 1.15s ease-in-out infinite;
 }
 
-.admin-status-wrap:hover .admin-status-field::after,
-.admin-status-field:has(.admin-status-select:focus-visible)::after {
+.admin-status-wrap:hover .admin-status-chevron,
+.admin-status-control:has(.admin-status-select:focus-visible) .admin-status-chevron {
   border-top-color: var(--text);
 }
 
@@ -2530,12 +2536,17 @@ body.page-enter {
   }
 
   .admin-status-field {
-    min-width: 0;
     max-width: none;
+  }
+
+  .admin-status-control {
+    width: 100%;
+    justify-content: center;
   }
 
   .admin-status-select {
     text-align: center;
+    max-width: calc(100% - 1rem);
   }
 
   .project-card-layout {

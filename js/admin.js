@@ -227,7 +227,10 @@ function projectStatusSelectHtml(projectId, currentStatus) {
   ).join("");
   return `<span class="admin-status-wrap">
     <span class="admin-status-field">
-      <select class="admin-status-select" data-status-for="${escapeHtml(projectId)}" data-last-status="${status}" aria-label="Estado del proyecto">${options}</select>
+      <span class="admin-status-control">
+        <select class="admin-status-select" data-status-for="${escapeHtml(projectId)}" data-last-status="${status}" aria-label="Estado del proyecto">${options}</select>
+        <span class="admin-status-chevron" aria-hidden="true"></span>
+      </span>
       <span class="admin-action-progress admin-status-edge" aria-hidden="true">
         <span class="admin-action-progress-fill"></span>
       </span>
