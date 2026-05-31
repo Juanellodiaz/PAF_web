@@ -5,8 +5,10 @@ let cachedGlobalEstimations = [];
 let quickPanelMode = "project";
 let advanceProjectCache = null;
 let projectOrder = [];
+let projectFolders = [];
 let projectSearchQuery = "";
 let dragProjectId = null;
+let dragFolderId = null;
 let adminBusyHideTimer = null;
 
 const quickPanel = () => document.getElementById("admin-quick-panel");
@@ -654,7 +656,15 @@ async function onSubmitQuickAdvance(e) {
       )
       .join("");
 
-  projectOrder = settingsRes?.settings?.projectOrder || [];
+  projectOrder = settingsRes?.projectOrder || [];
+  projectFolders = Array.isArray(settingsRes?.projectFolders)
+    ? settingsRes.projectFolders.map((f) => ({
+        id: f.id,
+        name: f.name,
+        collapsed: !!f.collapsed,
+        projectIds: [...(f.projectIds || [])],
+      }))
+    : [];
   cachedProjects = projects;
   syncGlobalEstimationsFromProjects(projects);
   if (!projectOrder.length) {
@@ -676,7 +686,15 @@ async function refreshDashboard() {
     api("/admin/settings"),
     api("/projects"),
   ]);
-  projectOrder = settingsRes?.settings?.projectOrder || projectOrder;
+  projectOrder = settingsRes?.projectOrder || projectOrder;
+  projectFolders = Array.isArray(settingsRes?.projectFolders)
+    ? settingsRes.projectFolders.map((f) => ({
+        id: f.id,
+        name: f.name,
+        collapsed: !!f.collapsed,
+        projectIds: [...(f.projectIds || [])],
+      }))
+    : projectFolders;
   cachedProjects = projects;
   syncGlobalEstimationsFromProjects(projects);
   if (!projectOrder.length) {
@@ -773,6 +791,40 @@ async function duplicateProject(id) {
   }
 }
 
+function usesFolderLayout() {
+  return projectFolders.length > 0;
+}
+
+function getUngroupedProjectIds() {
+  const inFolder = new Set(projectFolders.flatMap((f) => f.projectIds));
+  return projectOrder.filter((id) => !inFolder.has(id));
+}
+
+function deriveFlatProjectOrder(ungroupedIds) {
+  return [...projectFolders.flatMap((f) => f.projectIds), ...ungroupedIds];
+}
+
+function findProjectLocation(projectId) {
+  for (const folder of projectFolders) {
+    const index = folder.projectIds.indexOf(projectId);
+    if (index >= 0) return { kind: "folder", folderId: folder.id, index };
+  }
+  const ungrouped = getUngroupedProjectIds();
+  const index = ungrouped.indexOf(projectId);
+  if (index >= 0) return { kind: "ungrouped", index };
+  return null;
+}
+
+function removeProjectFromLayoutState(projectId) {
+  for (const folder of projectFolders) {
+    folder.projectIds = folder.projectIds.filter((id) => id !== projectId);
+  }
+}
+
+function syncProjectOrderFromLayout() {
+  projectOrder = deriveFlatProjectOrder(getUngroupedProjectIds());
+}
+
 function sortProjectsByOrder(projects, order) {
   const list = projects || [];
   const ids = Array.isArray(order) ? order : [];
@@ -816,18 +868,238 @@ async function loadAdminSettings() {
   try {
     const { settings } = await api("/admin/settings");
     projectOrder = settings?.projectOrder || [];
+    projectFolders = Array.isArray(settings?.projectFolders)
+      ? settings.projectFolders.map((f) => ({
+          id: f.id,
+          name: f.name,
+          collapsed: !!f.collapsed,
+          projectIds: [...(f.projectIds || [])],
+        }))
+      : [];
   } catch {
     projectOrder = [];
+    projectFolders = [];
   }
 }
 
-async function saveProjectOrder(ids) {
+async function saveProjectLayout() {
+  syncProjectOrderFromLayout();
   const { settings } = await api("/admin/settings", {
     method: "PUT",
-    body: JSON.stringify({ projectOrder: ids }),
+    body: JSON.stringify({
+      projectFolders,
+      projectOrder,
+    }),
   });
-  projectOrder = settings?.projectOrder || ids;
+  projectOrder = settings?.projectOrder || projectOrder;
+  projectFolders = Array.isArray(settings?.projectFolders)
+    ? settings.projectFolders.map((f) => ({
+        id: f.id,
+        name: f.name,
+        collapsed: !!f.collapsed,
+        projectIds: [...(f.projectIds || [])],
+      }))
+    : projectFolders;
   cachedProjects = sortProjectsByOrder(cachedProjects, projectOrder);
+}
+
+async function saveProjectOrder(ids) {
+  projectOrder = ids;
+  await saveProjectLayout();
+}
+
+async function createProjectFolder() {
+  const name = prompt("Nombre de la carpeta", "Nueva carpeta");
+  if (name === null) return;
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  projectFolders.push({
+    id: newQuickId("folder"),
+    name: trimmed,
+    collapsed: false,
+    projectIds: [],
+  });
+  try {
+    await saveProjectLayout();
+    loadProjects();
+  } catch (ex) {
+    alert(ex.message || "No se pudo crear la carpeta");
+  }
+}
+
+async function renameProjectFolder(folderId) {
+  const folder = projectFolders.find((f) => f.id === folderId);
+  if (!folder) return;
+  const name = prompt("Renombrar carpeta", folder.name);
+  if (name === null) return;
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  folder.name = trimmed;
+  try {
+    await saveProjectLayout();
+    loadProjects();
+  } catch (ex) {
+    alert(ex.message || "No se pudo renombrar la carpeta");
+  }
+}
+
+async function toggleProjectFolder(folderId) {
+  const folder = projectFolders.find((f) => f.id === folderId);
+  if (!folder) return;
+  folder.collapsed = !folder.collapsed;
+  try {
+    await saveProjectLayout();
+    loadProjects();
+  } catch (ex) {
+    alert(ex.message || "No se pudo actualizar la carpeta");
+  }
+}
+
+async function deleteProjectFolder(folderId) {
+  const folder = projectFolders.find((f) => f.id === folderId);
+  if (!folder) return;
+  const ok = confirm(
+    `¿Eliminar la carpeta «${folder.name}»?\nLos proyectos permanecerán en la lista, sin carpeta.`
+  );
+  if (!ok) return;
+  projectFolders = projectFolders.filter((f) => f.id !== folderId);
+  try {
+    await saveProjectLayout();
+    loadProjects();
+  } catch (ex) {
+    alert(ex.message || "No se pudo eliminar la carpeta");
+  }
+}
+
+async function moveProjectToFolder(projectId, folderId) {
+  removeProjectFromLayoutState(projectId);
+  const folder = projectFolders.find((f) => f.id === folderId);
+  if (folder && !folder.projectIds.includes(projectId)) {
+    folder.projectIds.push(projectId);
+  }
+  try {
+    await saveProjectLayout();
+    loadProjects();
+  } catch (ex) {
+    alert(ex.message || "No se pudo mover el proyecto");
+  }
+}
+
+function buildFolderSections(projects) {
+  const byId = new Map(projects.map((p) => [p.id, p]));
+  const sections = [];
+
+  for (const folder of projectFolders) {
+    const items = folder.projectIds
+      .map((id) => byId.get(id))
+      .filter(Boolean);
+    sections.push({ type: "folder", folder, projects: items });
+  }
+
+  const ungrouped = getUngroupedProjectIds()
+    .map((id) => byId.get(id))
+    .filter(Boolean);
+  if (ungrouped.length) {
+    sections.push({ type: "ungrouped", projects: ungrouped });
+  }
+
+  return sections;
+}
+
+function renderProjectListItem(p, canReorder) {
+  const client = clients.find((c) => c.id === p.clientId);
+  const clientName = client ? client.name : "Sin asignar";
+  const n = (p.concepts && p.concepts.length) || 0;
+  const dragHandle = canReorder
+    ? `<button type="button" class="admin-drag-handle" draggable="true" data-drag-project="${escapeAttr(p.id)}" aria-label="Arrastrar para reordenar" title="Arrastrar para reordenar">⋮⋮</button>`
+    : "";
+  const projectUrl = `/project.html?id=${encodeURIComponent(p.id)}`;
+  const folderOptions =
+    canReorder && usesFolderLayout()
+      ? `<span class="admin-move-folder-wrap">
+          <select class="admin-move-folder-select btn btn-ghost btn-sm" data-move-project="${escapeAttr(p.id)}" aria-label="Mover a carpeta" title="Mover a carpeta">
+            <option value="">Mover a…</option>
+            ${projectFolders
+              .map(
+                (f) =>
+                  `<option value="${escapeAttr(f.id)}">${escapeHtml(f.name)}</option>`
+              )
+              .join("")}
+          </select>
+        </span>`
+      : "";
+  return `
+    <div class="admin-list-item" data-project-id="${escapeAttr(p.id)}">
+      ${dragHandle}
+      <a href="${projectUrl}" class="admin-list-item-main" aria-label="Abrir ${escapeAttr(p.name)}">
+        <div class="admin-list-item-start">
+          ${progressRingCardHtml(p)}
+          <div class="admin-list-item-info">
+            <strong>${escapeHtml(p.name)}</strong>
+            <span class="portal-user">${escapeHtml(clientName)} · ${p.daysRemaining} días · ${n} conceptos · ${formatProjectMoneyDisplay(p)}</span>
+          </div>
+        </div>
+      </a>
+      <div class="portal-actions admin-list-actions">
+        ${projectStatusSelectHtml(p.id, p.status)}
+        ${folderOptions}
+        <button type="button" class="btn btn-ghost btn-sm" data-duplicate="${p.id}">Duplicar</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-edit="${p.id}">Editar</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-delete="${p.id}">Eliminar</button>
+      </div>
+    </div>`;
+}
+
+function renderFolderHead(folder, count, canReorder) {
+  const chevron = folder.collapsed ? "›" : "⌄";
+  const dragHandle = canReorder
+    ? `<button type="button" class="admin-folder-drag" draggable="true" data-drag-folder="${escapeAttr(folder.id)}" aria-label="Arrastrar carpeta" title="Arrastrar carpeta">⋮⋮</button>`
+    : "";
+  return `
+    <div class="admin-folder-head" data-folder-id="${escapeAttr(folder.id)}">
+      ${dragHandle}
+      <button type="button" class="admin-folder-toggle" data-toggle-folder="${escapeAttr(folder.id)}" aria-expanded="${folder.collapsed ? "false" : "true"}" aria-label="${folder.collapsed ? "Expandir" : "Colapsar"} carpeta ${escapeAttr(folder.name)}">
+        <span class="admin-folder-chevron" aria-hidden="true">${chevron}</span>
+      </button>
+      <button type="button" class="admin-folder-name" data-rename-folder="${escapeAttr(folder.id)}" title="Renombrar carpeta">
+        ${escapeHtml(folder.name)}
+      </button>
+      <span class="admin-folder-count">${count} proyecto${count === 1 ? "" : "s"}</span>
+      <button type="button" class="admin-folder-delete btn btn-ghost btn-sm" data-delete-folder="${escapeAttr(folder.id)}" aria-label="Eliminar carpeta ${escapeAttr(folder.name)}" title="Eliminar carpeta">×</button>
+    </div>`;
+}
+
+function bindProjectListActions(list) {
+  list.querySelectorAll("[data-edit]").forEach((btn) => {
+    btn.addEventListener("click", () => loadBasicEdit(btn.dataset.edit));
+  });
+  list.querySelectorAll("[data-delete]").forEach((btn) => {
+    btn.addEventListener("click", () => deleteProject(btn.dataset.delete));
+  });
+  list.querySelectorAll("[data-duplicate]").forEach((btn) => {
+    btn.addEventListener("click", () => duplicateProject(btn.dataset.duplicate));
+  });
+  list.querySelectorAll(".admin-status-select").forEach((sel) => {
+    sel.addEventListener("change", () => updateProjectStatus(sel));
+  });
+  list.querySelectorAll("[data-toggle-folder]").forEach((btn) => {
+    btn.addEventListener("click", () => toggleProjectFolder(btn.dataset.toggleFolder));
+  });
+  list.querySelectorAll("[data-rename-folder]").forEach((btn) => {
+    btn.addEventListener("click", () => renameProjectFolder(btn.dataset.renameFolder));
+  });
+  list.querySelectorAll("[data-delete-folder]").forEach((btn) => {
+    btn.addEventListener("click", () => deleteProjectFolder(btn.dataset.deleteFolder));
+  });
+  list.querySelectorAll(".admin-move-folder-select").forEach((sel) => {
+    sel.addEventListener("change", async () => {
+      const folderId = sel.value;
+      if (!folderId) return;
+      const projectId = sel.dataset.moveProject;
+      sel.value = "";
+      await moveProjectToFolder(projectId, folderId);
+    });
+  });
 }
 
 function updateProjectSearchMeta(shown, total) {
@@ -843,7 +1115,14 @@ function updateProjectSearchMeta(shown, total) {
       meta.textContent = `${shown} de ${total} proyecto${total === 1 ? "" : "s"}`;
     }
   }
-  if (hint) hint.hidden = !!q;
+  if (hint) {
+    hint.hidden = !!q;
+    if (!hint.hidden) {
+      hint.textContent = usesFolderLayout()
+        ? "Arrastra ⋮⋮ para reordenar. Suelta un proyecto sobre una carpeta para moverlo."
+        : "Arrastra ⋮⋮ para reordenar la lista. Usa + Carpeta para agrupar proyectos.";
+    }
+  }
 }
 
 function bindProjectSearch() {
@@ -854,6 +1133,12 @@ function bindProjectSearch() {
     projectSearchQuery = input.value;
     loadProjects();
   });
+
+  const addFolderBtn = document.getElementById("admin-add-folder");
+  if (addFolderBtn && !addFolderBtn.dataset.bound) {
+    addFolderBtn.dataset.bound = "1";
+    addFolderBtn.addEventListener("click", () => createProjectFolder());
+  }
 }
 
 function clearDropIndicators(listEl) {
@@ -872,12 +1157,19 @@ function setDropIndicator(listEl, row, placement) {
   row.classList.add(placement === "before" ? "drop-before" : "drop-after");
 }
 
+function clearFolderDropTargets(listEl) {
+  listEl
+    .querySelectorAll(".admin-folder-head.is-drop-target")
+    .forEach((el) => el.classList.remove("is-drop-target"));
+}
+
 function bindProjectListDnD(listEl) {
   if (!listEl || projectSearchQuery.trim()) return;
 
   listEl.querySelectorAll(".admin-drag-handle").forEach((handle) => {
     handle.addEventListener("dragstart", (e) => {
       dragProjectId = handle.dataset.dragProject;
+      dragFolderId = null;
       e.dataTransfer.effectAllowed = "move";
       e.dataTransfer.setData("text/plain", dragProjectId);
       handle.closest(".admin-list-item")?.classList.add("is-dragging");
@@ -886,6 +1178,8 @@ function bindProjectListDnD(listEl) {
     handle.addEventListener("dragend", () => {
       dragProjectId = null;
       listEl.classList.remove("is-dnd-active");
+      clearDropIndicators(listEl);
+      clearFolderDropTargets(listEl);
       listEl
         .querySelectorAll(".admin-list-item")
         .forEach((el) =>
@@ -894,15 +1188,60 @@ function bindProjectListDnD(listEl) {
     });
   });
 
+  listEl.querySelectorAll(".admin-folder-drag").forEach((handle) => {
+    handle.addEventListener("dragstart", (e) => {
+      dragFolderId = handle.dataset.dragFolder;
+      dragProjectId = null;
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", dragFolderId);
+      handle.closest(".admin-folder-head")?.classList.add("is-dragging");
+      listEl.classList.add("is-dnd-active");
+    });
+    handle.addEventListener("dragend", () => {
+      dragFolderId = null;
+      listEl.classList.remove("is-dnd-active");
+      clearDropIndicators(listEl);
+      clearFolderDropTargets(listEl);
+      listEl
+        .querySelectorAll(".admin-folder-head")
+        .forEach((el) => el.classList.remove("is-dragging", "drop-before", "drop-after"));
+    });
+  });
+
   listEl.addEventListener("dragover", (e) => {
-    if (!dragProjectId) return;
+    if (!dragProjectId && !dragFolderId) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
 
-    const row = e.target.closest(".admin-list-item");
-    const items = [...listEl.querySelectorAll(".admin-list-item")];
+    if (dragFolderId) {
+      const head = e.target.closest(".admin-folder-head");
+      clearFolderDropTargets(listEl);
+      clearDropIndicators(listEl);
+      if (head && head.dataset.folderId !== dragFolderId) {
+        head.classList.add(
+          placementFromPointer(head, e.clientY) === "before"
+            ? "drop-before"
+            : "drop-after"
+        );
+      }
+      return;
+    }
 
+    const folderSection = e.target.closest(".admin-folder[data-folder-section]");
+    const folderHead =
+      e.target.closest(".admin-folder-head") ||
+      folderSection?.querySelector(".admin-folder-head");
+    if (folderHead) {
+      clearDropIndicators(listEl);
+      clearFolderDropTargets(listEl);
+      folderHead.classList.add("is-drop-target");
+      return;
+    }
+
+    const row = e.target.closest(".admin-list-item");
+    clearFolderDropTargets(listEl);
     if (!row) {
+      const items = [...listEl.querySelectorAll(".admin-list-item")];
       const last = items[items.length - 1];
       if (last) setDropIndicator(listEl, last, "after");
       return;
@@ -914,42 +1253,106 @@ function bindProjectListDnD(listEl) {
   listEl.addEventListener("dragleave", (e) => {
     if (!listEl.contains(e.relatedTarget)) {
       clearDropIndicators(listEl);
+      clearFolderDropTargets(listEl);
     }
   });
 
   listEl.addEventListener("drop", async (e) => {
     e.preventDefault();
-    const row = e.target.closest(".admin-list-item");
+
+    if (dragFolderId) {
+      const head = e.target.closest(".admin-folder-head");
+      clearDropIndicators(listEl);
+      clearFolderDropTargets(listEl);
+      if (!head) return;
+      const targetId = head.dataset.folderId;
+      if (!targetId || targetId === dragFolderId) return;
+      const placement = placementFromPointer(head, e.clientY);
+      await reorderFolder(dragFolderId, targetId, placement);
+      return;
+    }
+
+    const folderSection = e.target.closest(".admin-folder[data-folder-section]");
+    const folderHead =
+      e.target.closest(".admin-folder-head") ||
+      folderSection?.querySelector(".admin-folder-head");
     clearDropIndicators(listEl);
+    clearFolderDropTargets(listEl);
+    if (dragProjectId && folderHead?.dataset.folderId) {
+      await moveProjectToFolder(dragProjectId, folderHead.dataset.folderId);
+      return;
+    }
+
+    const row = e.target.closest(".admin-list-item");
     if (!dragProjectId || !row) return;
 
     const targetId = row.dataset.projectId;
     const placement = placementFromPointer(row, e.clientY);
-    if (!targetId) return;
-
-    if (dragProjectId === targetId) return;
+    if (!targetId || dragProjectId === targetId) return;
 
     await reorderProjects(dragProjectId, targetId, placement);
   });
 }
 
-async function reorderProjects(sourceId, targetId, placement) {
-  const sorted = getSortedProjects(cachedProjects);
-  const ids = sorted.map((p) => p.id);
-  const from = ids.indexOf(sourceId);
-  let insertAt = ids.indexOf(targetId);
+async function reorderFolder(sourceFolderId, targetFolderId, placement) {
+  const from = projectFolders.findIndex((f) => f.id === sourceFolderId);
+  let insertAt = projectFolders.findIndex((f) => f.id === targetFolderId);
   if (from < 0 || insertAt < 0) return;
 
   if (placement === "after") insertAt += 1;
   if (from < insertAt) insertAt -= 1;
-
   if (from === insertAt) return;
 
-  ids.splice(from, 1);
-  ids.splice(insertAt, 0, sourceId);
+  const [folder] = projectFolders.splice(from, 1);
+  projectFolders.splice(insertAt, 0, folder);
 
   try {
-    await saveProjectOrder(ids);
+    await saveProjectLayout();
+    loadProjects();
+  } catch (ex) {
+    alert(ex.message || "No se pudo reordenar la carpeta");
+  }
+}
+
+async function reorderProjects(sourceId, targetId, placement) {
+  if (sourceId === targetId) return;
+
+  if (!usesFolderLayout()) {
+    const sorted = getSortedProjects(cachedProjects);
+    const ids = sorted.map((p) => p.id);
+    const from = ids.indexOf(sourceId);
+    let insertAt = ids.indexOf(targetId);
+    if (from < 0 || insertAt < 0) return;
+    if (placement === "after") insertAt += 1;
+    if (from < insertAt) insertAt -= 1;
+    if (from === insertAt) return;
+    ids.splice(from, 1);
+    ids.splice(insertAt, 0, sourceId);
+    try {
+      await saveProjectOrder(ids);
+      loadProjects();
+    } catch (ex) {
+      alert(ex.message || "No se pudo guardar el orden");
+    }
+    return;
+  }
+
+  removeProjectFromLayoutState(sourceId);
+  const targetLoc = findProjectLocation(targetId);
+  let insertAt = targetLoc ? targetLoc.index : getUngroupedProjectIds().length;
+  if (placement === "after") insertAt += 1;
+
+  if (targetLoc?.kind === "folder") {
+    const folder = projectFolders.find((f) => f.id === targetLoc.folderId);
+    if (folder) folder.projectIds.splice(insertAt, 0, sourceId);
+  } else {
+    const ungrouped = getUngroupedProjectIds().filter((id) => id !== sourceId);
+    ungrouped.splice(insertAt, 0, sourceId);
+    projectOrder = deriveFlatProjectOrder(ungrouped);
+  }
+
+  try {
+    await saveProjectLayout();
     loadProjects();
   } catch (ex) {
     alert(ex.message || "No se pudo guardar el orden");
@@ -966,9 +1369,10 @@ async function loadProjects(projects = cachedProjects) {
   updateProjectSearchMeta(display.length, total);
 
   const canReorder = !projectSearchQuery.trim() && display.length > 0;
+  const showFolders = canReorder && usesFolderLayout();
 
   if (!display.length) {
-    list.classList.remove("admin-list--reorderable");
+    list.classList.remove("admin-list--reorderable", "admin-list--grouped");
     list.innerHTML = `<div class="admin-list-item admin-list-item--empty"><span>${
       total
         ? "Ningún proyecto coincide con la búsqueda"
@@ -978,52 +1382,48 @@ async function loadProjects(projects = cachedProjects) {
   }
 
   list.classList.toggle("admin-list--reorderable", canReorder);
+  list.classList.toggle("admin-list--grouped", showFolders);
 
-  list.innerHTML = display
-    .map((p) => {
-      const client = clients.find((c) => c.id === p.clientId);
-      const clientName = client ? client.name : "Sin asignar";
-      const n = (p.concepts && p.concepts.length) || 0;
-      const dragHandle = canReorder
-        ? `<button type="button" class="admin-drag-handle" draggable="true" data-drag-project="${escapeAttr(p.id)}" aria-label="Arrastrar para reordenar" title="Arrastrar para reordenar">⋮⋮</button>`
-        : "";
-      const projectUrl = `/project.html?id=${encodeURIComponent(p.id)}`;
-      return `
-      <div class="admin-list-item" data-project-id="${escapeAttr(p.id)}">
-        ${dragHandle}
-        <a href="${projectUrl}" class="admin-list-item-main" aria-label="Abrir ${escapeAttr(p.name)}">
-          <div class="admin-list-item-start">
-            ${progressRingCardHtml(p)}
-            <div class="admin-list-item-info">
-              <strong>${escapeHtml(p.name)}</strong>
-              <span class="portal-user">${escapeHtml(clientName)} · ${p.daysRemaining} días · ${n} conceptos · ${formatProjectMoneyDisplay(p)}</span>
+  if (showFolders) {
+    const sections = buildFolderSections(display);
+    list.innerHTML = sections
+      .map((section) => {
+        if (section.type === "folder") {
+          const { folder, projects: items } = section;
+          const collapsed = folder.collapsed ? " is-collapsed" : "";
+          return `
+            <section class="admin-folder${collapsed}" data-folder-section="${escapeAttr(folder.id)}">
+              ${renderFolderHead(folder, items.length, canReorder)}
+              <div class="admin-folder-body${
+                items.length ? "" : " admin-folder-body--empty"
+              }">
+                ${
+                  items.length
+                    ? items.map((p) => renderProjectListItem(p, canReorder)).join("")
+                    : '<p class="admin-folder-empty">Arrastra proyectos aquí o usa «Mover a…»</p>'
+                }
+              </div>
+            </section>`;
+        }
+        return `
+          <section class="admin-folder admin-folder--ungrouped">
+            <div class="admin-folder-head admin-folder-head--static">
+              <span class="admin-folder-name admin-folder-name--label">Sin carpeta</span>
+              <span class="admin-folder-count">${section.projects.length} proyecto${section.projects.length === 1 ? "" : "s"}</span>
             </div>
-          </div>
-        </a>
-        <div class="portal-actions admin-list-actions">
-          ${projectStatusSelectHtml(p.id, p.status)}
-          <button type="button" class="btn btn-ghost btn-sm" data-duplicate="${p.id}">Duplicar</button>
-          <button type="button" class="btn btn-ghost btn-sm" data-edit="${p.id}">Editar</button>
-          <button type="button" class="btn btn-ghost btn-sm" data-delete="${p.id}">Eliminar</button>
-        </div>
-      </div>
-    `;
-    })
-    .join("");
+            <div class="admin-folder-body">
+              ${section.projects.map((p) => renderProjectListItem(p, canReorder)).join("")}
+            </div>
+          </section>`;
+      })
+      .join("");
+  } else {
+    list.innerHTML = display
+      .map((p) => renderProjectListItem(p, canReorder))
+      .join("");
+  }
 
-  list.querySelectorAll("[data-edit]").forEach((btn) => {
-    btn.addEventListener("click", () => loadBasicEdit(btn.dataset.edit));
-  });
-  list.querySelectorAll("[data-delete]").forEach((btn) => {
-    btn.addEventListener("click", () => deleteProject(btn.dataset.delete));
-  });
-  list.querySelectorAll("[data-duplicate]").forEach((btn) => {
-    btn.addEventListener("click", () => duplicateProject(btn.dataset.duplicate));
-  });
-  list.querySelectorAll(".admin-status-select").forEach((sel) => {
-    sel.addEventListener("change", () => updateProjectStatus(sel));
-  });
-
+  bindProjectListActions(list);
   if (canReorder) bindProjectListDnD(list);
 }
 

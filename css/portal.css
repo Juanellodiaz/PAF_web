@@ -1915,7 +1915,14 @@ body.page-enter {
   display: flex;
   flex: 1;
   justify-content: flex-end;
+  align-items: flex-start;
+  gap: 0.75rem;
   min-width: min(100%, 280px);
+}
+
+#admin-add-folder {
+  flex-shrink: 0;
+  margin-top: 0.05rem;
 }
 
 .admin-search-block {
@@ -1963,6 +1970,183 @@ body.page-enter {
 
 .admin-reorder-hint {
   margin: 0 0 0.75rem;
+}
+
+/* Carpetas de proyectos (admin) */
+.admin-list--grouped {
+  gap: 0.75rem;
+  border: none;
+  background: transparent;
+}
+
+.admin-folder {
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.admin-folder-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.7rem 1rem;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-folder.is-collapsed .admin-folder-head {
+  border-bottom: none;
+}
+
+.admin-folder-head.is-drop-target {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+  background: rgba(200, 191, 176, 0.08);
+}
+
+.admin-folder-head.is-dragging {
+  opacity: 0.5;
+}
+
+.admin-list.is-dnd-active .admin-folder-head.drop-before::before,
+.admin-list.is-dnd-active .admin-folder-head.drop-after::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.admin-list.is-dnd-active .admin-folder-head.drop-before::before {
+  top: -1px;
+}
+
+.admin-list.is-dnd-active .admin-folder-head.drop-after::after {
+  bottom: -1px;
+}
+
+.admin-folder.is-collapsed .admin-folder-body {
+  display: none;
+}
+
+.admin-folder-body .admin-list-item {
+  padding-left: 1.5rem;
+}
+
+.admin-folder-body .admin-list-item:last-child {
+  border-bottom: none;
+}
+
+.admin-folder-drag {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  letter-spacing: -0.15em;
+  cursor: grab;
+  touch-action: none;
+}
+
+.admin-folder-drag:active {
+  cursor: grabbing;
+}
+
+.admin-folder-toggle {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  padding: 0.1rem 0.25rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.admin-folder-chevron {
+  display: block;
+  font-size: 1.05rem;
+  line-height: 1;
+  transform: translateY(-0.05rem);
+}
+
+.admin-folder-name {
+  border: none;
+  background: transparent;
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.admin-folder-name:hover {
+  color: var(--accent);
+}
+
+.admin-folder-name--label {
+  cursor: default;
+}
+
+.admin-folder-name--label:hover {
+  color: var(--text);
+}
+
+.admin-folder-count {
+  margin-left: auto;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.admin-folder-head--static .admin-folder-count {
+  margin-left: auto;
+}
+
+.admin-folder-delete {
+  flex-shrink: 0;
+  min-width: 0 !important;
+  padding: 0.1rem 0.4rem !important;
+  font-size: 1rem !important;
+  line-height: 1;
+  opacity: 0.55;
+}
+
+.admin-folder-delete:hover {
+  opacity: 1;
+}
+
+.admin-folder-body--empty {
+  padding: 0.85rem 1rem 1rem 2.5rem;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  border-top: 1px solid var(--border);
+}
+
+.admin-move-folder-wrap {
+  display: inline-flex;
+}
+
+.admin-move-folder-select.btn {
+  width: auto;
+  max-width: 6.5rem;
+  padding: 0.35rem 0.45rem !important;
+  font-size: 0.68rem !important;
+  font-family: var(--font-body);
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
 }
 
 .visually-hidden {

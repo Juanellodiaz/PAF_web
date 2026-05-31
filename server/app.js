@@ -11,8 +11,9 @@ const {
   duplicateProjectName,
 } = require("./duplicate-project");
 const {
-  appendProjectToOrder,
-  removeProjectFromOrder,
+  appendProjectToLayout,
+  removeProjectFromLayout,
+  reconcileProjectLayout,
 } = require("./admin-settings");
 const {
   rebuildEstimationsFromOrphanAdvances,
@@ -187,16 +188,28 @@ app.get("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
 app.put("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
   try {
     const body = req.body || {};
-    if (!Array.isArray(body.projectOrder)) {
-      return res.status(400).json({ error: "projectOrder debe ser un arreglo" });
-    }
+    const current = await db.loadAdminSettings();
     const all = await db.listProjectsForUser(req.user);
-    const validIds = new Set(all.map((p) => p.id));
-    const projectOrder = body.projectOrder.filter((id) => validIds.has(id));
-    for (const p of all) {
-      if (!projectOrder.includes(p.id)) projectOrder.push(p.id);
+    const allIds = all.map((p) => p.id);
+
+    const folders =
+      body.projectFolders !== undefined
+        ? body.projectFolders
+        : current.projectFolders;
+    let order =
+      body.projectOrder !== undefined ? body.projectOrder : current.projectOrder;
+
+    if (!Array.isArray(order) && !Array.isArray(body.projectFolders)) {
+      return res.status(400).json({
+        error: "Se requiere projectOrder o projectFolders",
+      });
     }
-    const settings = await db.saveAdminSettings({ projectOrder });
+
+    if (!Array.isArray(order)) order = current.projectOrder || [];
+
+    const settings = await db.saveAdminSettings(
+      reconcileProjectLayout(folders || [], order, allIds)
+    );
     res.json({ settings });
   } catch (err) {
     handleError(res, err);
@@ -243,9 +256,7 @@ app.post("/api/projects", requireAuth, requireAdmin, async (req, res) => {
     };
     const saved = await db.saveProject(project);
     const settings = await db.loadAdminSettings();
-    await db.saveAdminSettings({
-      projectOrder: appendProjectToOrder(settings.projectOrder, saved.id),
-    });
+    await db.saveAdminSettings(appendProjectToLayout(settings, saved.id));
     res.status(201).json({ project: projectPayload(saved) });
   } catch (err) {
     handleError(res, err);
@@ -293,13 +304,9 @@ app.post(
       const clone = cloneProject(existing, { newName });
       const saved = await db.saveProject(clone);
       const settings = await db.loadAdminSettings();
-      await db.saveAdminSettings({
-        projectOrder: appendProjectToOrder(
-          settings.projectOrder,
-          saved.id,
-          existing.id
-        ),
-      });
+      await db.saveAdminSettings(
+        appendProjectToLayout(settings, saved.id, existing.id)
+      );
       res.status(201).json({ project: projectPayload(saved) });
     } catch (err) {
       handleError(res, err);
@@ -313,9 +320,7 @@ app.delete("/api/projects/:id", requireAuth, requireAdmin, async (req, res) => {
     if (!existing) return res.status(404).json({ error: "Proyecto no encontrado" });
     await db.deleteProject(req.params.id);
     const settings = await db.loadAdminSettings();
-    await db.saveAdminSettings({
-      projectOrder: removeProjectFromOrder(settings.projectOrder, req.params.id),
-    });
+    await db.saveAdminSettings(removeProjectFromLayout(settings, req.params.id));
     res.json({ ok: true });
   } catch (err) {
     handleError(res, err);
