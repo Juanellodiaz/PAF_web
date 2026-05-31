@@ -272,7 +272,7 @@ function setQuickPanelMode(mode) {
   quickPanelMode = mode;
   document.getElementById("quick-panel-title").textContent =
     editingId && mode === "project"
-      ? "Editar datos del proyecto"
+      ? "Editar proyecto"
       : QUICK_PANEL_TITLES[mode] || QUICK_PANEL_TITLES.project;
 
   document.querySelectorAll(".quick-panel-form").forEach((form) => {
@@ -929,7 +929,7 @@ async function loadProjects(projects = cachedProjects) {
         <div class="portal-actions admin-list-actions">
           ${projectStatusSelectHtml(p.id, p.status)}
           <button type="button" class="btn btn-ghost btn-sm" data-duplicate="${p.id}">Duplicar</button>
-          <button type="button" class="btn btn-ghost btn-sm" data-edit="${p.id}">Datos</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-edit="${p.id}">Editar</button>
           <button type="button" class="btn btn-ghost btn-sm" data-delete="${p.id}">Eliminar</button>
         </div>
       </div>
@@ -1036,7 +1036,7 @@ async function onSubmit(e) {
     closeQuickPanel();
     await refreshDashboard();
     err.style.color = "var(--accent)";
-    err.textContent = "Datos del proyecto actualizados.";
+    err.textContent = "Proyecto actualizado.";
     setTimeout(() => {
       err.textContent = "";
       err.style.color = "";
@@ -1048,7 +1048,7 @@ async function onSubmit(e) {
 
 function setSubmitLabel() {
   document.querySelector("#project-form button[type=submit]").textContent =
-    editingId ? "Guardar datos" : "Crear proyecto";
+    editingId ? "Guardar" : "Crear proyecto";
 }
 
 async function loadBasicEdit(id) {
