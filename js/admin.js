@@ -225,12 +225,12 @@ function projectStatusSelectHtml(projectId, currentStatus) {
     (o) =>
       `<option value="${o.value}"${status === o.value ? " selected" : ""}>${o.label}</option>`
   ).join("");
-  return `<span class="admin-status-wrap admin-status-wrap--slot">
+  return `<span class="admin-status-wrap">
     <span class="admin-status-field">
       <select class="admin-status-select" data-status-for="${escapeHtml(projectId)}" data-last-status="${status}" aria-label="Estado del proyecto">${options}</select>
-    </span>
-    <span class="admin-action-progress admin-status-progress" aria-hidden="true">
-      <span class="admin-action-progress-fill"></span>
+      <span class="admin-action-progress admin-status-edge" aria-hidden="true">
+        <span class="admin-action-progress-fill"></span>
+      </span>
     </span>
   </span>`;
 }
@@ -1656,11 +1656,10 @@ async function updateProjectStatus(selectEl) {
   const id = selectEl.dataset.statusFor;
   const newStatus = selectEl.value;
   const previous = selectEl.dataset.lastStatus;
-  const progress = selectEl
-    .closest(".admin-status-wrap")
-    ?.querySelector(".admin-status-progress");
+  const field = selectEl.closest(".admin-status-wrap")?.querySelector(".admin-status-field");
+  const edge = field?.querySelector(".admin-status-edge");
   selectEl.disabled = true;
-  progress?.classList.add("is-loading");
+  edge?.classList.add("is-loading");
 
   try {
     const { project } = await api(`/projects/${id}`);
@@ -1677,7 +1676,7 @@ async function updateProjectStatus(selectEl) {
     alert(ex.message || "No se pudo actualizar el estado");
   } finally {
     selectEl.disabled = false;
-    progress?.classList.remove("is-loading");
+    edge?.classList.remove("is-loading");
   }
 }
 
