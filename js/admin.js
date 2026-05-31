@@ -317,6 +317,7 @@ function closeQuickPanel() {
     btn.classList.remove("is-active");
     btn.setAttribute("aria-expanded", "false");
   });
+  clearEditHighlight();
   setTimeout(() => {
     panel.hidden = true;
     backdrop.hidden = true;
@@ -720,35 +721,77 @@ function actionButtonHtml(action, projectId, label) {
     </span>`;
 }
 
+function editActionButtonHtml(projectId) {
+  return `
+    <span class="admin-action-wrap admin-action-wrap--edit" data-action-wrap="edit-${escapeAttr(projectId)}">
+      <button type="button" class="btn btn-ghost btn-sm" data-edit="${escapeAttr(projectId)}">Editar</button>
+      <span class="admin-action-feedback admin-action-feedback--slot" role="presentation" aria-hidden="true">
+        <span class="admin-action-progress">
+          <span class="admin-action-progress-fill"></span>
+        </span>
+        <span class="admin-action-label"></span>
+      </span>
+    </span>`;
+}
+
+function setEditHighlight(projectId) {
+  document.querySelectorAll(".admin-action-wrap--edit").forEach((wrap) => {
+    const active = wrap.dataset.actionWrap === `edit-${projectId}`;
+    wrap.classList.toggle("is-editing", active);
+    const feedback = wrap.querySelector(".admin-action-feedback");
+    if (!feedback) return;
+    feedback.classList.remove("is-loading", "is-success", "is-error");
+    feedback.classList.toggle("is-active", active);
+    const label = wrap.querySelector(".admin-action-label");
+    if (label) label.textContent = "";
+  });
+}
+
+function clearEditHighlight() {
+  document.querySelectorAll(".admin-action-wrap--edit").forEach((wrap) => {
+    wrap.classList.remove("is-editing");
+    const feedback = wrap.querySelector(".admin-action-feedback");
+    feedback?.classList.remove("is-active", "is-loading", "is-success", "is-error");
+    const label = wrap.querySelector(".admin-action-label");
+    if (label) label.textContent = "";
+  });
+}
+
 function setActionFeedback(btn, { state, message = "" }) {
   const wrap = btn?.closest(".admin-action-wrap");
   const feedback = wrap?.querySelector(".admin-action-feedback");
   const label = wrap?.querySelector(".admin-action-label");
   if (!wrap || !feedback) return;
 
+  const isEditSlot = wrap.classList.contains("admin-action-wrap--edit");
   const key = wrap.dataset.actionWrap || "";
   const existing = actionFeedbackTimers.get(key);
   if (existing) clearTimeout(existing);
 
-  feedback.hidden = false;
-  feedback.classList.remove("is-loading", "is-success", "is-error");
+  if (!isEditSlot) feedback.hidden = false;
+  feedback.classList.remove("is-loading", "is-success", "is-error", "is-active");
   if (state === "loading") feedback.classList.add("is-loading");
   if (state === "success") feedback.classList.add("is-success");
   if (state === "error") feedback.classList.add("is-error");
   if (label) label.textContent = message;
-  wrap.classList.add("has-feedback");
+  if (!isEditSlot) wrap.classList.add("has-feedback");
 }
 
 function hideActionFeedback(btn, delayMs = 1500) {
   const wrap = btn?.closest(".admin-action-wrap");
   if (!wrap) return;
+  const isEditSlot = wrap.classList.contains("admin-action-wrap--edit");
   const key = wrap.dataset.actionWrap || "";
   const feedback = wrap.querySelector(".admin-action-feedback");
 
   const timer = setTimeout(() => {
-    if (feedback) feedback.hidden = true;
+    if (!isEditSlot && feedback) feedback.hidden = true;
     feedback?.classList.remove("is-loading", "is-success", "is-error");
-    wrap.classList.remove("has-feedback");
+    if (!isEditSlot) wrap.classList.remove("has-feedback");
+    else {
+      const label = wrap.querySelector(".admin-action-label");
+      if (label) label.textContent = "";
+    }
     actionFeedbackTimers.delete(key);
   }, delayMs);
   actionFeedbackTimers.set(key, timer);
@@ -1105,7 +1148,7 @@ function renderProjectListItem(p, canReorder) {
         ${projectStatusSelectHtml(p.id, p.status)}
         ${folderOptions}
         ${actionButtonHtml("duplicate", p.id, "Duplicar")}
-        <button type="button" class="btn btn-ghost btn-sm" data-edit="${p.id}">Editar</button>
+        ${editActionButtonHtml(p.id)}
         ${actionButtonHtml("delete", p.id, "Eliminar")}
       </div>
     </div>`;
@@ -1620,17 +1663,30 @@ function setSubmitLabel() {
 }
 
 async function loadBasicEdit(id) {
-  const { project: p } = await api(`/projects/${id}`);
-  editingId = id;
-  setSubmitLabel();
-  document.getElementById("name").value = p.name;
-  document.getElementById("clientId").value = p.clientId || "";
-  document.getElementById("completionDate").value = p.completionDate;
-  document.getElementById("status").value = normalizeProjectStatus(p.status);
-  document.getElementById("zone3dImage").value = p.zone3dImage || "";
-  document.getElementById("form-reset").hidden = false;
-  openQuickPanel("project");
-  syncProjectFormCompletionUi();
+  const btn = document.querySelector(`[data-edit="${CSS.escape(id)}"]`);
+  clearEditHighlight();
+  setActionFeedback(btn, { state: "loading", message: "Cargando…" });
+
+  try {
+    const { project: p } = await api(`/projects/${id}`);
+    editingId = id;
+    setSubmitLabel();
+    document.getElementById("name").value = p.name;
+    document.getElementById("clientId").value = p.clientId || "";
+    document.getElementById("completionDate").value = p.completionDate;
+    document.getElementById("status").value = normalizeProjectStatus(p.status);
+    document.getElementById("zone3dImage").value = p.zone3dImage || "";
+    document.getElementById("form-reset").hidden = false;
+    openQuickPanel("project");
+    syncProjectFormCompletionUi();
+    setEditHighlight(id);
+  } catch (ex) {
+    setActionFeedback(btn, {
+      state: "error",
+      message: ex.message || "No se pudo cargar",
+    });
+    hideActionFeedback(btn, 2800);
+  }
 }
 
 function resetForm() {

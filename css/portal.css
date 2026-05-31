@@ -1092,6 +1092,30 @@ body.page-enter {
   color: #d4a090;
 }
 
+.admin-action-wrap--edit .admin-action-feedback--slot {
+  display: flex;
+}
+
+.admin-action-wrap--edit .admin-action-progress-fill {
+  width: 0;
+  opacity: 0.35;
+}
+
+.admin-action-wrap--edit.is-editing .admin-action-progress-fill,
+.admin-action-wrap--edit .admin-action-feedback.is-active .admin-action-progress-fill {
+  width: 100%;
+  opacity: 1;
+}
+
+.admin-action-wrap--edit.is-editing .admin-action-progress,
+.admin-action-wrap--edit .admin-action-feedback.is-active .admin-action-progress {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.admin-action-wrap--edit .admin-action-label:empty {
+  display: none;
+}
+
 @keyframes adminActionIndeterminate {
   0% {
     transform: translateX(-120%);
