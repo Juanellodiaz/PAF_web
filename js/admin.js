@@ -10,6 +10,7 @@ let projectSearchQuery = "";
 let dragProjectId = null;
 let dragFolderId = null;
 let adminBusyHideTimer = null;
+let folderDialogResolve = null;
 
 const quickPanel = () => document.getElementById("admin-quick-panel");
 const formBackdrop = () => document.getElementById("form-backdrop");
@@ -639,6 +640,7 @@ async function onSubmitQuickAdvance(e) {
 
   bindQuickPanel();
   bindProjectSearch();
+  bindFolderNameDialog();
 
   const [{ users }, { settings: settingsRes }, { projects }] = await Promise.all([
     api("/users"),
@@ -908,14 +910,86 @@ async function saveProjectOrder(ids) {
   await saveProjectLayout();
 }
 
+function bindFolderNameDialog() {
+  const backdrop = document.getElementById("admin-folder-dialog-backdrop");
+  const form = document.getElementById("admin-folder-dialog-form");
+  const input = document.getElementById("admin-folder-dialog-input");
+  const errEl = document.getElementById("admin-folder-dialog-error");
+  const cancelBtn = document.getElementById("admin-folder-dialog-cancel");
+  const closeBtn = document.getElementById("admin-folder-dialog-close");
+  if (!backdrop || !form || !input || form.dataset.bound) return;
+  form.dataset.bound = "1";
+
+  const closeDialog = (value = null) => {
+    backdrop.classList.remove("is-visible");
+    backdrop.setAttribute("aria-hidden", "true");
+    setTimeout(() => {
+      backdrop.hidden = true;
+    }, 320);
+    if (errEl) errEl.textContent = "";
+    if (folderDialogResolve) {
+      const resolve = folderDialogResolve;
+      folderDialogResolve = null;
+      resolve(value);
+    }
+  };
+
+  cancelBtn?.addEventListener("click", () => closeDialog(null));
+  closeBtn?.addEventListener("click", () => closeDialog(null));
+  backdrop.addEventListener("click", (e) => {
+    if (e.target === backdrop) closeDialog(null);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !backdrop.hidden && folderDialogResolve) {
+      closeDialog(null);
+    }
+  });
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const trimmed = input.value.trim();
+    if (!trimmed) {
+      if (errEl) errEl.textContent = "Escribe un nombre para la carpeta.";
+      return;
+    }
+    closeDialog(trimmed);
+  });
+}
+
+function openFolderNameDialog({ title, value = "" }) {
+  const backdrop = document.getElementById("admin-folder-dialog-backdrop");
+  const titleEl = document.getElementById("admin-folder-dialog-title");
+  const input = document.getElementById("admin-folder-dialog-input");
+  const errEl = document.getElementById("admin-folder-dialog-error");
+  if (!backdrop || !input) return Promise.resolve(null);
+
+  if (titleEl) titleEl.textContent = title;
+  input.value = value;
+  if (errEl) errEl.textContent = "";
+
+  backdrop.hidden = false;
+  backdrop.setAttribute("aria-hidden", "false");
+  requestAnimationFrame(() => {
+    backdrop.classList.add("is-visible");
+    input.focus();
+    input.select();
+  });
+
+  return new Promise((resolve) => {
+    folderDialogResolve = resolve;
+  });
+}
+
 async function createProjectFolder() {
-  const name = prompt("Nombre de la carpeta", "Nueva carpeta");
+  const name = await openFolderNameDialog({
+    title: "Nueva carpeta",
+    value: "Nueva carpeta",
+  });
   if (name === null) return;
-  const trimmed = name.trim();
-  if (!trimmed) return;
   projectFolders.push({
     id: newQuickId("folder"),
-    name: trimmed,
+    name,
     collapsed: false,
     projectIds: [],
   });
@@ -930,11 +1004,12 @@ async function createProjectFolder() {
 async function renameProjectFolder(folderId) {
   const folder = projectFolders.find((f) => f.id === folderId);
   if (!folder) return;
-  const name = prompt("Renombrar carpeta", folder.name);
+  const name = await openFolderNameDialog({
+    title: "Renombrar carpeta",
+    value: folder.name,
+  });
   if (name === null) return;
-  const trimmed = name.trim();
-  if (!trimmed) return;
-  folder.name = trimmed;
+  folder.name = name;
   try {
     await saveProjectLayout();
     loadProjects();
@@ -1058,14 +1133,21 @@ function renderFolderHead(folder, count, canReorder) {
   return `
     <div class="admin-folder-head" data-folder-id="${escapeAttr(folder.id)}">
       ${dragHandle}
-      <button type="button" class="admin-folder-toggle" data-toggle-folder="${escapeAttr(folder.id)}" aria-expanded="${folder.collapsed ? "false" : "true"}" aria-label="${folder.collapsed ? "Expandir" : "Colapsar"} carpeta ${escapeAttr(folder.name)}">
+      <button
+        type="button"
+        class="admin-folder-toggle-area"
+        data-toggle-folder="${escapeAttr(folder.id)}"
+        aria-expanded="${folder.collapsed ? "false" : "true"}"
+        aria-label="${folder.collapsed ? "Expandir" : "Colapsar"} carpeta ${escapeAttr(folder.name)}"
+      >
         <span class="admin-folder-chevron" aria-hidden="true">${chevron}</span>
+        <span class="admin-folder-name">${escapeHtml(folder.name)}</span>
       </button>
-      <button type="button" class="admin-folder-name" data-rename-folder="${escapeAttr(folder.id)}" title="Renombrar carpeta">
-        ${escapeHtml(folder.name)}
-      </button>
-      <span class="admin-folder-count">${count} proyecto${count === 1 ? "" : "s"}</span>
-      <button type="button" class="admin-folder-delete btn btn-ghost btn-sm" data-delete-folder="${escapeAttr(folder.id)}" aria-label="Eliminar carpeta ${escapeAttr(folder.name)}" title="Eliminar carpeta">×</button>
+      <div class="admin-folder-meta">
+        <span class="admin-folder-count">${count} proyecto${count === 1 ? "" : "s"}</span>
+        <button type="button" class="admin-folder-rename btn btn-ghost btn-sm" data-rename-folder="${escapeAttr(folder.id)}">Renombrar</button>
+        <button type="button" class="admin-folder-delete btn btn-ghost btn-sm" data-delete-folder="${escapeAttr(folder.id)}" aria-label="Eliminar carpeta ${escapeAttr(folder.name)}" title="Eliminar carpeta">×</button>
+      </div>
     </div>`;
 }
 
@@ -1086,10 +1168,19 @@ function bindProjectListActions(list) {
     btn.addEventListener("click", () => toggleProjectFolder(btn.dataset.toggleFolder));
   });
   list.querySelectorAll("[data-rename-folder]").forEach((btn) => {
-    btn.addEventListener("click", () => renameProjectFolder(btn.dataset.renameFolder));
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      renameProjectFolder(btn.dataset.renameFolder);
+    });
   });
   list.querySelectorAll("[data-delete-folder]").forEach((btn) => {
-    btn.addEventListener("click", () => deleteProjectFolder(btn.dataset.deleteFolder));
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteProjectFolder(btn.dataset.deleteFolder);
+    });
+  });
+  list.querySelectorAll(".admin-folder-drag").forEach((btn) => {
+    btn.addEventListener("click", (e) => e.stopPropagation());
   });
   list.querySelectorAll(".admin-move-folder-select").forEach((sel) => {
     sel.addEventListener("change", async () => {

@@ -1987,11 +1987,33 @@ body.page-enter {
 .admin-folder-head {
   position: relative;
   display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.7rem 1rem;
+  align-items: stretch;
+  gap: 0.35rem;
+  padding: 0;
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
+}
+
+.admin-folder-drag {
+  flex-shrink: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  margin-left: 0.35rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  letter-spacing: -0.15em;
+  cursor: grab;
+  touch-action: none;
+}
+
+.admin-folder-drag:active {
+  cursor: grabbing;
 }
 
 .admin-folder.is-collapsed .admin-folder-head {
@@ -2040,69 +2062,60 @@ body.page-enter {
   border-bottom: none;
 }
 
-.admin-folder-drag {
+.admin-folder-toggle-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.85rem 0.75rem;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.admin-folder-toggle-area:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.admin-folder-toggle-area:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.admin-folder-meta {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--text-dim);
-  font-size: 0.8rem;
-  letter-spacing: -0.15em;
-  cursor: grab;
-  touch-action: none;
-}
-
-.admin-folder-drag:active {
-  cursor: grabbing;
-}
-
-.admin-folder-toggle {
-  flex-shrink: 0;
-  border: none;
-  background: transparent;
-  color: var(--accent);
-  padding: 0.1rem 0.25rem;
-  cursor: pointer;
-  line-height: 1;
+  gap: 0.35rem;
+  padding: 0.55rem 0.85rem 0.55rem 0;
 }
 
 .admin-folder-chevron {
+  flex-shrink: 0;
   display: block;
-  font-size: 1.05rem;
+  width: 1rem;
+  font-size: 1.1rem;
   line-height: 1;
-  transform: translateY(-0.05rem);
+  color: var(--accent);
+  text-align: center;
 }
 
 .admin-folder-name {
-  border: none;
-  background: transparent;
   font-family: var(--font-display);
   font-size: 0.88rem;
   font-weight: 500;
   color: var(--text);
-  cursor: pointer;
-  padding: 0;
-  text-align: left;
-}
-
-.admin-folder-name:hover {
-  color: var(--accent);
-}
-
-.admin-folder-name--label {
-  cursor: default;
-}
-
-.admin-folder-name--label:hover {
-  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .admin-folder-count {
-  margin-left: auto;
   font-size: 0.65rem;
   color: var(--text-dim);
   letter-spacing: 0.08em;
@@ -2110,8 +2123,11 @@ body.page-enter {
   white-space: nowrap;
 }
 
-.admin-folder-head--static .admin-folder-count {
-  margin-left: auto;
+.admin-folder-rename.btn {
+  padding: 0.3rem 0.55rem !important;
+  font-size: 0.68rem !important;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .admin-folder-delete {
@@ -2125,6 +2141,100 @@ body.page-enter {
 
 .admin-folder-delete:hover {
   opacity: 1;
+}
+
+.admin-folder-name--label {
+  cursor: default;
+}
+
+.admin-folder-head--static {
+  padding: 0.85rem 1rem;
+  align-items: center;
+}
+
+.admin-folder-head--static .admin-folder-name--label {
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.admin-folder-head--static .admin-folder-count {
+  margin-left: auto;
+}
+
+/* Diálogo admin (carpetas, etc.) */
+.admin-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(8, 8, 8, 0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.35s var(--ease), visibility 0.35s var(--ease);
+}
+
+.admin-dialog-backdrop.is-visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.admin-dialog {
+  width: min(22rem, 100%);
+  padding: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+  transform: translateY(8px) scale(0.98);
+  opacity: 0;
+  transition: transform 0.4s var(--ease), opacity 0.4s var(--ease);
+}
+
+.admin-dialog-backdrop.is-visible .admin-dialog {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+.admin-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.25rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-dialog-head h2 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+
+.admin-dialog-close {
+  min-width: 0 !important;
+  padding: 0.15rem 0.45rem !important;
+  font-size: 1.15rem !important;
+  line-height: 1;
+}
+
+.admin-dialog-form {
+  padding: 1.25rem;
+}
+
+.admin-dialog-form .form-group {
+  margin-bottom: 1rem;
+}
+
+.admin-dialog-form .portal-actions {
+  margin-top: 0.25rem;
 }
 
 .admin-folder-body--empty {
