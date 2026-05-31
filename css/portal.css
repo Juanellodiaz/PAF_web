@@ -748,47 +748,87 @@ body.page-enter {
 
 .admin-status-wrap {
   position: relative;
-  display: inline-flex;
-  align-items: center;
+  flex-shrink: 0;
 }
 
-.admin-status-select.btn {
-  width: auto;
-  min-width: 10.5rem;
-  max-width: 12.5rem;
-  padding-right: 2.25rem;
-  justify-content: flex-start;
-  text-align: left;
+.admin-status-wrap--slot {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.admin-status-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 2.35rem;
+}
+
+.admin-status-select {
+  display: block;
+  width: 100%;
+  min-width: 6.75rem;
+  max-width: 9.5rem;
+  height: 2.35rem;
+  padding: 0 1.1rem 0 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
   font-family: var(--font-body);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
+  line-height: 2.35rem;
+  transition: color 0.2s ease;
 }
 
-.admin-status-wrap::after {
+.admin-status-field::after {
   content: "";
   position: absolute;
-  right: 0.9rem;
+  right: 0;
   top: 50%;
   width: 0;
   height: 0;
   border-left: 4px solid transparent;
   border-right: 4px solid transparent;
   border-top: 5px solid var(--text-dim);
-  transform: translateY(-20%);
+  transform: translateY(-35%);
   pointer-events: none;
+  transition: border-top-color 0.2s ease;
 }
 
-.admin-status-select.btn:hover:not(:disabled) {
-  border-color: var(--text);
+.admin-status-wrap:hover .admin-status-field::after,
+.admin-status-field:has(.admin-status-select:focus-visible)::after {
+  border-top-color: var(--text);
 }
 
-.admin-status-select.btn:disabled {
+.admin-status-select:hover:not(:disabled),
+.admin-status-select:focus-visible {
+  color: var(--accent);
+  outline: none;
+}
+
+.admin-status-select:disabled {
   opacity: 0.45;
   cursor: wait;
 }
 
-.admin-status-select.btn option {
+.admin-status-wrap--slot .admin-status-progress {
+  margin-top: 0.35rem;
+  width: 100%;
+}
+
+.admin-status-wrap--slot .admin-action-progress-fill {
+  width: 0;
+  opacity: 0.22;
+}
+
+.admin-status-select option {
   background: var(--bg-card, #111);
   color: var(--text);
   font-size: 0.8rem;
@@ -2472,16 +2512,21 @@ body.page-enter {
     justify-content: flex-start;
   }
 
-  .admin-list-item > .portal-actions .btn,
-  .admin-status-select.btn {
+  .admin-list-item > .portal-actions .btn {
     flex: 1 1 auto;
     min-width: 0;
     text-align: center;
     max-width: none;
   }
 
-  .admin-status-select.btn {
-    justify-content: center;
+  .admin-status-wrap--slot {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .admin-status-select {
+    min-width: 0;
+    max-width: none;
     text-align: center;
   }
 
