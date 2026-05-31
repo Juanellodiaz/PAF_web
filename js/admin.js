@@ -225,15 +225,16 @@ function projectStatusSelectHtml(projectId, currentStatus) {
     (o) =>
       `<option value="${o.value}"${status === o.value ? " selected" : ""}>${o.label}</option>`
   ).join("");
-  return `<span class="admin-status-wrap">
-    <span class="admin-status-field">
-      <span class="admin-status-control">
-        <select class="admin-status-select" data-status-for="${escapeHtml(projectId)}" data-last-status="${status}" aria-label="Estado del proyecto">${options}</select>
-        <span class="admin-status-chevron" aria-hidden="true"></span>
-      </span>
-      <span class="admin-action-progress admin-status-edge" aria-hidden="true">
+  return `<span class="admin-status-wrap admin-action-wrap--slot admin-status-wrap--slot">
+    <span class="admin-status-control">
+      <select class="admin-status-select" data-status-for="${escapeHtml(projectId)}" data-last-status="${status}" aria-label="Estado del proyecto">${options}</select>
+      <span class="admin-status-chevron" aria-hidden="true"></span>
+    </span>
+    <span class="admin-action-feedback admin-action-feedback--slot" role="status" aria-live="polite">
+      <span class="admin-action-progress" aria-hidden="true">
         <span class="admin-action-progress-fill"></span>
       </span>
+      <span class="admin-action-label"></span>
     </span>
   </span>`;
 }
@@ -1659,10 +1660,11 @@ async function updateProjectStatus(selectEl) {
   const id = selectEl.dataset.statusFor;
   const newStatus = selectEl.value;
   const previous = selectEl.dataset.lastStatus;
-  const field = selectEl.closest(".admin-status-wrap")?.querySelector(".admin-status-field");
-  const edge = field?.querySelector(".admin-status-edge");
+  const feedback = selectEl
+    .closest(".admin-status-wrap")
+    ?.querySelector(".admin-action-feedback");
   selectEl.disabled = true;
-  edge?.classList.add("is-loading");
+  feedback?.classList.add("is-loading");
 
   try {
     const { project } = await api(`/projects/${id}`);
@@ -1679,7 +1681,7 @@ async function updateProjectStatus(selectEl) {
     alert(ex.message || "No se pudo actualizar el estado");
   } finally {
     selectEl.disabled = false;
-    edge?.classList.remove("is-loading");
+    feedback?.classList.remove("is-loading");
   }
 }
 
