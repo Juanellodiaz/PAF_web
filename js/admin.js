@@ -913,19 +913,21 @@ async function loadProjects(projects = cachedProjects) {
       const dragHandle = canReorder
         ? `<button type="button" class="admin-drag-handle" draggable="true" data-drag-project="${escapeAttr(p.id)}" aria-label="Arrastrar para reordenar" title="Arrastrar para reordenar">⋮⋮</button>`
         : "";
+      const projectUrl = `/project.html?id=${encodeURIComponent(p.id)}`;
       return `
       <div class="admin-list-item" data-project-id="${escapeAttr(p.id)}">
         ${dragHandle}
-        <div class="admin-list-item-start">
-          ${progressRingCardHtml(p)}
-          <div class="admin-list-item-info">
-            <strong>${escapeHtml(p.name)}</strong>
-            <span class="portal-user">${escapeHtml(clientName)} · ${p.daysRemaining} días · ${n} conceptos · ${formatProjectMoneyDisplay(p)}</span>
+        <a href="${projectUrl}" class="admin-list-item-main" aria-label="Abrir ${escapeAttr(p.name)}">
+          <div class="admin-list-item-start">
+            ${progressRingCardHtml(p)}
+            <div class="admin-list-item-info">
+              <strong>${escapeHtml(p.name)}</strong>
+              <span class="portal-user">${escapeHtml(clientName)} · ${p.daysRemaining} días · ${n} conceptos · ${formatProjectMoneyDisplay(p)}</span>
+            </div>
           </div>
-        </div>
+        </a>
         <div class="portal-actions admin-list-actions">
           ${projectStatusSelectHtml(p.id, p.status)}
-          <a href="/project.html?id=${encodeURIComponent(p.id)}" class="btn btn-primary btn-sm">Ver / Editar</a>
           <button type="button" class="btn btn-ghost btn-sm" data-duplicate="${p.id}">Duplicar</button>
           <button type="button" class="btn btn-ghost btn-sm" data-edit="${p.id}">Datos</button>
           <button type="button" class="btn btn-ghost btn-sm" data-delete="${p.id}">Eliminar</button>
@@ -1024,7 +1026,7 @@ async function onSubmit(e) {
       closeQuickPanel();
       await refreshDashboard();
       err.style.color = "var(--accent)";
-      err.textContent = "Proyecto creado. Abre Ver / Editar para agregar conceptos.";
+      err.textContent = "Proyecto creado. Haz clic en el proyecto para agregar conceptos.";
       setTimeout(() => {
         window.location.href = `/project.html?id=${encodeURIComponent(project.id)}`;
       }, 800);
