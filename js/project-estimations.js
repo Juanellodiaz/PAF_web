@@ -421,6 +421,27 @@ function estimationPaymentBarHtml(payment) {
     </div>`;
 }
 
+function patchEstimationPaymentControlsInPlace(wrap, idx, payment, prefix) {
+  if (!wrap) return;
+  wrap.querySelectorAll(".est-pay-opt").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.status === payment.status);
+  });
+  const amountGroup = wrap.querySelector(".estimation-payment-amount");
+  if (amountGroup) {
+    amountGroup.classList.toggle("hidden", payment.status !== "partial");
+  }
+  const pendingEl = wrap.querySelector(`[data-${prefix}-pay-pending="${idx}"]`);
+  if (pendingEl) pendingEl.textContent = formatMoney(payment.pending);
+  const bar = wrap.querySelector(".admin-payment-bar");
+  const barHtml = estimationPaymentBarHtml(payment);
+  if (bar) {
+    if (barHtml) bar.outerHTML = barHtml;
+    else bar.remove();
+  } else if (barHtml) {
+    wrap.insertAdjacentHTML("beforeend", barHtml);
+  }
+}
+
 function estimationPaymentControlsHtml(est, idx, payment, prefix) {
   const showAmount = payment.status === "partial";
   const maxAttr = payment.total > 0 ? ` max="${payment.total}"` : "";

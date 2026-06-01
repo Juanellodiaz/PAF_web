@@ -967,9 +967,17 @@ function syncAdminEstimationPaymentSection(idx, est, options = {}) {
     btn.setAttribute("aria-expanded", String(expanded));
   });
 
+  const prefix = "admin-est";
   const wrap = card.querySelector(`[data-admin-est-payment-wrap="${idx}"]`);
-  if (wrap) {
-    wrap.outerHTML = estimationPaymentControlsHtml(est, idx, payment, "admin-est");
+  const amountInput = wrap?.querySelector(`[data-admin-est-amount-paid="${idx}"]`);
+  const isTypingAmount =
+    options.preserveAmountInput ||
+    (amountInput && document.activeElement === amountInput);
+
+  if (wrap && isTypingAmount) {
+    patchEstimationPaymentControlsInPlace(wrap, idx, payment, prefix);
+  } else if (wrap) {
+    wrap.outerHTML = estimationPaymentControlsHtml(est, idx, payment, prefix);
   }
 }
 
@@ -1105,14 +1113,17 @@ function bindAdminEstimationsList(sorted) {
     const est = window.__pafAdminEstimationsSorted[idx];
     if (!est) return;
     const total = estimationBreakdownFor(est.id).grandTotal || 0;
+    const raw = input.value.trim();
+    const amountPaid =
+      raw === "" ? 0 : Math.max(0, Math.round(Number(raw) || 0));
     Object.assign(
       est,
       applyEstimationPaymentToRecord(est, total, {
         status: "partial",
-        amountPaid: Math.round(Number(input.value) || 0),
+        amountPaid,
       })
     );
-    syncAdminEstimationPaymentSection(idx, est);
+    syncAdminEstimationPaymentSection(idx, est, { preserveAmountInput: true });
     scheduleAdminPaymentPersist();
   });
 }

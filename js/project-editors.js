@@ -97,9 +97,17 @@ function syncEstimationPaymentSection(idx, est, total, options = {}) {
     badge.textContent = estimationPaymentBadgeText(payment);
   }
 
+  const prefix = "est";
   const wrap = row.querySelector(`[data-est-payment-wrap="${idx}"]`);
-  if (wrap) {
-    wrap.outerHTML = estimationPaymentControlsHtml(est, idx, payment, "est");
+  const amountInput = wrap?.querySelector(`[data-est-amount-paid="${idx}"]`);
+  const isTypingAmount =
+    options.preserveAmountInput ||
+    (amountInput && document.activeElement === amountInput);
+
+  if (wrap && isTypingAmount) {
+    patchEstimationPaymentControlsInPlace(wrap, idx, payment, prefix);
+  } else if (wrap) {
+    wrap.outerHTML = estimationPaymentControlsHtml(est, idx, payment, prefix);
   }
 }
 
@@ -184,7 +192,9 @@ function onEditorEstAmountPaidInput(idx) {
   if (!est) return;
   const input = document.querySelector(`[data-est-amount-paid="${idx}"]`);
   const total = estimationBreakdownFor(est.id).grandTotal || 0;
-  const amountPaid = Math.round(Number(input?.value) || 0);
+  const raw = (input?.value ?? "").trim();
+  const amountPaid =
+    raw === "" ? 0 : Math.max(0, Math.round(Number(raw) || 0));
   Object.assign(
     est,
     applyEstimationPaymentToRecord(est, total, {
@@ -192,7 +202,7 @@ function onEditorEstAmountPaidInput(idx) {
       amountPaid,
     })
   );
-  syncEstimationPaymentSection(idx, est, total);
+  syncEstimationPaymentSection(idx, est, total, { preserveAmountInput: true });
   scheduleEditorPaymentDirty();
 }
 
