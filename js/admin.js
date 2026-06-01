@@ -156,9 +156,6 @@ function computeAdminDashboardSummary(projects) {
   const inApproval = list.filter(
     (p) => normalizeProjectStatus(p.status) === "en_aprobacion"
   );
-  const completed = list.filter(
-    (p) => normalizeProjectStatus(p.status) === "completado"
-  );
 
   let totalM2 = 0;
   let doneM2 = 0;
@@ -188,9 +185,18 @@ function computeAdminDashboardSummary(projects) {
     portfolioIndirect
   );
 
-  const completedMoney = sumConceptsTotal(completed);
-  const completedFlujo = Math.round(completedMoney * FLUJO_RATE);
-  const completedIntercambio = Math.round(completedMoney * INTERCAMBIO_RATE);
+  const allConcepts = list.flatMap((p) => p.concepts || []);
+  const estimationsList = mergeEstimationsFromConcepts(
+    cachedGlobalEstimations,
+    allConcepts
+  );
+  window.__pafProjectsForEstimations = list;
+  const paidEstimationsMoney = calcTotalPaid(cachedGlobalEstimations, list);
+  const paidEstimationsCount = estimationsList.filter((e) => e.paid).length;
+  const paidEstimationsFlujo = Math.round(paidEstimationsMoney * FLUJO_RATE);
+  const paidEstimationsIntercambio = Math.round(
+    paidEstimationsMoney * INTERCAMBIO_RATE
+  );
 
   let totalProfit = 0;
   let totalFlowProfit = 0;
@@ -209,10 +215,10 @@ function computeAdminDashboardSummary(projects) {
     activeMoney: sumConceptsTotal(active),
     approvalCount: inApproval.length,
     approvalMoney: sumConceptsTotal(inApproval),
-    completedCount: completed.length,
-    completedMoney,
-    completedFlujo,
-    completedIntercambio,
+    paidEstimationsMoney,
+    paidEstimationsCount,
+    paidEstimationsFlujo,
+    paidEstimationsIntercambio,
     activeProgressPercent,
     activeDoneM2: Math.round(doneM2 * 100) / 100,
     activeTotalM2: Math.round(totalM2 * 100) / 100,
@@ -226,6 +232,10 @@ function computeAdminDashboardSummary(projects) {
 
 function projectCountLabel(n) {
   return n === 1 ? "1 proyecto" : `${n} proyectos`;
+}
+
+function estimationCountLabel(n) {
+  return n === 1 ? "1 estimación pagada" : `${n} estimaciones pagadas`;
 }
 
 function metricSplitHtml(leftValue, leftLabel, rightValue, rightLabel) {
@@ -286,13 +296,13 @@ function adminSummaryHtml(summary) {
       <span class="metric-sublabel">${projectCountLabel(summary.approvalCount)}</span>
     </div>
     <div class="metric-box metric-box--split">
-      <span class="metric-value">${formatMoney(summary.completedMoney)}</span>
-      <span class="metric-label">Proyectos culminados</span>
-      <span class="metric-sublabel">${projectCountLabel(summary.completedCount)}</span>
+      <span class="metric-value">${formatMoney(summary.paidEstimationsMoney)}</span>
+      <span class="metric-label">Estimaciones pagadas</span>
+      <span class="metric-sublabel">${estimationCountLabel(summary.paidEstimationsCount)}</span>
       ${metricSplitHtml(
-        formatMoney(summary.completedFlujo),
+        formatMoney(summary.paidEstimationsFlujo),
         "Flujo 60%",
-        formatMoney(summary.completedIntercambio),
+        formatMoney(summary.paidEstimationsIntercambio),
         "Intercambio 40%"
       )}
     </div>
