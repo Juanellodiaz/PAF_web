@@ -170,6 +170,16 @@ function buildEstimationsListForPersist() {
   return buildEstimationsListForQuick().map(estimationRecordForPersist);
 }
 
+/** Persiste una lista ya armada (p. ej. tras crear una estimación nueva en memoria). */
+async function persistEstimationList(estimations) {
+  const records = (estimations || []).map(estimationRecordForPersist);
+  await persistEstimationsToGlobal(records);
+  window.__pafAdminEstimationsSorted = sortEstimationsList(
+    mergeEstimationsFromConcepts(records, allCachedConcepts())
+  );
+  return records;
+}
+
 function createQuickEstimation(estimations, fields = {}) {
   const list = estimations || [];
   const est = {
@@ -726,11 +736,13 @@ async function onSubmitQuickEstimation(e) {
   try {
     const estimations = buildEstimationsListForQuick();
     createQuickEstimation(estimations, { label, date, notes });
-    await persistEstimationsToGlobal(buildEstimationsListForPersist());
+    await persistEstimationList(estimations);
     closeQuickPanel();
     await refreshDashboard();
   } catch (ex) {
-    err.textContent = ex.message;
+    console.error(ex);
+    err.textContent =
+      ex.message || "No se pudo crear la estimación. Verifica que exista al menos un proyecto.";
   }
 }
 
