@@ -254,7 +254,7 @@ function estimationPaymentStatusLabel(payment) {
 function estimationPaymentBadgeText(payment) {
   if (payment.status === "paid") return "PAGADA";
   if (payment.status === "partial") {
-    return `PAGO PARCIAL ${formatMoney(payment.amountPaid)} DE ${formatMoney(payment.total)}`;
+    return `PAGO PARCIAL ${formatMoney(payment.amountPaid)} DE`;
   }
   return "PENDIENTE DE PAGO";
 }
