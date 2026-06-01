@@ -133,7 +133,7 @@ async function persistGlobalEstimationsFromProject(
     ).filter(Boolean)
   );
 
-  const merged = mergeEstimationRecords(previous, incoming);
+  const merged = mergeEstimationRecords(previous, incoming, { incomingWins: true });
   const final = merged.filter((e) => !deletedIds.has(e.id));
 
   const finalIds = new Set(final.map((e) => e.id));

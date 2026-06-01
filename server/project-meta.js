@@ -1,3 +1,5 @@
+const { mergeEstimationPaidState } = require("./global-estimations");
+
 const META_TITLE = "_PAF_INTERNAL";
 
 function metaDocId(projectId) {
@@ -23,19 +25,6 @@ function isSchemaColumnError(err) {
     /advances/.test(msg) ||
     /estimations/.test(msg)
   );
-}
-
-function mergeEstimationPaidState(prev, next) {
-  if (prev?.paid === false || next?.paid === false) {
-    return { paid: false, paidAt: null };
-  }
-  if (prev?.paid || next?.paid) {
-    return {
-      paid: true,
-      paidAt: prev?.paidAt || next?.paidAt || null,
-    };
-  }
-  return { paid: false, paidAt: null };
 }
 
 function mergeStoredEstimations(projectEstimations, metaEstimations) {
@@ -213,6 +202,9 @@ function applyMetaToProject(project) {
     );
     estimations = mergeEstimationsFromConcepts(storedEstimations, concepts);
     estimations = applyPaidFromMeta(estimations, meta.paidByEstimationId);
+  } else if (meta.v === 4 && Array.isArray(meta.estimationsArchive)) {
+    const paidById = buildPaidByEstimationId(meta.estimationsArchive);
+    estimations = applyPaidFromMeta(estimations, paidById);
   }
 
   const indirectCosts = Array.isArray(meta.indirectCosts) ? meta.indirectCosts : [];

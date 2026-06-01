@@ -15,20 +15,26 @@ function normalizeEstimation(e) {
   };
 }
 
-function mergeEstimationPaidState(prev, next) {
-  if (prev?.paid === false || next?.paid === false) {
-    return { paid: false, paidAt: null };
+/**
+ * @param {object} opts
+ * @param {boolean} [opts.incomingWins] — al guardar un proyecto, el payload manda sobre el global
+ */
+function mergeEstimationPaidState(prev, next, opts = {}) {
+  if (opts.incomingWins) {
+    return next?.paid
+      ? { paid: true, paidAt: next.paidAt || prev?.paidAt || null }
+      : { paid: false, paidAt: null };
   }
   if (prev?.paid || next?.paid) {
     return {
       paid: true,
-      paidAt: prev?.paidAt || next?.paidAt || null,
+      paidAt: (next?.paid && next.paidAt) || (prev?.paid && prev.paidAt) || null,
     };
   }
   return { paid: false, paidAt: null };
 }
 
-function mergeEstimationRecords(existing, incoming) {
+function mergeEstimationRecords(existing, incoming, opts = {}) {
   const byId = new Map();
   (existing || []).forEach((e) => {
     if (e?.id) byId.set(e.id, normalizeEstimation(e));
@@ -44,7 +50,7 @@ function mergeEstimationRecords(existing, incoming) {
     byId.set(e.id, {
       ...prev,
       ...next,
-      ...mergeEstimationPaidState(prev, next),
+      ...mergeEstimationPaidState(prev, next, opts),
     });
   });
   return Array.from(byId.values());

@@ -282,14 +282,16 @@ function estimationDisplayLabel(est, index) {
   return (est.label || "").trim() || `Estimación ${String(index + 1).padStart(2, "0")}`;
 }
 
-function mergeEstimationPaidState(prev, next) {
-  if (prev?.paid === false || next?.paid === false) {
-    return { paid: false, paidAt: null };
+function mergeEstimationPaidState(prev, next, opts = {}) {
+  if (opts.incomingWins) {
+    return next?.paid
+      ? { paid: true, paidAt: next.paidAt || prev?.paidAt || null }
+      : { paid: false, paidAt: null };
   }
   if (prev?.paid || next?.paid) {
     return {
       paid: true,
-      paidAt: prev?.paidAt || next?.paidAt || null,
+      paidAt: (next?.paid && next.paidAt) || (prev?.paid && prev.paidAt) || null,
     };
   }
   return { paid: false, paidAt: null };
