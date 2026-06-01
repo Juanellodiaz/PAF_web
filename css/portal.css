@@ -1630,6 +1630,16 @@ body.page-enter {
   border: 1px solid var(--border);
 }
 
+.advance-pe-tag {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  vertical-align: middle;
+  line-height: 1;
+}
+
 .advance-amount-preview {
   margin: 0.35rem 0 0;
   font-size: 0.8rem;

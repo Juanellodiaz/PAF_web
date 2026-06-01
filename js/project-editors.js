@@ -754,7 +754,7 @@ function updateAdvanceAmountPreview(conceptIndex) {
     return;
   }
   preview.textContent = useSpecialPrice
-    ? `Importe (precio especial ${formatMoney(unitPrice)}/m²): ${formatMoney(amount)}`
+    ? `Importe (PE ${formatMoney(unitPrice)}/m²): ${formatMoney(amount)}`
     : `Importe del avance: ${formatMoney(amount)}`;
 }
 
@@ -771,11 +771,8 @@ function conceptAdvancesBlock(c, i) {
               estIdx >= 0
                 ? estimationDisplayLabel(editorEstimations[estIdx], estIdx)
                 : "Sin estimación";
-            const unit = advanceEffectiveUnitPrice(a, c);
             const amount = advanceAmount(a, c);
-            const priceNote = advanceUsesSpecialPrice(a)
-              ? ` · precio especial ${formatMoney(unit)}/m²`
-              : "";
+            const priceNote = advanceSpecialListNote(a, c);
             return `<li class="advance-item">
               <span>${Number(a.m2) || 0} m² · ${formatMoney(amount)}${priceNote} · ${escapeHtml(estLabel)}${a.date ? ` · ${formatDate(a.date)}` : ""}</span>
               <button type="button" class="btn-remove btn-remove-sm" data-remove-advance="${i}" data-advance-index="${ai}" aria-label="Quitar avance">×</button>

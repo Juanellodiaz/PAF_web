@@ -536,7 +536,7 @@ function updateAdvanceQuickPreview() {
     return;
   }
   previewEl.textContent = useSpecialPrice
-    ? `Importe (precio especial ${formatMoney(unitPrice)}/m²): ${formatMoney(amount)}`
+    ? `Importe (PE ${formatMoney(unitPrice)}/m²): ${formatMoney(amount)}`
     : `Importe del avance: ${formatMoney(amount)}`;
 }
 

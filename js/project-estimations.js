@@ -22,6 +22,19 @@ function advanceAmount(advance, concept) {
   return Math.round(m2 * advanceEffectiveUnitPrice(advance, concept));
 }
 
+/** Etiqueta interna (no obvia para el cliente) en listas y estimaciones */
+const ADVANCE_PE_LABEL = "PE";
+
+function advanceSpecialListNote(advance, concept) {
+  if (!advanceUsesSpecialPrice(advance)) return "";
+  const unit = advanceEffectiveUnitPrice(advance, concept);
+  return ` · ${ADVANCE_PE_LABEL} ${formatMoney(unit)}/m²`;
+}
+
+function advanceSpecialPeTagHtml() {
+  return `<span class="advance-pe-tag">${ADVANCE_PE_LABEL}</span>`;
+}
+
 function serializeAdvance(advance) {
   const out = {
     id: advance.id,
@@ -241,7 +254,7 @@ function estimationLinesGroupedHtml(breakdown) {
         .map(
           (l) => `
         <tr>
-          <td>${escapeHtml(l.conceptName)}</td>
+          <td>${escapeHtml(l.conceptName)}${l.useSpecialPrice ? ` ${advanceSpecialPeTagHtml()}` : ""}</td>
           <td>${l.m2}</td>
           <td>${formatMoney(l.unitPrice)}</td>
           <td>${formatMoney(l.amount)}</td>
@@ -372,7 +385,7 @@ function buildEstimationExportHtml(estimation, breakdown, clientName, estimation
         .map(
           (l) => `
       <tr>
-        <td>${escapeHtml(l.conceptName)}</td>
+        <td>${escapeHtml(l.conceptName)}${l.useSpecialPrice ? ` ${advanceSpecialPeTagHtml()}` : ""}</td>
         <td class="num">${l.m2}</td>
         <td class="num">${formatMoney(l.unitPrice)}</td>
         <td class="num">${formatMoney(l.amount)}</td>
