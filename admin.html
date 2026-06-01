@@ -188,21 +188,30 @@
           <label for="quick-advance-estimation">Estimación</label>
           <select id="quick-advance-estimation" required></select>
         </div>
-        <div class="advance-special-row">
-          <label class="advance-special-label">
-            <input type="checkbox" id="quick-advance-special-toggle">
-            Precio especial
-          </label>
-          <div class="form-group advance-special-price-wrap is-disabled" id="quick-advance-special-wrap">
-            <label for="quick-advance-special-price">Precio unitario (MXN/m²)</label>
+        <div class="advance-special-block" id="quick-advance-special-block">
+          <label class="advance-special-toggle" for="quick-advance-special-toggle">
             <input
-              type="number"
-              id="quick-advance-special-price"
-              min="0"
-              step="1"
-              disabled
-              placeholder="Precio del concepto"
+              type="checkbox"
+              class="advance-special-checkbox"
+              id="quick-advance-special-toggle"
             >
+            <span class="advance-special-toggle-track" aria-hidden="true">
+              <span class="advance-special-toggle-thumb"></span>
+            </span>
+            <span class="advance-special-toggle-text">Precio especial</span>
+          </label>
+          <div class="advance-special-fields" id="quick-advance-special-wrap">
+            <div class="form-group">
+              <label for="quick-advance-special-price">Precio unitario (MXN/m²)</label>
+              <input
+                type="number"
+                id="quick-advance-special-price"
+                min="0"
+                step="1"
+                disabled
+                placeholder="Precio del concepto"
+              >
+            </div>
           </div>
         </div>
         <p class="advance-pending" id="quick-advance-pending"></p>
@@ -300,6 +309,6 @@
   <script src="js/indirect-costs.js"></script>
   <script src="js/project-estimations.js?v=38"></script>
   <script src="js/concept-costs.js"></script>
-  <script src="js/admin.js?v=63"></script>
+  <script src="js/admin.js?v=64"></script>
 </body>
 </html>

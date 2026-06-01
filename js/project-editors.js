@@ -728,7 +728,12 @@ function syncAdvanceSpecialPriceUi(conceptIndex) {
   );
   if (!toggle || !wrap || !input || !c) return;
   const on = toggle.checked;
-  wrap.classList.toggle("is-disabled", !on);
+  const block = document.querySelector(
+    `[data-advance-special-block="${conceptIndex}"]`
+  );
+  const toggleUi = toggle.closest(".advance-special-toggle");
+  if (block) block.classList.toggle("is-active", on);
+  if (toggleUi) toggleUi.classList.toggle("is-active", on);
   input.disabled = !on;
   if (on && !input.value) {
     input.value = Number(c.unitPrice) || "";
@@ -805,21 +810,30 @@ function conceptAdvancesBlock(c, i) {
           </select>
         </div>
       </div>
-      <div class="advance-special-row">
-        <label class="advance-special-label">
-          <input type="checkbox" data-advance-special-toggle="${i}">
-          Precio especial
-        </label>
-        <div class="form-group advance-special-price-wrap is-disabled" data-advance-special-wrap="${i}">
-          <label>Precio unitario (MXN/m²)</label>
+      <div class="advance-special-block" data-advance-special-block="${i}">
+        <label class="advance-special-toggle">
           <input
-            type="number"
-            min="0"
-            step="1"
-            data-advance-special-price="${i}"
-            disabled
-            placeholder="Precio del concepto"
+            type="checkbox"
+            class="advance-special-checkbox"
+            data-advance-special-toggle="${i}"
           >
+          <span class="advance-special-toggle-track" aria-hidden="true">
+            <span class="advance-special-toggle-thumb"></span>
+          </span>
+          <span class="advance-special-toggle-text">Precio especial</span>
+        </label>
+        <div class="advance-special-fields" data-advance-special-wrap="${i}">
+          <div class="form-group">
+            <label>Precio unitario (MXN/m²)</label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              data-advance-special-price="${i}"
+              disabled
+              placeholder="Precio del concepto"
+            >
+          </div>
         </div>
       </div>
       <button type="button" class="btn btn-ghost btn-sm" data-add-advance="${i}">+ Agregar avance</button>
@@ -1002,6 +1016,10 @@ async function addConceptAdvance(conceptIndex) {
     specialInput.value = "";
     specialInput.disabled = true;
   }
+  document
+    .querySelector(`[data-advance-special-block="${conceptIndex}"]`)
+    ?.classList.remove("is-active");
+  specialToggle?.closest(".advance-special-toggle")?.classList.remove("is-active");
   syncAdvanceSpecialPriceUi(conceptIndex);
 
   if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);

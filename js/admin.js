@@ -415,13 +415,14 @@ function resetAdvanceQuickForm() {
   document.getElementById("quick-advance-preview").textContent = "";
   const specialToggle = document.getElementById("quick-advance-special-toggle");
   const specialInput = document.getElementById("quick-advance-special-price");
-  const specialWrap = document.getElementById("quick-advance-special-wrap");
+  const specialBlock = document.getElementById("quick-advance-special-block");
   if (specialToggle) specialToggle.checked = false;
   if (specialInput) {
     specialInput.value = "";
     specialInput.disabled = true;
   }
-  if (specialWrap) specialWrap.classList.add("is-disabled");
+  specialBlock?.classList.remove("is-active");
+  specialToggle?.closest(".advance-special-toggle")?.classList.remove("is-active");
   advanceProjectCache = null;
   fillProjectSelects();
   document.getElementById("quick-advance-concept").innerHTML =
@@ -452,7 +453,10 @@ function syncQuickAdvanceSpecialUi(concept) {
   const input = document.getElementById("quick-advance-special-price");
   if (!toggle || !wrap || !input) return;
   const on = toggle.checked;
-  wrap.classList.toggle("is-disabled", !on);
+  const block = document.getElementById("quick-advance-special-block");
+  const toggleUi = toggle.closest(".advance-special-toggle");
+  if (block) block.classList.toggle("is-active", on);
+  if (toggleUi) toggleUi.classList.toggle("is-active", on);
   input.disabled = !on;
   if (on && !input.value && concept) {
     input.value = Number(concept.unitPrice) || "";
