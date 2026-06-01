@@ -36,6 +36,7 @@ function newEstimation() {
     id: newEditorId("est"),
     label: `Estimación ${String(n).padStart(2, "0")}`,
     date: new Date().toISOString().slice(0, 10),
+    amountPaid: 0,
     paid: false,
     paidAt: null,
     notes: "",
@@ -72,9 +73,11 @@ function updateEstimationRowUi(idx) {
   const label = estimationDisplayLabel(est, idx);
   const projectsNote =
     projectCount > 1 ? ` · ${projectCount} proyectos` : projectCount === 1 ? "" : "";
-  const summary = `${label} · ${lineCount} partida(s)${projectsNote} · ${formatMoney(total)} · ${est.paid ? "Pagada" : "Pendiente"}`;
+  const payment = getEstimationPayment(est, total);
+  const summary = `${label} · ${lineCount} partida(s)${projectsNote} · ${formatMoney(total)} · ${estimationPaymentStatusLabel(payment)}`;
   row.classList.toggle("is-collapsed", !expanded);
-  row.classList.toggle("is-paid", !!est.paid);
+  row.classList.toggle("is-paid", payment.status === "paid");
+  row.classList.toggle("is-partial", payment.status === "partial");
   const summaryEl = row.querySelector(".concept-summary");
   if (summaryEl) summaryEl.textContent = summary;
   row.querySelectorAll("[data-est-toggle-label]").forEach((btn) => {
@@ -83,12 +86,19 @@ function updateEstimationRowUi(idx) {
   row.querySelectorAll("[data-toggle-est]").forEach((btn) => {
     btn.setAttribute("aria-expanded", String(expanded));
   });
-  const paidToggle = row.querySelector("[data-est-paid-toggle]");
-  if (paidToggle) {
-    paidToggle.classList.toggle("is-paid", !!est.paid);
-    paidToggle.setAttribute("aria-pressed", String(!!est.paid));
-    const paidLabel = paidToggle.querySelector(".est-paid-toggle-text");
-    if (paidLabel) paidLabel.textContent = est.paid ? "Pagada" : "Pendiente";
+  const badge = row.querySelector(".estimation-status-badge");
+  if (badge) {
+    badge.className = `estimation-status-badge ${payment.status}`;
+    badge.textContent = estimationPaymentBadgeText(payment);
+  }
+  const wrap = row.querySelector(`[data-est-payment-wrap="${idx}"]`);
+  if (wrap) {
+    wrap.outerHTML = estimationPaymentControlsHtml(est, idx, payment, "est");
+    const editorEl = document.getElementById("estimations-editor");
+    if (editorEl) {
+      editorEl.dataset.paymentBound = "";
+      bindEstimationPaymentEvents(editorEl);
+    }
   }
 }
 
@@ -136,19 +146,7 @@ window.pafRemoveEstimation = function (idx) {
   void persistProjectAdvances();
 };
 
-window.pafToggleEstPaid = function (idx) {
-  const est = editorEstimations[idx];
-  if (!est) return;
-  window.pafEstPaidChange(idx, !est.paid);
-};
-
-window.pafEstPaidChange = function (idx, checked) {
-  if (!editorEstimations[idx]) return;
-  editorEstimations[idx].paid = checked;
-  editorEstimations[idx].paidAt = checked
-    ? new Date().toISOString().slice(0, 10)
-    : null;
-  updateEstimationRowUi(idx);
+function markEstimationsDirty() {
   if (typeof window.markProjectDirty === "function") {
     window.markProjectDirty();
   }
@@ -158,7 +156,82 @@ window.pafEstPaidChange = function (idx, checked) {
   if (typeof window.refreshProjectMetrics === "function") {
     window.refreshProjectMetrics();
   }
-};
+}
+
+function applyEditorEstPayment(idx, patch) {
+  const est = editorEstimations[idx];
+  if (!est) return;
+  const total = estimationBreakdownFor(est.id).grandTotal || 0;
+  Object.assign(est, applyEstimationPaymentToRecord(est, total, patch));
+  updateEstimationRowUi(idx);
+  markEstimationsDirty();
+}
+
+function onEditorEstAmountPaidInput(idx) {
+  const est = editorEstimations[idx];
+  if (!est) return;
+  const input = document.querySelector(`[data-est-amount-paid="${idx}"]`);
+  const total = estimationBreakdownFor(est.id).grandTotal || 0;
+  const amountPaid = Math.round(Number(input?.value) || 0);
+  Object.assign(
+    est,
+    applyEstimationPaymentToRecord(est, total, {
+      status: "partial",
+      amountPaid,
+    })
+  );
+  const pendingEl = document.querySelector(`[data-est-pay-pending="${idx}"]`);
+  const payment = getEstimationPayment(est, total);
+  if (pendingEl) pendingEl.textContent = formatMoney(payment.pending);
+  const barWrap = document.querySelector(`[data-est-payment-wrap="${idx}"]`);
+  if (barWrap) {
+    const bar = barWrap.querySelector(".admin-payment-bar");
+    if (bar) bar.outerHTML = estimationPaymentBarHtml(payment);
+  }
+  const summaryEl = document.querySelector(
+    `#estimations-editor [data-est-index="${idx}"] .concept-summary`
+  );
+  if (summaryEl) {
+    const breakdown = estimationBreakdownFor(est.id);
+    const label = estimationDisplayLabel(
+      est,
+      editorEstimations.findIndex((e) => e.id === est.id)
+    );
+    const lineCount = breakdown.lineCount || 0;
+    const projectCount = breakdown.groups?.length || 0;
+    const projectsNote =
+      projectCount > 1 ? ` · ${projectCount} proyectos` : "";
+    summaryEl.textContent = `${label} · ${lineCount} partida(s)${projectsNote} · ${formatMoney(total)} · ${estimationPaymentStatusLabel(payment)}`;
+  }
+  markEstimationsDirty();
+}
+
+function bindEstimationPaymentEvents(el) {
+  if (!el || el.dataset.paymentBound === "1") return;
+  el.dataset.paymentBound = "1";
+  el.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-est-pay-status]");
+    if (!btn) return;
+    e.preventDefault();
+    const idx = Number(btn.dataset.estPayStatus);
+    const status = btn.dataset.status;
+    if (status === "partial") {
+      applyEditorEstPayment(idx, { status: "partial", amountPaid: 0 });
+      const amountWrap = document.querySelector(
+        `#estimations-editor [data-est-payment-wrap="${idx}"] .estimation-payment-amount`
+      );
+      if (amountWrap) amountWrap.classList.remove("hidden");
+      document.querySelector(`[data-est-amount-paid="${idx}"]`)?.focus();
+      return;
+    }
+    applyEditorEstPayment(idx, { status });
+  });
+  el.addEventListener("input", (e) => {
+    const input = e.target.closest("[data-est-amount-paid]");
+    if (!input) return;
+    onEditorEstAmountPaidInput(Number(input.dataset.estAmountPaid));
+  });
+}
 
 window.pafEstFieldChange = function (idx, field, value) {
   if (!editorEstimations[idx]) return;
@@ -530,11 +603,15 @@ function collectConcepts() {
     .filter((c) => c.name);
 }
 
-function readPaidStateFromEditor() {
+function readPaymentStateFromEditor() {
   const byId = new Map();
   editorEstimations.forEach((e) => {
     if (e?.id) {
-      byId.set(e.id, { paid: !!e.paid, paidAt: e.paidAt || null });
+      byId.set(e.id, {
+        amountPaid: Number(e.amountPaid) || 0,
+        paid: !!e.paid,
+        paidAt: e.paidAt || null,
+      });
     }
   });
   document
@@ -543,22 +620,25 @@ function readPaidStateFromEditor() {
       const idx = Number(row.dataset.estIndex);
       const est = editorEstimations[idx];
       if (!est?.id) return;
-      const toggle = row.querySelector("[data-est-paid-toggle]");
-      if (!toggle) return;
-      const paid = toggle.classList.contains("is-paid");
-      byId.set(est.id, {
-        paid,
-        paidAt: paid
-          ? est.paidAt || new Date().toISOString().slice(0, 10)
-          : null,
+      const total = estimationBreakdownFor(est.id).grandTotal || 0;
+      const active = row.querySelector(".est-pay-opt.is-active");
+      const status = active?.dataset.status || "pending";
+      const amountInput = row.querySelector(`[data-est-amount-paid="${idx}"]`);
+      let amountPaid = Math.round(Number(amountInput?.value) || 0);
+      if (status === "paid") amountPaid = total;
+      else if (status === "pending") amountPaid = 0;
+      const payment = applyEstimationPaymentToRecord(est, total, {
+        status,
+        amountPaid,
       });
+      byId.set(est.id, payment);
     });
   return byId;
 }
 
 function collectEstimations() {
   syncEditorEstimations();
-  const paidById = readPaidStateFromEditor();
+  const paidById = readPaymentStateFromEditor();
   const global = window.__pafGlobalEstimations || [];
   const orphanGlobal = global.filter(
     (g) =>
@@ -571,18 +651,19 @@ function collectEstimations() {
     editorConcepts
   );
   return list.map((e) => {
-    const paidState = paidById.get(e.id);
-    const paid = paidState ? paidState.paid : !!e.paid;
-    const paidAt = paid
-      ? paidState?.paidAt || e.paidAt || new Date().toISOString().slice(0, 10)
-      : null;
+    const payState = paidById.get(e.id);
+    const total = estimationBreakdownFor(e.id).grandTotal || 0;
+    const payment = payState
+      ? applyEstimationPaymentToRecord(e, total, payState)
+      : getEstimationPayment(e, total);
     const { expanded: _u, collapsed: _c, ...rest } = e;
     return {
       ...rest,
       label: (e.label || "").trim(),
       date: e.date || new Date().toISOString().slice(0, 10),
-      paid,
-      paidAt,
+      amountPaid: payment.amountPaid,
+      paid: payment.paid,
+      paidAt: payment.paidAt,
       notes: (e.notes || "").trim(),
     };
   });
@@ -1053,16 +1134,23 @@ function updateProgressChart() {
 function estimationCardHtml(est, idx) {
   const breakdown = estimationBreakdownFor(est.id);
   const total = breakdown.grandTotal || 0;
+  const payment = getEstimationPayment(est, total);
   const lineCount = breakdown.lineCount || 0;
   const projectCount = breakdown.groups?.length || 0;
   const label = estimationDisplayLabel(est, idx);
   const expanded = !!est.expanded;
   const projectsNote =
     projectCount > 1 ? ` · ${projectCount} proyectos` : "";
-  const summary = `${label} · ${lineCount} partida(s)${projectsNote} · ${formatMoney(total)} · ${est.paid ? "Pagada" : "Pendiente"}`;
+  const summary = `${label} · ${lineCount} partida(s)${projectsNote} · ${formatMoney(total)} · ${estimationPaymentStatusLabel(payment)}`;
+  const statusClass =
+    payment.status === "paid"
+      ? "is-paid"
+      : payment.status === "partial"
+        ? "is-partial"
+        : "";
 
   return `
-    <div class="estimation-card concept-row ${est.paid ? "is-paid" : ""} ${expanded ? "" : "is-collapsed"}" data-est-index="${idx}">
+    <div class="estimation-card concept-row ${statusClass} ${expanded ? "" : "is-collapsed"}" data-est-index="${idx}">
       <div class="concept-row-top estimation-card-head">
         <button type="button" class="concept-toggle" data-toggle-est="${idx}" aria-expanded="${expanded}" onclick="pafToggleEstimation(${idx})">
           <span class="concept-chevron" aria-hidden="true"></span>
@@ -1070,10 +1158,7 @@ function estimationCardHtml(est, idx) {
           <span class="concept-summary">${escapeHtml(summary)}</span>
         </button>
         <div class="estimation-head-actions">
-          <button type="button" class="est-paid-toggle ${est.paid ? "is-paid" : ""}" data-est-paid-toggle="${idx}" aria-pressed="${est.paid}" aria-label="Estado de pago" onclick="pafToggleEstPaid(${idx})">
-            <span class="est-paid-toggle-track" aria-hidden="true"><span class="est-paid-toggle-thumb"></span></span>
-            <span class="est-paid-toggle-text">${est.paid ? "Pagada" : "Pendiente"}</span>
-          </button>
+          <span class="estimation-status-badge ${payment.status}">${estimationPaymentBadgeText(payment)}</span>
           <span class="estimation-total">${formatMoney(total)}</span>
           <button type="button" class="btn btn-ghost btn-sm" data-est-toggle-label onclick="pafToggleEstimation(${idx})">${expanded ? "Ocultar" : "Ver detalle"}</button>
           <button type="button" class="btn btn-ghost btn-sm" onclick="pafDownloadEstimation(${idx})">Descargar</button>
@@ -1081,6 +1166,7 @@ function estimationCardHtml(est, idx) {
         </div>
       </div>
       <div class="concept-row-body estimation-detail">
+        ${estimationPaymentControlsHtml(est, idx, payment, "est")}
         <div class="form-row">
           <div class="form-group">
             <label>Nombre de la estimación</label>
@@ -1143,6 +1229,8 @@ function renderEstimationsEditor() {
     el.innerHTML = editorEstimations
       .map((est, idx) => estimationCardHtml(est, idx))
       .join("");
+    el.dataset.paymentBound = "";
+    bindEstimationPaymentEvents(el);
     bindEstimationEditorEvents(el);
   } catch (err) {
     el.innerHTML = `<p class="form-error">No se pudieron cargar las estimaciones: ${escapeHtml(err.message)}</p>`;

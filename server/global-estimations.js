@@ -5,12 +5,15 @@ const GLOBAL_DOC_ID = "_paf_global_estimations";
 const GLOBAL_TITLE = "_PAF_GLOBAL_ESTIMATIONS";
 
 function normalizeEstimation(e) {
+  const amountPaid = Math.max(0, Math.round(Number(e.amountPaid) || 0));
+  const paid = !!e.paid;
   return {
     id: e.id,
     label: (e.label || "").trim(),
     date: e.date || new Date().toISOString().slice(0, 10),
-    paid: !!e.paid,
-    paidAt: e.paid ? e.paidAt || null : null,
+    amountPaid,
+    paid,
+    paidAt: amountPaid > 0 || paid ? e.paidAt || null : null,
     notes: (e.notes || "").trim(),
   };
 }
@@ -19,19 +22,34 @@ function normalizeEstimation(e) {
  * @param {object} opts
  * @param {boolean} [opts.incomingWins] — al guardar un proyecto, el payload manda sobre el global
  */
-function mergeEstimationPaidState(prev, next, opts = {}) {
+function mergeEstimationPaymentFields(prev, next, opts = {}) {
+  const prevAmt = Math.max(0, Math.round(Number(prev?.amountPaid) || 0));
+  const nextAmt = Math.max(0, Math.round(Number(next?.amountPaid) || 0));
   if (opts.incomingWins) {
-    return next?.paid
-      ? { paid: true, paidAt: next.paidAt || prev?.paidAt || null }
-      : { paid: false, paidAt: null };
-  }
-  if (prev?.paid || next?.paid) {
+    const amountPaid = nextAmt;
+    const paid = !!next?.paid;
     return {
-      paid: true,
-      paidAt: (next?.paid && next.paidAt) || (prev?.paid && prev.paidAt) || null,
+      amountPaid,
+      paid,
+      paidAt:
+        amountPaid > 0 || paid
+          ? next?.paidAt || prev?.paidAt || null
+          : null,
     };
   }
-  return { paid: false, paidAt: null };
+  const amountPaid = Math.max(prevAmt, nextAmt);
+  const paid = !!prev?.paid || !!next?.paid;
+  return {
+    amountPaid,
+    paid,
+    paidAt:
+      amountPaid > 0 || paid
+        ? (nextAmt >= prevAmt ? next?.paidAt : null) ||
+          prev?.paidAt ||
+          next?.paidAt ||
+          null
+        : null,
+  };
 }
 
 function mergeEstimationRecords(existing, incoming, opts = {}) {
@@ -50,7 +68,7 @@ function mergeEstimationRecords(existing, incoming, opts = {}) {
     byId.set(e.id, {
       ...prev,
       ...next,
-      ...mergeEstimationPaidState(prev, next, opts),
+      ...mergeEstimationPaymentFields(prev, next, opts),
     });
   });
   return Array.from(byId.values());
@@ -131,12 +149,14 @@ function buildAllEstimationBreakdowns(estimations, projects) {
 }
 
 function calcGlobalTotalPaid(estimations, projects) {
-  return (estimations || [])
-    .filter((e) => e.paid)
-    .reduce((sum, e) => {
-      const b = buildEstimationBreakdown(e.id, projects);
-      return sum + b.grandTotal;
-    }, 0);
+  return (estimations || []).reduce((sum, e) => {
+    const b = buildEstimationBreakdown(e.id, projects);
+    const total = b.grandTotal || 0;
+    let amountPaid = Math.max(0, Math.round(Number(e.amountPaid) || 0));
+    if (e.paid && amountPaid === 0 && total > 0) amountPaid = total;
+    if (amountPaid > total && total > 0) amountPaid = total;
+    return sum + amountPaid;
+  }, 0);
 }
 
 module.exports = {

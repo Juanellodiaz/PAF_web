@@ -261,6 +261,12 @@ body.page-enter {
   background: transparent;
 }
 
+.client-estimations-section .estimation-status-badge.partial {
+  color: #b8860b;
+  border-color: transparent;
+  background: transparent;
+}
+
 .dashboard-panel.client-estimations-section .estimations-readonly {
   gap: 0.75rem;
 }
@@ -1841,6 +1847,50 @@ body.page-enter {
   opacity: 0.85;
 }
 
+.estimation-card.is-partial {
+  border-left: 2px solid rgba(201, 169, 98, 0.55);
+}
+
+.estimation-payment {
+  margin-bottom: 1rem;
+}
+
+.estimation-payment-segmented {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.est-pay-opt {
+  flex: 1;
+  padding: 0.45rem 0.35rem;
+  font-family: var(--font-body);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+
+.est-pay-opt:hover {
+  border-color: var(--text-dim);
+  color: var(--text);
+}
+
+.est-pay-opt.is-active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(201, 169, 98, 0.1);
+}
+
+.estimation-payment-amount.hidden {
+  display: none;
+}
+
 .estimation-card-head {
   display: flex;
   align-items: flex-start;
@@ -1967,6 +2017,14 @@ body.page-enter {
 
 .estimation-status-badge.paid {
   color: var(--accent);
+}
+
+.estimation-status-badge.partial {
+  color: #d4a84b;
+}
+
+.estimation-status-badge.pending {
+  color: var(--text-dim);
 }
 
 .estimation-card .concept-row-top {

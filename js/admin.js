@@ -138,6 +138,7 @@ function createQuickEstimation(estimations, fields = {}) {
       (fields.label || "").trim() ||
       `Estimación ${String(list.length + 1).padStart(2, "0")}`,
     date: fields.date || todayIso(),
+    amountPaid: 0,
     paid: false,
     paidAt: null,
     notes: (fields.notes || "").trim(),
@@ -908,19 +909,36 @@ function syncAdminEstimationProjects(projects) {
   }));
 }
 
+async function applyAdminEstPayment(estId, patch) {
+  const estimations = buildEstimationsListForQuick();
+  const est = estimations.find((item) => item.id === estId);
+  if (!est) return;
+  const total = estimationBreakdownFor(est.id).grandTotal || 0;
+  Object.assign(est, applyEstimationPaymentToRecord(est, total, patch));
+  await persistEstimationsToGlobal(estimations);
+  renderAdminMetrics(cachedProjects);
+  renderAdminEstimationsList(cachedProjects);
+}
+
 function adminEstimationCardHtml(est, idx) {
   const breakdown = estimationBreakdownFor(est.id);
   const total = breakdown.grandTotal || 0;
+  const payment = getEstimationPayment(est, total);
   const lineCount = breakdown.lineCount || 0;
   const projectCount = breakdown.groups?.length || 0;
   const label = estimationDisplayLabel(est, idx);
-  const paid = !!est.paid;
   const projectsNote =
     projectCount > 1 ? ` · ${projectCount} proyectos` : "";
-  const summary = `${label} · ${lineCount} partida(s)${projectsNote} · ${formatMoney(total)} · ${paid ? "Pagada" : "Pendiente"}`;
+  const summary = `${label} · ${lineCount} partida(s)${projectsNote} · ${formatMoney(total)} · ${estimationPaymentStatusLabel(payment)}`;
+  const statusClass =
+    payment.status === "paid"
+      ? "is-paid"
+      : payment.status === "partial"
+        ? "is-partial"
+        : "";
 
   return `
-    <div class="estimation-card concept-row is-collapsed ${paid ? "is-paid" : ""}" data-admin-est-idx="${idx}" data-admin-est-id="${escapeAttr(est.id)}">
+    <div class="estimation-card concept-row is-collapsed ${statusClass}" data-admin-est-idx="${idx}" data-admin-est-id="${escapeAttr(est.id)}">
       <div class="concept-row-top estimation-card-head">
         <button type="button" class="concept-toggle" data-admin-est-toggle="${idx}" aria-expanded="false">
           <span class="concept-chevron" aria-hidden="true"></span>
@@ -928,16 +946,14 @@ function adminEstimationCardHtml(est, idx) {
           <span class="concept-summary">${escapeHtml(summary)}</span>
         </button>
         <div class="estimation-head-actions">
-          <button type="button" class="est-paid-toggle ${paid ? "is-paid" : ""}" data-admin-est-paid="${escapeAttr(est.id)}" aria-pressed="${paid}" aria-label="Estado de pago">
-            <span class="est-paid-toggle-track" aria-hidden="true"><span class="est-paid-toggle-thumb"></span></span>
-            <span class="est-paid-toggle-text">${paid ? "Pagada" : "Pendiente"}</span>
-          </button>
+          <span class="estimation-status-badge ${payment.status}">${estimationPaymentBadgeText(payment)}</span>
           <span class="estimation-total">${formatMoney(total)}</span>
           <button type="button" class="btn btn-ghost btn-sm" data-admin-est-toggle-label="${idx}">Ver detalle</button>
           <button type="button" class="btn btn-ghost btn-sm" data-admin-est-download="${idx}">Descargar</button>
         </div>
       </div>
       <div class="concept-row-body estimation-detail">
+        ${estimationPaymentControlsHtml(est, idx, payment, "admin-est")}
         ${est.notes ? `<p class="estimation-notes-readonly">${escapeHtml(est.notes)}</p>` : ""}
         <p class="admin-section-hint admin-estimation-meta">Fecha de estimación: ${formatDate(est.date)}</p>
         ${estimationLinesGroupedHtml(breakdown)}
@@ -970,24 +986,43 @@ function bindAdminEstimationsList(sorted) {
     btn.addEventListener("click", () => toggleExpand(Number(btn.dataset.adminEstToggleLabel)));
   });
 
-  listEl.querySelectorAll("[data-admin-est-paid]").forEach((btn) => {
+  listEl.querySelectorAll("[data-admin-est-pay-status]").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      const estId = btn.dataset.adminEstPaid;
-      const estimations = buildEstimationsListForQuick();
-      const est = estimations.find((item) => item.id === estId);
+      e.preventDefault();
+      const idx = Number(btn.dataset.adminEstPayStatus);
+      const est = sorted[idx];
       if (!est) return;
-      btn.disabled = true;
+      const status = btn.dataset.status;
       try {
-        est.paid = !est.paid;
-        est.paidAt = est.paid ? todayIso() : null;
-        await persistEstimationsToGlobal(estimations);
-        renderAdminMetrics(cachedProjects);
-        renderAdminEstimationsList(cachedProjects);
+        if (status === "partial") {
+          await applyAdminEstPayment(est.id, { status: "partial", amountPaid: 0 });
+          document
+            .querySelector(
+              `[data-admin-est-idx="${idx}"] .estimation-payment-amount`
+            )
+            ?.classList.remove("hidden");
+          document.querySelector(`[data-admin-est-amount-paid="${idx}"]`)?.focus();
+          return;
+        }
+        await applyAdminEstPayment(est.id, { status });
       } catch (ex) {
         alert(ex.message || "No se pudo actualizar el estado de pago.");
-      } finally {
-        btn.disabled = false;
+      }
+    });
+  });
+
+  listEl.querySelectorAll("[data-admin-est-amount-paid]").forEach((input) => {
+    input.addEventListener("change", async () => {
+      const idx = Number(input.dataset.adminEstAmountPaid);
+      const est = sorted[idx];
+      if (!est) return;
+      try {
+        await applyAdminEstPayment(est.id, {
+          status: "partial",
+          amountPaid: Math.round(Number(input.value) || 0),
+        });
+      } catch (ex) {
+        alert(ex.message || "No se pudo guardar el abono.");
       }
     });
   });
@@ -1023,7 +1058,16 @@ function renderAdminEstimationsList(projects) {
   }
 
   const sorted = [...list].sort((a, b) => {
-    if (!!a.paid !== !!b.paid) return a.paid ? 1 : -1;
+    const order = { pending: 0, partial: 1, paid: 2 };
+    const pa = getEstimationPayment(
+      a,
+      estimationBreakdownFor(a.id).grandTotal || 0
+    );
+    const pb = getEstimationPayment(
+      b,
+      estimationBreakdownFor(b.id).grandTotal || 0
+    );
+    if (pa.status !== pb.status) return order[pa.status] - order[pb.status];
     return (b.date || "").localeCompare(a.date || "");
   });
 

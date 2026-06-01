@@ -195,24 +195,107 @@ function estimationGrandTotal(est, estimations, projectsOrConcepts) {
   return getEstimationTotal(est.id, projectsOrConcepts || []);
 }
 
+function getEstimationPayment(est, total) {
+  const t = Math.max(0, Math.round(Number(total) || 0));
+  let amountPaid = Math.max(0, Math.round(Number(est?.amountPaid) || 0));
+  if (est?.paid && amountPaid === 0 && t > 0) amountPaid = t;
+  if (amountPaid > t && t > 0) amountPaid = t;
+  const paid = t > 0 ? amountPaid >= t : !!est?.paid;
+  const partial = amountPaid > 0 && !paid;
+  const status = paid ? "paid" : partial ? "partial" : "pending";
+  return {
+    total: t,
+    amountPaid,
+    pending: Math.max(0, t - amountPaid),
+    paid,
+    partial,
+    status,
+  };
+}
+
+function estimationPaymentStatusLabel(payment) {
+  if (payment.status === "paid") return "Pagada";
+  if (payment.status === "partial") {
+    return `Parcial · ${formatMoney(payment.amountPaid)} de ${formatMoney(payment.total)}`;
+  }
+  return "Pendiente";
+}
+
+function estimationPaymentBadgeText(payment) {
+  if (payment.status === "paid") return "PAGADA";
+  if (payment.status === "partial") return "PAGO PARCIAL";
+  return "PENDIENTE DE PAGO";
+}
+
+function estimationPaymentBarHtml(payment) {
+  if (payment.total <= 0) return "";
+  const paidPct = (payment.amountPaid / payment.total) * 100;
+  const pendingPct = 100 - paidPct;
+  return `
+    <div class="admin-payment-bar">
+      <div class="admin-payment-bar-track">
+        <div class="admin-payment-bar-paid" style="flex:${paidPct}"></div>
+        <div class="admin-payment-bar-pending" style="flex:${pendingPct}"></div>
+      </div>
+      <div class="admin-payment-bar-legend">
+        <span><span class="admin-payment-dot admin-payment-dot--paid"></span>Abonado ${formatMoney(payment.amountPaid)}</span>
+        <span><span class="admin-payment-dot admin-payment-dot--pending"></span>Pendiente ${formatMoney(payment.pending)}</span>
+      </div>
+    </div>`;
+}
+
+function estimationPaymentControlsHtml(est, idx, payment, prefix) {
+  const showAmount = payment.status === "partial";
+  const maxAttr = payment.total > 0 ? ` max="${payment.total}"` : "";
+  return `
+    <div class="estimation-payment" data-${prefix}-payment-wrap="${idx}">
+      <p class="subsection-label">Estado de pago</p>
+      <div class="estimation-payment-segmented" role="group" aria-label="Estado de pago">
+        <button type="button" class="est-pay-opt${payment.status === "pending" ? " is-active" : ""}" data-${prefix}-pay-status="${idx}" data-status="pending">Pendiente</button>
+        <button type="button" class="est-pay-opt${payment.status === "partial" ? " is-active" : ""}" data-${prefix}-pay-status="${idx}" data-status="partial">Parcial</button>
+        <button type="button" class="est-pay-opt${payment.status === "paid" ? " is-active" : ""}" data-${prefix}-pay-status="${idx}" data-status="paid">Pagada</button>
+      </div>
+      <div class="form-group estimation-payment-amount${showAmount ? "" : " hidden"}">
+        <label>Importe abonado (MXN)</label>
+        <input type="number" min="0" step="1"${maxAttr} value="${payment.amountPaid || ""}" data-${prefix}-amount-paid="${idx}" placeholder="Ej. 100">
+        <p class="admin-section-hint">Total: <strong>${formatMoney(payment.total)}</strong> · Pendiente: <strong data-${prefix}-pay-pending="${idx}">${formatMoney(payment.pending)}</strong></p>
+      </div>
+      ${estimationPaymentBarHtml(payment)}
+    </div>`;
+}
+
+function applyEstimationPaymentToRecord(est, total, patch) {
+  const base = getEstimationPayment(est, total);
+  const status = patch.status ?? base.status;
+  let amountPaid = Math.round(
+    Number(patch.amountPaid !== undefined ? patch.amountPaid : base.amountPaid) || 0
+  );
+  if (status === "pending") amountPaid = 0;
+  else if (status === "paid") amountPaid = base.total;
+  if (base.total > 0 && amountPaid > base.total) amountPaid = base.total;
+  if (amountPaid < 0) amountPaid = 0;
+  const paid = base.total > 0 ? amountPaid >= base.total : status === "paid";
+  const paidAt =
+    amountPaid > 0 || paid
+      ? patch.paidAt || est.paidAt || new Date().toISOString().slice(0, 10)
+      : null;
+  return { amountPaid, paid, paidAt };
+}
+
 function calcTotalPaid(estimations, projectsOrConcepts) {
   const list = mergeEstimationsFromConcepts(estimations, []);
-  return list
-    .filter((e) => e.paid)
-    .reduce(
-      (sum, e) => sum + estimationGrandTotal(e, list, projectsOrConcepts),
-      0
-    );
+  return list.reduce((sum, e) => {
+    const total = estimationGrandTotal(e.id, list, projectsOrConcepts);
+    return sum + getEstimationPayment(e, total).amountPaid;
+  }, 0);
 }
 
 function calcTotalPending(estimations, projectsOrConcepts) {
   const list = mergeEstimationsFromConcepts(estimations, []);
-  return list
-    .filter((e) => !e.paid)
-    .reduce(
-      (sum, e) => sum + estimationGrandTotal(e, list, projectsOrConcepts),
-      0
-    );
+  return list.reduce((sum, e) => {
+    const total = estimationGrandTotal(e.id, list, projectsOrConcepts);
+    return sum + getEstimationPayment(e, total).pending;
+  }, 0);
 }
 
 function computeDashboardSummary(projects, estimations) {
@@ -282,19 +365,31 @@ function estimationDisplayLabel(est, index) {
   return (est.label || "").trim() || `Estimación ${String(index + 1).padStart(2, "0")}`;
 }
 
-function mergeEstimationPaidState(prev, next, opts = {}) {
+function mergeEstimationPaymentFields(prev, next, opts = {}) {
+  const prevAmt = Math.max(0, Math.round(Number(prev?.amountPaid) || 0));
+  const nextAmt = Math.max(0, Math.round(Number(next?.amountPaid) || 0));
   if (opts.incomingWins) {
-    return next?.paid
-      ? { paid: true, paidAt: next.paidAt || prev?.paidAt || null }
-      : { paid: false, paidAt: null };
-  }
-  if (prev?.paid || next?.paid) {
+    const amountPaid = nextAmt;
+    const paid = !!next?.paid;
     return {
-      paid: true,
-      paidAt: (next?.paid && next.paidAt) || (prev?.paid && prev.paidAt) || null,
+      amountPaid,
+      paid,
+      paidAt:
+        amountPaid > 0 || paid
+          ? next?.paidAt || prev?.paidAt || null
+          : null,
     };
   }
-  return { paid: false, paidAt: null };
+  const amountPaid = Math.max(prevAmt, nextAmt);
+  const paid = !!prev?.paid || !!next?.paid;
+  return {
+    amountPaid,
+    paid,
+    paidAt:
+      amountPaid > 0 || paid
+        ? (nextAmt >= prevAmt ? next?.paidAt : null) || prev?.paidAt || next?.paidAt || null
+        : null,
+  };
 }
 
 function mergeStoredEstimations(projectEstimations, metaEstimations) {
@@ -312,7 +407,7 @@ function mergeStoredEstimations(projectEstimations, metaEstimations) {
     byId.set(e.id, {
       ...prev,
       ...e,
-      ...mergeEstimationPaidState(prev, e),
+      ...mergeEstimationPaymentFields(prev, e),
     });
   });
   return Array.from(byId.values());
@@ -366,12 +461,16 @@ function buildEstimationExportHtml(estimation, breakdown, clientName, estimation
   const list = estimationsList || window.__pafGlobalEstimations || [];
   const idx = list.findIndex((e) => e.id === estimation.id);
   const title = estimationDisplayLabel(estimation, idx >= 0 ? idx : 0);
-  const paidText = estimation.paid
-    ? `Pagada${estimation.paidAt ? ` — ${formatDate(estimation.paidAt)}` : ""}`
-    : "Pendiente de pago";
   const b =
     breakdown || estimationBreakdownFor(estimation.id, list);
   const total = b.grandTotal || 0;
+  const payment = getEstimationPayment(estimation, total);
+  const paidText =
+    payment.status === "paid"
+      ? `Pagada${estimation.paidAt ? ` — ${formatDate(estimation.paidAt)}` : ""}`
+      : payment.status === "partial"
+        ? `Pago parcial · ${formatMoney(payment.amountPaid)} de ${formatMoney(payment.total)}`
+        : "Pendiente de pago";
   const projectCount = b.groups?.length || 0;
 
   const sections = (b.groups || [])
@@ -467,13 +566,13 @@ function clientEstimationCardHtml(est, idx) {
   const lineCount = breakdown.lineCount || 0;
   const projectCount = breakdown.groups?.length || 0;
   const label = estimationDisplayLabel(est, idx);
-  const paid = !!est.paid;
+  const payment = getEstimationPayment(est, total);
   const projectsNote =
     projectCount > 1 ? ` · ${projectCount} proyectos` : "";
-  const summary = `${label} · ${lineCount} partida(s)${projectsNote} · ${formatMoney(total)} · ${paid ? "Pagada" : "Pendiente"}`;
+  const summary = `${label} · ${lineCount} partida(s)${projectsNote} · ${formatMoney(total)} · ${estimationPaymentStatusLabel(payment)}`;
 
   return `
-    <div class="estimation-card concept-row is-collapsed" data-client-est-idx="${idx}">
+    <div class="estimation-card concept-row is-collapsed ${payment.status === "paid" ? "is-paid" : ""} ${payment.status === "partial" ? "is-partial" : ""}" data-client-est-idx="${idx}">
       <div class="concept-row-top estimation-card-head">
         <button type="button" class="concept-toggle" aria-expanded="false" onclick="pafToggleClientEstimation(${idx})">
           <span class="concept-chevron" aria-hidden="true"></span>
@@ -481,7 +580,7 @@ function clientEstimationCardHtml(est, idx) {
           <span class="concept-summary">${escapeHtml(summary)}</span>
         </button>
         <div class="estimation-head-actions">
-          <span class="estimation-status-badge ${paid ? "paid" : "pending"}">${paid ? "PAGADA" : "PENDIENTE DE PAGO"}</span>
+          <span class="estimation-status-badge ${payment.status}">${estimationPaymentBadgeText(payment)}</span>
           <span class="estimation-total">${formatMoney(total)}</span>
           <button type="button" class="btn btn-ghost btn-sm" onclick="pafToggleClientEstimation(${idx})">Ver detalle</button>
           <button type="button" class="btn btn-ghost btn-sm" data-client-download-est="${idx}">Descargar</button>
@@ -489,6 +588,7 @@ function clientEstimationCardHtml(est, idx) {
       </div>
       <div class="concept-row-body estimation-detail">
         ${est.notes ? `<p class="estimation-notes-readonly">${escapeHtml(est.notes)}</p>` : ""}
+        ${payment.total > 0 ? estimationPaymentBarHtml(payment) : ""}
         ${estimationLinesGroupedHtml(breakdown)}
       </div>
     </div>`;
@@ -517,8 +617,18 @@ function renderClientEstimationsList(
     return [];
   }
 
+  const projectsRef = window.__pafProjectsForEstimations || [];
   const sorted = [...list].sort((a, b) => {
-    if (!!a.paid !== !!b.paid) return a.paid ? 1 : -1;
+    const order = { pending: 0, partial: 1, paid: 2 };
+    const pa = getEstimationPayment(
+      a,
+      estimationGrandTotal(a.id, list, projectsRef)
+    );
+    const pb = getEstimationPayment(
+      b,
+      estimationGrandTotal(b.id, list, projectsRef)
+    );
+    if (pa.status !== pb.status) return order[pa.status] - order[pb.status];
     return (b.date || "").localeCompare(a.date || "");
   });
 

@@ -1,4 +1,4 @@
-const { mergeEstimationPaidState } = require("./global-estimations");
+const { mergeEstimationPaymentFields } = require("./global-estimations");
 
 const META_TITLE = "_PAF_INTERNAL";
 
@@ -42,7 +42,7 @@ function mergeStoredEstimations(projectEstimations, metaEstimations) {
     byId.set(e.id, {
       ...prev,
       ...e,
-      ...mergeEstimationPaidState(prev, e),
+      ...mergeEstimationPaymentFields(prev, e),
     });
   });
   return Array.from(byId.values());
@@ -75,12 +75,14 @@ function mergeEstimationsFromConcepts(stored, concepts) {
 function buildPaidByEstimationId(estimations) {
   const paidByEstimationId = {};
   (estimations || []).forEach((e) => {
-    if (e?.id && e.paid) {
-      paidByEstimationId[e.id] = {
-        paid: true,
-        paidAt: e.paidAt || null,
-      };
-    }
+    if (!e?.id) return;
+    const amountPaid = Math.max(0, Math.round(Number(e.amountPaid) || 0));
+    if (!e.paid && amountPaid <= 0) return;
+    paidByEstimationId[e.id] = {
+      paid: !!e.paid,
+      paidAt: e.paidAt || null,
+      amountPaid,
+    };
   });
   return paidByEstimationId;
 }
@@ -90,15 +92,13 @@ function applyPaidFromMeta(estimations, paidByEstimationId) {
     return estimations;
   }
   return (estimations || []).map((e) => {
-    if (e.paid === false) {
-      return { ...e, paid: false, paidAt: null };
-    }
     const flags = paidByEstimationId[e.id];
-    if (!flags?.paid) return e;
+    if (!flags) return e;
     return {
       ...e,
-      paid: true,
-      paidAt: e.paidAt || flags.paidAt || null,
+      amountPaid: Math.max(0, Math.round(Number(flags.amountPaid) || 0)),
+      paid: !!flags.paid,
+      paidAt: flags.paid ? e.paidAt || flags.paidAt || null : null,
     };
   });
 }
@@ -125,8 +125,9 @@ function buildMetaPayload(project) {
       id: e.id,
       label: e.label || "",
       date: e.date || "",
+      amountPaid: Math.max(0, Math.round(Number(e.amountPaid) || 0)),
       paid: !!e.paid,
-      paidAt: e.paid ? e.paidAt || null : null,
+      paidAt: e.paid || Number(e.amountPaid) > 0 ? e.paidAt || null : null,
       notes: e.notes || "",
     }));
   return {
