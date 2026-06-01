@@ -188,6 +188,23 @@
           <label for="quick-advance-estimation">Estimación</label>
           <select id="quick-advance-estimation" required></select>
         </div>
+        <div class="advance-special-row">
+          <label class="advance-special-label">
+            <input type="checkbox" id="quick-advance-special-toggle">
+            Precio especial
+          </label>
+          <div class="form-group advance-special-price-wrap is-disabled" id="quick-advance-special-wrap">
+            <label for="quick-advance-special-price">Precio unitario (MXN/m²)</label>
+            <input
+              type="number"
+              id="quick-advance-special-price"
+              min="0"
+              step="1"
+              disabled
+              placeholder="Precio del concepto"
+            >
+          </div>
+        </div>
         <p class="advance-pending" id="quick-advance-pending"></p>
         <p class="advance-amount-preview" id="quick-advance-preview" aria-live="polite"></p>
         <p class="form-error" id="advance-quick-error"></p>
@@ -281,8 +298,8 @@
 
   <script src="js/portal.js"></script>
   <script src="js/indirect-costs.js"></script>
-  <script src="js/project-estimations.js"></script>
+  <script src="js/project-estimations.js?v=38"></script>
   <script src="js/concept-costs.js"></script>
-  <script src="js/admin.js?v=62"></script>
+  <script src="js/admin.js?v=63"></script>
 </body>
 </html>

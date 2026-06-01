@@ -2,6 +2,41 @@ function parseAdvances(c) {
   return Array.isArray(c?.advances) ? c.advances : [];
 }
 
+function advanceUsesSpecialPrice(advance) {
+  return !!(
+    advance &&
+    advance.useSpecialPrice &&
+    Number(advance.specialUnitPrice) > 0
+  );
+}
+
+function advanceEffectiveUnitPrice(advance, concept) {
+  if (advanceUsesSpecialPrice(advance)) {
+    return Number(advance.specialUnitPrice);
+  }
+  return Number(concept?.unitPrice) || 0;
+}
+
+function advanceAmount(advance, concept) {
+  const m2 = Number(advance?.m2) || 0;
+  return Math.round(m2 * advanceEffectiveUnitPrice(advance, concept));
+}
+
+function serializeAdvance(advance) {
+  const out = {
+    id: advance.id,
+    m2: Number(advance.m2) || 0,
+    date: advance.date || "",
+    estimationId: advance.estimationId || "",
+    note: (advance.note || "").trim(),
+  };
+  if (advanceUsesSpecialPrice(advance)) {
+    out.useSpecialPrice = true;
+    out.specialUnitPrice = Number(advance.specialUnitPrice);
+  }
+  return out;
+}
+
 function conceptAdvanceM2(c) {
   return parseAdvances(c).reduce((s, a) => s + (Number(a.m2) || 0), 0);
 }
@@ -27,15 +62,16 @@ function getEstimationLines(estimationId, concepts) {
     parseAdvances(c).forEach((a) => {
       if (a.estimationId !== estimationId) return;
       const m2 = Number(a.m2) || 0;
-      const unit = Number(c.unitPrice) || 0;
+      const unit = advanceEffectiveUnitPrice(a, c);
       lines.push({
         conceptId: c.id,
         conceptName: c.name,
         m2,
         unitPrice: unit,
-        amount: Math.round(m2 * unit),
+        amount: advanceAmount(a, c),
         date: a.date || "",
         note: a.note || "",
+        useSpecialPrice: advanceUsesSpecialPrice(a),
       });
     });
   });

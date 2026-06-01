@@ -413,12 +413,51 @@ function resetAdvanceQuickForm() {
   document.getElementById("quick-advance-date").value = todayIso();
   document.getElementById("quick-advance-pending").textContent = "";
   document.getElementById("quick-advance-preview").textContent = "";
+  const specialToggle = document.getElementById("quick-advance-special-toggle");
+  const specialInput = document.getElementById("quick-advance-special-price");
+  const specialWrap = document.getElementById("quick-advance-special-wrap");
+  if (specialToggle) specialToggle.checked = false;
+  if (specialInput) {
+    specialInput.value = "";
+    specialInput.disabled = true;
+  }
+  if (specialWrap) specialWrap.classList.add("is-disabled");
   advanceProjectCache = null;
   fillProjectSelects();
   document.getElementById("quick-advance-concept").innerHTML =
     '<option value="">— Seleccionar proyecto primero —</option>';
   document.getElementById("quick-advance-estimation").innerHTML =
     estimationOptionsHtml(cachedGlobalEstimations, "__new__");
+}
+
+function readQuickAdvanceSpecial(concept) {
+  const toggle = document.getElementById("quick-advance-special-toggle");
+  const input = document.getElementById("quick-advance-special-price");
+  const useSpecialPrice = !!toggle?.checked;
+  const specialUnitPrice = useSpecialPrice ? Number(input?.value) || 0 : 0;
+  const unitPrice =
+    useSpecialPrice && specialUnitPrice > 0
+      ? specialUnitPrice
+      : Number(concept?.unitPrice) || 0;
+  return {
+    useSpecialPrice: useSpecialPrice && specialUnitPrice > 0,
+    specialUnitPrice,
+    unitPrice,
+  };
+}
+
+function syncQuickAdvanceSpecialUi(concept) {
+  const toggle = document.getElementById("quick-advance-special-toggle");
+  const wrap = document.getElementById("quick-advance-special-wrap");
+  const input = document.getElementById("quick-advance-special-price");
+  if (!toggle || !wrap || !input) return;
+  const on = toggle.checked;
+  wrap.classList.toggle("is-disabled", !on);
+  input.disabled = !on;
+  if (on && !input.value && concept) {
+    input.value = Number(concept.unitPrice) || "";
+  }
+  updateAdvanceQuickPreview();
 }
 
 function updateConceptQuickPreview() {
@@ -486,9 +525,15 @@ function updateAdvanceQuickPreview() {
 
   const pending = conceptAdvancePendingM2(concept);
   pendingEl.innerHTML = `Pendiente por avanzar: <strong>${pending}</strong> m²`;
-  const amount = Math.round(m2 * (Number(concept.unitPrice) || 0));
-  previewEl.textContent =
-    m2 > 0 ? `Importe del avance: ${formatMoney(amount)}` : "";
+  const { unitPrice, useSpecialPrice } = readQuickAdvanceSpecial(concept);
+  const amount = Math.round(m2 * unitPrice);
+  if (m2 <= 0) {
+    previewEl.textContent = "";
+    return;
+  }
+  previewEl.textContent = useSpecialPrice
+    ? `Importe (precio especial ${formatMoney(unitPrice)}/m²): ${formatMoney(amount)}`
+    : `Importe del avance: ${formatMoney(amount)}`;
 }
 
 function bindQuickPanel() {
@@ -524,11 +569,21 @@ function bindQuickPanel() {
   document
     .getElementById("quick-advance-project")
     ?.addEventListener("change", () => refreshAdvanceQuickFields());
-  document
-    .getElementById("quick-advance-concept")
-    ?.addEventListener("change", updateAdvanceQuickPreview);
+  document.getElementById("quick-advance-concept")?.addEventListener("change", () => {
+    const conceptId = document.getElementById("quick-advance-concept")?.value;
+    const concept = advanceProjectCache?.concepts?.find((c) => c.id === conceptId);
+    syncQuickAdvanceSpecialUi(concept);
+  });
   document
     .getElementById("quick-advance-m2")
+    ?.addEventListener("input", updateAdvanceQuickPreview);
+  document.getElementById("quick-advance-special-toggle")?.addEventListener("change", () => {
+    const conceptId = document.getElementById("quick-advance-concept")?.value;
+    const concept = advanceProjectCache?.concepts?.find((c) => c.id === conceptId);
+    syncQuickAdvanceSpecialUi(concept);
+  });
+  document
+    .getElementById("quick-advance-special-price")
     ?.addEventListener("input", updateAdvanceQuickPreview);
 
   document
@@ -682,14 +737,26 @@ async function onSubmitQuickAdvance(e) {
       return;
     }
 
+    const specialToggle = document.getElementById("quick-advance-special-toggle");
+    const special = readQuickAdvanceSpecial(concept);
+    if (specialToggle?.checked && !special.useSpecialPrice) {
+      err.textContent = "Indica el precio especial o desactiva la casilla.";
+      return;
+    }
+
     const advances = parseAdvances(concept);
-    advances.push({
+    const newAdv = {
       id: newQuickId("adv"),
       m2,
       date,
       estimationId,
       note: "",
-    });
+    };
+    if (special.useSpecialPrice) {
+      newAdv.useSpecialPrice = true;
+      newAdv.specialUnitPrice = special.specialUnitPrice;
+    }
+    advances.push(serializeAdvance(newAdv));
     concept.advances = advances;
     project.estimations = estimations;
 

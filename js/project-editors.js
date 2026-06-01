@@ -175,7 +175,39 @@ function newAdvance(estimationId) {
     date: new Date().toISOString().slice(0, 10),
     estimationId,
     note: "",
+    useSpecialPrice: false,
+    specialUnitPrice: 0,
   };
+}
+
+function readAdvanceSpecialFromDom(conceptIndex, concept) {
+  const toggle = document.querySelector(
+    `[data-advance-special-toggle="${conceptIndex}"]`
+  );
+  const input = document.querySelector(
+    `[data-advance-special-price="${conceptIndex}"]`
+  );
+  const useSpecialPrice = !!toggle?.checked;
+  const specialUnitPrice = useSpecialPrice ? Number(input?.value) || 0 : 0;
+  const unitPrice =
+    useSpecialPrice && specialUnitPrice > 0
+      ? specialUnitPrice
+      : Number(concept?.unitPrice) || 0;
+  return {
+    useSpecialPrice: useSpecialPrice && specialUnitPrice > 0,
+    specialUnitPrice,
+    unitPrice,
+  };
+}
+
+function applyAdvanceSpecialFields(adv, special) {
+  if (special.useSpecialPrice) {
+    adv.useSpecialPrice = true;
+    adv.specialUnitPrice = special.specialUnitPrice;
+  } else {
+    delete adv.useSpecialPrice;
+    delete adv.specialUnitPrice;
+  }
 }
 
 function newDocument() {
@@ -472,6 +504,7 @@ function flushPendingAdvancesFromDom() {
     const adv = newAdvance(estimationId);
     adv.m2 = m2;
     adv.date = date;
+    applyAdvanceSpecialFields(adv, readAdvanceSpecialFromDom(i, c));
     c.advances.push(adv);
   });
   syncEditorEstimations();
@@ -491,13 +524,7 @@ function collectConcepts() {
         laborCost: Number(c.laborCost) || 0,
         materialCost: Number(c.materialCost) || 0,
         totalPrice: calcConceptTotal(c),
-        advances: parseAdvances(c).map((a) => ({
-          id: a.id,
-          m2: Number(a.m2) || 0,
-          date: a.date || "",
-          estimationId: a.estimationId || "",
-          note: (a.note || "").trim(),
-        })),
+        advances: parseAdvances(c).map((a) => serializeAdvance(a)),
       };
     })
     .filter((c) => c.name);
@@ -640,6 +667,17 @@ function renderConceptsEditor() {
     const i = Number(select.dataset.advanceEstimation);
     select.addEventListener("change", () => onAdvanceFormChange(i));
   });
+  el.querySelectorAll("[data-advance-special-toggle]").forEach((input) => {
+    const i = Number(input.dataset.advanceSpecialToggle);
+    const sync = () => syncAdvanceSpecialPriceUi(i);
+    input.addEventListener("change", sync);
+    sync();
+  });
+  el.querySelectorAll("[data-advance-special-price]").forEach((input) => {
+    const i = Number(input.dataset.advanceSpecialPrice);
+    input.addEventListener("input", () => onAdvanceFormChange(i));
+    input.addEventListener("change", () => onAdvanceFormChange(i));
+  });
   el.querySelectorAll("[data-remove-advance]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const ci = Number(btn.dataset.removeAdvance);
@@ -677,8 +715,25 @@ function estimationSelectOptions(selectedId) {
   return `${opts}<option value="__new__">+ Crear nueva estimación</option>`;
 }
 
-function advanceAmountFromM2(m2, unitPrice) {
-  return Math.round((Number(m2) || 0) * (Number(unitPrice) || 0));
+function syncAdvanceSpecialPriceUi(conceptIndex) {
+  const c = editorConcepts[conceptIndex];
+  const toggle = document.querySelector(
+    `[data-advance-special-toggle="${conceptIndex}"]`
+  );
+  const wrap = document.querySelector(
+    `[data-advance-special-wrap="${conceptIndex}"]`
+  );
+  const input = document.querySelector(
+    `[data-advance-special-price="${conceptIndex}"]`
+  );
+  if (!toggle || !wrap || !input || !c) return;
+  const on = toggle.checked;
+  wrap.classList.toggle("is-disabled", !on);
+  input.disabled = !on;
+  if (on && !input.value) {
+    input.value = Number(c.unitPrice) || "";
+  }
+  updateAdvanceAmountPreview(conceptIndex);
 }
 
 function updateAdvanceAmountPreview(conceptIndex) {
@@ -687,9 +742,15 @@ function updateAdvanceAmountPreview(conceptIndex) {
   const preview = document.querySelector(`[data-advance-preview="${conceptIndex}"]`);
   if (!c || !m2Input || !preview) return;
   const m2 = Number(m2Input.value) || 0;
-  const amount = advanceAmountFromM2(m2, c.unitPrice);
-  preview.textContent =
-    m2 > 0 ? `Importe del avance: ${formatMoney(amount)}` : "";
+  const { unitPrice, useSpecialPrice } = readAdvanceSpecialFromDom(conceptIndex, c);
+  const amount = Math.round(m2 * unitPrice);
+  if (m2 <= 0) {
+    preview.textContent = "";
+    return;
+  }
+  preview.textContent = useSpecialPrice
+    ? `Importe (precio especial ${formatMoney(unitPrice)}/m²): ${formatMoney(amount)}`
+    : `Importe del avance: ${formatMoney(amount)}`;
 }
 
 function conceptAdvancesBlock(c, i) {
@@ -705,9 +766,13 @@ function conceptAdvancesBlock(c, i) {
               estIdx >= 0
                 ? estimationDisplayLabel(editorEstimations[estIdx], estIdx)
                 : "Sin estimación";
-            const amount = Math.round((Number(a.m2) || 0) * (Number(c.unitPrice) || 0));
+            const unit = advanceEffectiveUnitPrice(a, c);
+            const amount = advanceAmount(a, c);
+            const priceNote = advanceUsesSpecialPrice(a)
+              ? ` · precio especial ${formatMoney(unit)}/m²`
+              : "";
             return `<li class="advance-item">
-              <span>${Number(a.m2) || 0} m² · ${formatMoney(amount)} · ${escapeHtml(estLabel)}${a.date ? ` · ${formatDate(a.date)}` : ""}</span>
+              <span>${Number(a.m2) || 0} m² · ${formatMoney(amount)}${priceNote} · ${escapeHtml(estLabel)}${a.date ? ` · ${formatDate(a.date)}` : ""}</span>
               <button type="button" class="btn-remove btn-remove-sm" data-remove-advance="${i}" data-advance-index="${ai}" aria-label="Quitar avance">×</button>
             </li>`;
           })
@@ -738,6 +803,23 @@ function conceptAdvancesBlock(c, i) {
           <select data-advance-estimation="${i}">
             ${estimationSelectOptions(defaultEst)}
           </select>
+        </div>
+      </div>
+      <div class="advance-special-row">
+        <label class="advance-special-label">
+          <input type="checkbox" data-advance-special-toggle="${i}">
+          Precio especial
+        </label>
+        <div class="form-group advance-special-price-wrap is-disabled" data-advance-special-wrap="${i}">
+          <label>Precio unitario (MXN/m²)</label>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            data-advance-special-price="${i}"
+            disabled
+            placeholder="Precio del concepto"
+          >
         </div>
       </div>
       <button type="button" class="btn btn-ghost btn-sm" data-add-advance="${i}">+ Agregar avance</button>
@@ -900,8 +982,27 @@ async function addConceptAdvance(conceptIndex) {
   const adv = c.advances[c.advances.length - 1];
   adv.m2 = m2;
   adv.date = date;
+  const specialToggle = document.querySelector(
+    `[data-advance-special-toggle="${conceptIndex}"]`
+  );
+  const special = readAdvanceSpecialFromDom(conceptIndex, c);
+  if (specialToggle?.checked && !special.useSpecialPrice) {
+    if (errEl) errEl.textContent = "Indica el precio especial o desactiva la casilla.";
+    c.advances.pop();
+    return;
+  }
+  applyAdvanceSpecialFields(adv, special);
 
   if (m2Input) m2Input.value = "";
+  const specialInput = document.querySelector(
+    `[data-advance-special-price="${conceptIndex}"]`
+  );
+  if (specialToggle) specialToggle.checked = false;
+  if (specialInput) {
+    specialInput.value = "";
+    specialInput.disabled = true;
+  }
+  syncAdvanceSpecialPriceUi(conceptIndex);
 
   if (window.__pafProjectId) saveEditorDraft(window.__pafProjectId);
 

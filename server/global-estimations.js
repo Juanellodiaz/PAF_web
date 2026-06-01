@@ -1,3 +1,5 @@
+const { advanceEffectiveUnitPrice, advanceAmount } = require("./advance-pricing");
+
 const GLOBAL_PROJECT_ID = "_paf_system";
 const GLOBAL_DOC_ID = "_paf_global_estimations";
 const GLOBAL_TITLE = "_PAF_GLOBAL_ESTIMATIONS";
@@ -80,7 +82,7 @@ function buildEstimationBreakdown(estimationId, projects) {
       advances.forEach((a) => {
         if (a.estimationId !== estimationId) return;
         const m2 = Number(a.m2) || 0;
-        const unit = Number(c.unitPrice) || 0;
+        const unit = advanceEffectiveUnitPrice(a, c);
         lines.push({
           projectId: project.id,
           projectName: project.name,
@@ -88,7 +90,7 @@ function buildEstimationBreakdown(estimationId, projects) {
           conceptName: c.name,
           m2,
           unitPrice: unit,
-          amount: Math.round(m2 * unit),
+          amount: advanceAmount(a, c),
           date: a.date || "",
           note: a.note || "",
         });
