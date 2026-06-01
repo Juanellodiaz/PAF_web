@@ -2033,6 +2033,39 @@ body.page-enter {
   row-gap: 0.5rem;
 }
 
+.estimations-sortable-list.is-dnd-active .estimation-card {
+  position: relative;
+}
+
+.estimations-sortable-list.is-dnd-active .estimation-card.is-dragging {
+  opacity: 0.45;
+}
+
+.estimations-sortable-list.is-dnd-active .estimation-card.drop-before::before,
+.estimations-sortable-list.is-dnd-active .estimation-card.drop-after::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.estimations-sortable-list.is-dnd-active .estimation-card.drop-before::before {
+  top: -1px;
+}
+
+.estimations-sortable-list.is-dnd-active .estimation-card.drop-after::after {
+  bottom: -1px;
+}
+
+.admin-est-drag-handle {
+  align-self: stretch;
+  margin-right: 0.15rem;
+}
+
 .estimation-card .concept-toggle {
   flex: 1 1 12rem;
   min-width: 0;

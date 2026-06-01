@@ -282,7 +282,7 @@ function renderAdminView(p) {
         <p class="admin-section-label">Estimaciones${estimationCount ? ` (${estimationCount})` : ""}</p>
         <button type="button" class="btn btn-ghost btn-sm" id="add-estimation">+ Estimación</button>
       </div>
-      <p class="portal-user" style="margin:0 0 1rem">Las estimaciones son globales: puedes usar la misma en varios proyectos. El detalle y la descarga muestran el desglose por proyecto y el total global.</p>
+      <p class="portal-user" style="margin:0 0 1rem">Las estimaciones son globales: puedes usar la misma en varios proyectos. Arrastra ⋮⋮ para reordenar. El detalle y la descarga muestran el desglose por proyecto y el total global.</p>
       <div id="estimations-editor" class="estimations-editor">${estimationsBootstrap}</div>
     </section>
 

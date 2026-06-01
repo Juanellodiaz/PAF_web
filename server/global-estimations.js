@@ -18,7 +18,8 @@ function normalizeEstimation(e) {
   if (!paymentStatus) {
     paymentStatus = paid ? "paid" : amountPaid > 0 ? "partial" : "pending";
   }
-  return {
+  const sortOrder = Number(e.sortOrder);
+  const out = {
     id: e.id,
     label: (e.label || "").trim(),
     date: e.date || new Date().toISOString().slice(0, 10),
@@ -28,6 +29,8 @@ function normalizeEstimation(e) {
     paidAt: amountPaid > 0 || paid ? e.paidAt || null : null,
     notes: (e.notes || "").trim(),
   };
+  if (Number.isFinite(sortOrder)) out.sortOrder = sortOrder;
+  return out;
 }
 
 /**
@@ -86,11 +89,21 @@ function mergeEstimationRecords(existing, incoming, opts = {}) {
       byId.set(e.id, next);
       return;
     }
-    byId.set(e.id, {
+    const merged = {
       ...prev,
       ...next,
       ...mergeEstimationPaymentFields(prev, next, opts),
-    });
+    };
+    const nextOrder = Number(next.sortOrder);
+    const prevOrder = Number(prev.sortOrder);
+    if (opts.incomingWins && Number.isFinite(nextOrder)) {
+      merged.sortOrder = nextOrder;
+    } else if (Number.isFinite(prevOrder)) {
+      merged.sortOrder = prevOrder;
+    } else if (Number.isFinite(nextOrder)) {
+      merged.sortOrder = nextOrder;
+    }
+    byId.set(e.id, merged);
   });
   return Array.from(byId.values());
 }

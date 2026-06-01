@@ -259,6 +259,151 @@ function estimationPaymentBadgeText(payment) {
   return "PENDIENTE DE PAGO";
 }
 
+function nextEstimationSortOrder(list) {
+  const orders = (list || [])
+    .map((e) => Number(e?.sortOrder))
+    .filter((n) => Number.isFinite(n));
+  if (!orders.length) return 0;
+  return Math.max(...orders) + 1;
+}
+
+function sortEstimationsList(list) {
+  return [...(list || [])].sort((a, b) => {
+    const ao = Number(a?.sortOrder);
+    const bo = Number(b?.sortOrder);
+    const aHas = Number.isFinite(ao);
+    const bHas = Number.isFinite(bo);
+    if (aHas && bHas && ao !== bo) return ao - bo;
+    if (aHas && !bHas) return -1;
+    if (!aHas && bHas) return 1;
+    const dateCmp = (b.date || "").localeCompare(a.date || "");
+    if (dateCmp !== 0) return dateCmp;
+    return String(a?.id || "").localeCompare(String(b?.id || ""));
+  });
+}
+
+function assignEstimationSortOrders(list) {
+  return (list || []).map((e, i) => ({ ...e, sortOrder: i }));
+}
+
+function reorderEstimationsInList(list, sourceId, targetId, placement) {
+  const items = [...(list || [])];
+  const from = items.findIndex((e) => e.id === sourceId);
+  let insertAt = items.findIndex((e) => e.id === targetId);
+  if (from < 0 || insertAt < 0) return items;
+  if (placement === "after") insertAt += 1;
+  if (from < insertAt) insertAt -= 1;
+  if (from === insertAt) return items;
+  const [moved] = items.splice(from, 1);
+  items.splice(insertAt, 0, moved);
+  return items;
+}
+
+function estimationDragHandleHtml(estimationId) {
+  return `<button type="button" class="admin-drag-handle admin-est-drag-handle" draggable="true" data-drag-estimation="${escapeAttr(estimationId)}" aria-label="Arrastrar para reordenar" title="Arrastrar para reordenar">⋮⋮</button>`;
+}
+
+function clearEstimationDropIndicators(listEl) {
+  if (!listEl) return;
+  listEl
+    .querySelectorAll(".estimation-card")
+    .forEach((el) => el.classList.remove("drop-before", "drop-after"));
+}
+
+function bindEstimationListDnD(listEl, options) {
+  if (!listEl || listEl.dataset.estDndBound === "1") return;
+  listEl.dataset.estDndBound = "1";
+  listEl.classList.add("estimations-sortable-list");
+
+  let dragEstimationId = null;
+
+  listEl.addEventListener("dragstart", (e) => {
+    const handle = e.target.closest("[data-drag-estimation]");
+    if (!handle || !listEl.contains(handle)) return;
+    e.stopPropagation();
+    dragEstimationId = handle.getAttribute("data-drag-estimation");
+    if (!dragEstimationId) return;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", dragEstimationId);
+    handle.closest(".estimation-card")?.classList.add("is-dragging");
+    listEl.classList.add("is-dnd-active");
+  });
+
+  listEl.addEventListener("dragend", () => {
+    dragEstimationId = null;
+    listEl.classList.remove("is-dnd-active");
+    clearEstimationDropIndicators(listEl);
+    listEl
+      .querySelectorAll(".estimation-card")
+      .forEach((el) => el.classList.remove("is-dragging"));
+  });
+
+  listEl.addEventListener("dragover", (e) => {
+    if (!dragEstimationId) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+
+    const card = e.target.closest(".estimation-card");
+    if (card && card.dataset.estimationId !== dragEstimationId) {
+      clearEstimationDropIndicators(listEl);
+      const rect = card.getBoundingClientRect();
+      const placement =
+        e.clientY < rect.top + rect.height / 2 ? "before" : "after";
+      card.classList.add(
+        placement === "before" ? "drop-before" : "drop-after"
+      );
+      return;
+    }
+
+    clearEstimationDropIndicators(listEl);
+    const cards = [...listEl.querySelectorAll(".estimation-card")];
+    const last = cards[cards.length - 1];
+    if (last && last.dataset.estimationId !== dragEstimationId) {
+      last.classList.add("drop-after");
+    }
+  });
+
+  listEl.addEventListener("dragleave", (e) => {
+    if (!listEl.contains(e.relatedTarget)) {
+      clearEstimationDropIndicators(listEl);
+    }
+  });
+
+  listEl.addEventListener("drop", async (e) => {
+    if (!dragEstimationId) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const card = e.target.closest(".estimation-card");
+    let targetId = card?.dataset?.estimationId;
+    let placement = "before";
+
+    if (card && targetId && targetId !== dragEstimationId) {
+      const rect = card.getBoundingClientRect();
+      placement = e.clientY < rect.top + rect.height / 2 ? "before" : "after";
+    } else {
+      const cards = [...listEl.querySelectorAll(".estimation-card")];
+      const last = cards[cards.length - 1];
+      targetId = last?.dataset?.estimationId;
+      placement = "after";
+    }
+
+    const sourceId = dragEstimationId;
+    dragEstimationId = null;
+    listEl.classList.remove("is-dnd-active");
+    clearEstimationDropIndicators(listEl);
+    listEl
+      .querySelectorAll(".estimation-card")
+      .forEach((el) => el.classList.remove("is-dragging"));
+
+    if (!targetId || sourceId === targetId || typeof options?.onReorder !== "function") {
+      return;
+    }
+
+    await options.onReorder(sourceId, targetId, placement);
+  });
+}
+
 function estimationPaymentBarHtml(payment) {
   if (payment.total <= 0) return "";
   const paidPct = (payment.amountPaid / payment.total) * 100;
@@ -623,7 +768,7 @@ function clientEstimationCardHtml(est, idx) {
   const summary = `${label} · ${lineCount} partida(s)${projectsNote} · ${formatMoney(total)} · ${estimationPaymentStatusLabel(payment)}`;
 
   return `
-    <div class="estimation-card concept-row is-collapsed ${payment.status === "paid" ? "is-paid" : ""} ${payment.status === "partial" ? "is-partial" : ""}" data-client-est-idx="${idx}">
+    <div class="estimation-card concept-row is-collapsed ${payment.status === "paid" ? "is-paid" : ""} ${payment.status === "partial" ? "is-partial" : ""}" data-client-est-idx="${idx}" data-estimation-id="${escapeAttr(est.id)}">
       <div class="concept-row-top estimation-card-head">
         <button type="button" class="concept-toggle" aria-expanded="false" onclick="pafToggleClientEstimation(${idx})">
           <span class="concept-chevron" aria-hidden="true"></span>
@@ -669,19 +814,7 @@ function renderClientEstimationsList(
   }
 
   const projectsRef = window.__pafProjectsForEstimations || [];
-  const sorted = [...list].sort((a, b) => {
-    const order = { pending: 0, partial: 1, paid: 2 };
-    const pa = getEstimationPayment(
-      a,
-      estimationGrandTotal(a.id, list, projectsRef)
-    );
-    const pb = getEstimationPayment(
-      b,
-      estimationGrandTotal(b.id, list, projectsRef)
-    );
-    if (pa.status !== pb.status) return order[pa.status] - order[pb.status];
-    return (b.date || "").localeCompare(a.date || "");
-  });
+  const sorted = sortEstimationsList(list);
 
   listEl.innerHTML = sorted
     .map((est, idx) => clientEstimationCardHtml(est, idx))

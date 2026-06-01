@@ -133,6 +133,7 @@ function buildMetaPayload(project) {
         e.paymentStatus || (e.paid ? "paid" : Number(e.amountPaid) > 0 ? "partial" : "pending"),
       paidAt: e.paid || Number(e.amountPaid) > 0 ? e.paidAt || null : null,
       notes: e.notes || "",
+      ...(Number.isFinite(Number(e.sortOrder)) ? { sortOrder: Number(e.sortOrder) } : {}),
     }));
   return {
     v: 4,

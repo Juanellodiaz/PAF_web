@@ -42,6 +42,7 @@ function newEstimation() {
     paidAt: null,
     notes: "",
     expanded: false,
+    sortOrder: nextEstimationSortOrder(editorEstimations),
   };
 }
 
@@ -49,9 +50,8 @@ function syncEditorEstimations() {
   const expandedById = new Map(
     editorEstimations.map((e) => [e.id, !!e.expanded])
   );
-  editorEstimations = mergeEstimationsFromConcepts(
-    editorEstimations,
-    editorConcepts
+  editorEstimations = sortEstimationsList(
+    mergeEstimationsFromConcepts(editorEstimations, editorConcepts)
   );
   editorEstimations.forEach((e) => {
     if (expandedById.has(e.id)) e.expanded = expandedById.get(e.id);
@@ -341,9 +341,9 @@ function setEditorData(concepts, documents, estimations, indirectCosts) {
   editorDocuments = (documents || [])
     .filter((d) => !isMetaDocument(d))
     .map((d) => ({ ...d, collapsed: true }));
-  editorEstimations = mergeEstimationsFromConcepts(estimations, editorConcepts).map(
-    (e) => ({ ...e, expanded: e.expanded === true })
-  );
+  editorEstimations = sortEstimationsList(
+    mergeEstimationsFromConcepts(estimations, editorConcepts)
+  ).map((e) => ({ ...e, expanded: e.expanded === true }));
   editorIndirectCosts = normalizeIndirectList(indirectCosts);
 }
 
@@ -649,24 +649,28 @@ function collectEstimations() {
     mergeStoredEstimations(editorEstimations, orphanGlobal),
     editorConcepts
   );
-  return list.map((e) => {
-    const payState = paidById.get(e.id);
-    const total = estimationBreakdownFor(e.id).grandTotal || 0;
-    const payment = payState
-      ? applyEstimationPaymentToRecord(e, total, payState)
-      : getEstimationPayment(e, total);
-    const { expanded: _u, collapsed: _c, ...rest } = e;
-    return {
-      ...rest,
-      label: (e.label || "").trim(),
-      date: e.date || new Date().toISOString().slice(0, 10),
-      amountPaid: payment.amountPaid,
-      paymentStatus: payment.paymentStatus,
-      paid: payment.paid,
-      paidAt: payment.paidAt,
-      notes: (e.notes || "").trim(),
-    };
-  });
+  return assignEstimationSortOrders(
+    sortEstimationsList(
+      list.map((e) => {
+        const payState = paidById.get(e.id);
+        const total = estimationBreakdownFor(e.id).grandTotal || 0;
+        const payment = payState
+          ? applyEstimationPaymentToRecord(e, total, payState)
+          : getEstimationPayment(e, total);
+        const { expanded: _u, collapsed: _c, ...rest } = e;
+        return {
+          ...rest,
+          label: (e.label || "").trim(),
+          date: e.date || new Date().toISOString().slice(0, 10),
+          amountPaid: payment.amountPaid,
+          paymentStatus: payment.paymentStatus,
+          paid: payment.paid,
+          paidAt: payment.paidAt,
+          notes: (e.notes || "").trim(),
+        };
+      })
+    )
+  );
 }
 
 function collectDocuments() {
@@ -1150,8 +1154,9 @@ function estimationCardHtml(est, idx) {
         : "";
 
   return `
-    <div class="estimation-card concept-row ${statusClass} ${expanded ? "" : "is-collapsed"}" data-est-index="${idx}">
+    <div class="estimation-card concept-row ${statusClass} ${expanded ? "" : "is-collapsed"}" data-est-index="${idx}" data-estimation-id="${escapeAttr(est.id)}">
       <div class="concept-row-top estimation-card-head">
+        ${estimationDragHandleHtml(est.id)}
         <button type="button" class="concept-toggle" data-toggle-est="${idx}" aria-expanded="${expanded}" onclick="pafToggleEstimation(${idx})">
           <span class="concept-chevron" aria-hidden="true"></span>
           <span class="concept-row-num">EST ${String(idx + 1).padStart(2, "0")}</span>
@@ -1190,9 +1195,11 @@ function estimationCardHtml(est, idx) {
 function hydrateEstimationsFromProject(project) {
   if (!project) return;
   const global = window.__pafGlobalEstimations || project.estimations || [];
-  editorEstimations = mergeEstimationsFromConcepts(
-    mergeStoredEstimations(global, project.estimations || []),
-    project.concepts || editorConcepts
+  editorEstimations = sortEstimationsList(
+    mergeEstimationsFromConcepts(
+      mergeStoredEstimations(global, project.estimations || []),
+      project.concepts || editorConcepts
+    )
   ).map((e) => ({
     ...e,
     expanded: false,
@@ -1207,11 +1214,29 @@ function buildEstimationsEditorHtml(project) {
   if (!list.length) {
     return '<p class="admin-empty">Sin estimaciones. Agrega un avance en un concepto o pulsa + Estimación.</p>';
   }
-  return list.map((est, idx) => estimationCardHtml(est, idx)).join("");
+  return sortEstimationsList(list)
+    .map((est, idx) => estimationCardHtml(est, idx))
+    .join("");
 }
 
 function bindEstimationEditorEvents(_el) {
   /* Toggle vía onclick en el HTML (evita doble disparo con delegación) */
+}
+
+function applyEditorEstimationReorder(sourceId, targetId, placement) {
+  editorEstimations = assignEstimationSortOrders(
+    reorderEstimationsInList(editorEstimations, sourceId, targetId, placement)
+  );
+  renderEstimationsEditor();
+  markEstimationsDirty();
+}
+
+function bindEditorEstimationsDnD(el) {
+  bindEstimationListDnD(el, {
+    onReorder: async (sourceId, targetId, placement) => {
+      applyEditorEstimationReorder(sourceId, targetId, placement);
+    },
+  });
 }
 
 function renderEstimationsEditor() {
@@ -1226,11 +1251,13 @@ function renderEstimationsEditor() {
         '<p class="admin-empty">Sin estimaciones. Agrega un avance en un concepto o pulsa + Estimación.</p>';
       return;
     }
+    editorEstimations = sortEstimationsList(editorEstimations);
     el.innerHTML = editorEstimations
       .map((est, idx) => estimationCardHtml(est, idx))
       .join("");
     if (!el.dataset.paymentBound) bindEstimationPaymentEvents(el);
     bindEstimationEditorEvents(el);
+    bindEditorEstimationsDnD(el);
   } catch (err) {
     el.innerHTML = `<p class="form-error">No se pudieron cargar las estimaciones: ${escapeHtml(err.message)}</p>`;
   }

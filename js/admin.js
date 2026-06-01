@@ -143,6 +143,7 @@ function createQuickEstimation(estimations, fields = {}) {
     paid: false,
     paidAt: null,
     notes: (fields.notes || "").trim(),
+    sortOrder: nextEstimationSortOrder(list),
   };
   list.push(est);
   return est;
@@ -1002,8 +1003,9 @@ function adminEstimationCardHtml(est, idx) {
         : "";
 
   return `
-    <div class="estimation-card concept-row is-collapsed ${statusClass}" data-admin-est-idx="${idx}" data-admin-est-id="${escapeAttr(est.id)}">
+    <div class="estimation-card concept-row is-collapsed ${statusClass}" data-admin-est-idx="${idx}" data-admin-est-id="${escapeAttr(est.id)}" data-estimation-id="${escapeAttr(est.id)}">
       <div class="concept-row-top estimation-card-head">
+        ${estimationDragHandleHtml(est.id)}
         <button type="button" class="concept-toggle" data-admin-est-toggle="${idx}" aria-expanded="false">
           <span class="concept-chevron" aria-hidden="true"></span>
           <span class="concept-row-num">EST ${String(idx + 1).padStart(2, "0")}</span>
@@ -1132,25 +1134,33 @@ function renderAdminEstimationsList(projects) {
     return;
   }
 
-  const sorted = [...list].sort((a, b) => {
-    const order = { pending: 0, partial: 1, paid: 2 };
-    const pa = getEstimationPayment(
-      a,
-      estimationBreakdownFor(a.id).grandTotal || 0
-    );
-    const pb = getEstimationPayment(
-      b,
-      estimationBreakdownFor(b.id).grandTotal || 0
-    );
-    if (pa.status !== pb.status) return order[pa.status] - order[pb.status];
-    return (b.date || "").localeCompare(a.date || "");
-  });
+  const sorted = sortEstimationsList(list);
 
   listEl.innerHTML = sorted
     .map((est, idx) => adminEstimationCardHtml(est, idx))
     .join("");
   window.__pafAdminEstimationsSorted = sorted;
   bindAdminEstimationsList(sorted);
+  bindAdminEstimationsDnD(listEl);
+}
+
+async function applyAdminEstimationReorder(sourceId, targetId, placement) {
+  const sorted = window.__pafAdminEstimationsSorted || [];
+  const reordered = assignEstimationSortOrders(
+    reorderEstimationsInList(sorted, sourceId, targetId, placement)
+  );
+  try {
+    await persistEstimationsToGlobal(reordered);
+    renderAdminEstimationsList(cachedProjects);
+  } catch (ex) {
+    alert(ex.message || "No se pudo guardar el orden de estimaciones");
+  }
+}
+
+function bindAdminEstimationsDnD(listEl) {
+  bindEstimationListDnD(listEl, {
+    onReorder: applyAdminEstimationReorder,
+  });
 }
 
 async function refreshDashboard() {
