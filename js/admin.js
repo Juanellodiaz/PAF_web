@@ -1745,43 +1745,38 @@ async function onSubmit(e) {
   err.style.color = "";
 
   const completionDate = document.getElementById("completionDate").value;
-  const body = {
+  const quickFields = {
     name: document.getElementById("name").value.trim(),
     clientId: document.getElementById("clientId").value,
     completionDate,
-    status: editingId
-      ? document.getElementById("status").value
-      : statusForNewProject(
-          completionDate,
-          document.getElementById("status").value
-        ),
     zone3dImage:
       document.getElementById("zone3dImage").value.trim() ||
       "/assets/zone-3d-placeholder.svg",
-    concepts: [],
-    estimations: [],
-    documents: [],
-    indirectCosts: [],
   };
 
   try {
     if (editingId) {
-      const existing = (await api(`/projects/${editingId}`)).project;
       await api(`/projects/${editingId}`, {
         method: "PUT",
         body: JSON.stringify({
-          ...existing,
-          ...body,
-          id: editingId,
-          concepts: existing.concepts || [],
-          documents: existing.documents || [],
-          indirectCosts: existing.indirectCosts || [],
+          ...quickFields,
+          status: document.getElementById("status").value,
         }),
       });
     } else {
       const { project } = await api("/projects", {
         method: "POST",
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          ...quickFields,
+          status: statusForNewProject(
+            completionDate,
+            document.getElementById("status").value
+          ),
+          concepts: [],
+          estimations: [],
+          documents: [],
+          indirectCosts: [],
+        }),
       });
       resetForm();
       closeQuickPanel();

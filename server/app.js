@@ -56,6 +56,33 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+/** No sobrescribir arrays con [] si el proyecto ya tenía datos (edición parcial desde admin). */
+function preserveProjectArray(incoming, existing) {
+  if (incoming === undefined) return existing;
+  if (
+    Array.isArray(incoming) &&
+    incoming.length === 0 &&
+    Array.isArray(existing) &&
+    existing.length > 0
+  ) {
+    return existing;
+  }
+  return incoming ?? existing;
+}
+
+function mergeProjectUpdate(existing, body) {
+  const patch = body || {};
+  return {
+    ...existing,
+    ...patch,
+    id: existing.id,
+    concepts: preserveProjectArray(patch.concepts, existing.concepts),
+    documents: preserveProjectArray(patch.documents, existing.documents),
+    estimations: preserveProjectArray(patch.estimations, existing.estimations),
+    indirectCosts: preserveProjectArray(patch.indirectCosts, existing.indirectCosts),
+  };
+}
+
 function projectPayload(project) {
   if (!project) throw new Error("Proyecto no encontrado");
   const concepts = project.concepts || [];
@@ -267,18 +294,7 @@ app.put("/api/projects/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
     const existing = await db.getProject(req.params.id);
     if (!existing) return res.status(404).json({ error: "Proyecto no encontrado" });
-    const body = req.body || {};
-    const project = {
-      ...existing,
-      ...body,
-      id: existing.id,
-      concepts: body.concepts ?? existing.concepts,
-      documents: body.documents ?? existing.documents,
-      estimations: body.estimations ?? existing.estimations,
-      indirectCosts: Array.isArray(body.indirectCosts)
-        ? body.indirectCosts
-        : existing.indirectCosts,
-    };
+    const project = mergeProjectUpdate(existing, req.body || {});
     const saved = await db.saveProject(project);
     res.json({ project: projectPayload(saved) });
   } catch (err) {
