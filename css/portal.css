@@ -256,7 +256,7 @@ body.page-enter {
 }
 
 .client-estimations-section .estimation-status-badge.paid {
-  color: #1e5c3a;
+  color: #7fa87c;
   border-color: transparent;
   background: transparent;
 }
@@ -1843,12 +1843,41 @@ body.page-enter {
 }
 
 .estimation-card.is-paid {
-  border-left: 2px solid var(--accent);
-  opacity: 0.85;
+  border-left: 2px solid #5a7348;
+  background: rgba(61, 80, 52, 0.12);
+  opacity: 1;
+}
+
+.estimation-card.is-paid .estimation-detail,
+.estimation-card.is-paid .estimation-notes-readonly,
+.estimation-card.is-paid .admin-estimation-meta,
+.estimation-card.is-paid .estimation-payment .admin-section-hint,
+.estimation-card.is-paid .subsection-label {
+  color: #9cb39a;
+}
+
+.estimation-card.is-paid .estimation-total {
+  color: #b8d4b5;
+}
+
+.estimation-card.is-paid .estimation-lines-table th {
+  color: #7a9478;
+  background: rgba(61, 80, 52, 0.2);
+}
+
+.estimation-card.is-paid .estimation-lines-table td {
+  color: #c5d9c3;
+  border-color: rgba(90, 115, 72, 0.35);
+}
+
+.estimation-card.is-paid .estimation-project-group-label {
+  color: #a8c4a6;
+  border-color: rgba(90, 115, 72, 0.4);
 }
 
 .estimation-card.is-partial {
   border-left: 2px solid rgba(201, 169, 98, 0.55);
+  background: rgba(201, 169, 98, 0.06);
 }
 
 .estimation-payment {
@@ -1885,6 +1914,12 @@ body.page-enter {
   border-color: var(--accent);
   color: var(--accent);
   background: rgba(201, 169, 98, 0.1);
+}
+
+.estimation-card.is-paid .est-pay-opt.is-active {
+  border-color: #5a7348;
+  color: #b8d4b5;
+  background: rgba(61, 80, 52, 0.22);
 }
 
 .estimation-payment-amount.hidden {
@@ -2016,7 +2051,7 @@ body.page-enter {
 }
 
 .estimation-status-badge.paid {
-  color: var(--accent);
+  color: #7fa87c;
 }
 
 .estimation-status-badge.partial {
