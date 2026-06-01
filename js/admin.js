@@ -228,6 +228,20 @@ function projectCountLabel(n) {
   return n === 1 ? "1 proyecto" : `${n} proyectos`;
 }
 
+function metricSplitHtml(leftValue, leftLabel, rightValue, rightLabel) {
+  return `
+    <div class="metric-split" role="group">
+      <div class="metric-split-item">
+        <span class="metric-split-value">${leftValue}</span>
+        <span class="metric-split-label">${leftLabel}</span>
+      </div>
+      <div class="metric-split-item">
+        <span class="metric-split-value">${rightValue}</span>
+        <span class="metric-split-label">${rightLabel}</span>
+      </div>
+    </div>`;
+}
+
 const PROJECT_STATUS_OPTIONS = [
   { value: "en_aprobacion", label: "En aprobación" },
   { value: "en_proceso", label: "En proceso" },
@@ -271,12 +285,16 @@ function adminSummaryHtml(summary) {
       <span class="metric-label">Proyectos por aprobar</span>
       <span class="metric-sublabel">${projectCountLabel(summary.approvalCount)}</span>
     </div>
-    <div class="metric-box metric-box--completed">
+    <div class="metric-box metric-box--split">
       <span class="metric-value">${formatMoney(summary.completedMoney)}</span>
       <span class="metric-label">Proyectos culminados</span>
       <span class="metric-sublabel">${projectCountLabel(summary.completedCount)}</span>
-      <span class="metric-sublabel metric-sublabel--emph">Flujo: ${formatMoney(summary.completedFlujo)}</span>
-      <span class="metric-sublabel">Intercambio 40%: ${formatMoney(summary.completedIntercambio)}</span>
+      ${metricSplitHtml(
+        formatMoney(summary.completedFlujo),
+        "Flujo 60%",
+        formatMoney(summary.completedIntercambio),
+        "Intercambio 40%"
+      )}
     </div>
     <div class="metric-box metric-box-progress">
       <div class="progress-ring-wrap">
@@ -292,11 +310,15 @@ function adminSummaryHtml(summary) {
       <span class="metric-label">Gastos indirectos</span>
       <span class="metric-sublabel">${formatMoney(summary.portfolioIndirect)} del portafolio activo</span>
     </div>
-    <div class="metric-box metric-box--utility">
+    <div class="metric-box metric-box--split">
       <span class="metric-value accent">${formatMoney(summary.totalProfit)}</span>
       <span class="metric-label">Utilidad total</span>
-      <span class="metric-sublabel metric-sublabel--emph">Intercambio 40%: ${formatMoney(summary.totalIntercambioProfit)}</span>
-      <span class="metric-sublabel">Utilidad de flujo: ${formatMoney(summary.totalFlowProfit)}</span>
+      ${metricSplitHtml(
+        formatMoney(summary.totalFlowProfit),
+        "Utilidad de flujo",
+        formatMoney(summary.totalIntercambioProfit),
+        "Intercambio 40%"
+      )}
     </div>`;
 }
 
