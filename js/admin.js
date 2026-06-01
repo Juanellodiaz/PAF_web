@@ -199,9 +199,9 @@ function computeAdminDashboardSummary(projects) {
     const indirectTotal =
       Number(p.indirectTotal) || calcIndirectTotal(p.indirectCosts || []);
     const econ = calcConceptEconomics(p.concepts || [], indirectTotal);
-    totalProfit += econ.profitTotal;
+    totalIntercambioProfit += econ.intercambioProfitTotal;
     totalFlowProfit += econ.flowProfitTotal;
-    totalIntercambioProfit += econ.profitTotal - econ.flowProfitTotal;
+    totalProfit += econ.profitTotal;
   });
 
   return {
@@ -295,8 +295,8 @@ function adminSummaryHtml(summary) {
     <div class="metric-box metric-box--utility">
       <span class="metric-value accent">${formatMoney(summary.totalProfit)}</span>
       <span class="metric-label">Utilidad total</span>
-      <span class="metric-sublabel metric-sublabel--emph">Intercambio: ${formatMoney(summary.totalIntercambioProfit)}</span>
-      <span class="metric-sublabel">Flujo: ${formatMoney(summary.totalFlowProfit)}</span>
+      <span class="metric-sublabel metric-sublabel--emph">Intercambio 40%: ${formatMoney(summary.totalIntercambioProfit)}</span>
+      <span class="metric-sublabel">Utilidad de flujo: ${formatMoney(summary.totalFlowProfit)}</span>
     </div>`;
 }
 

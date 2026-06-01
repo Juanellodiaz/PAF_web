@@ -457,13 +457,13 @@ function adminProjectMetricsHtml(p) {
     </div>
     <div class="metric-box">
       <span class="metric-value accent" id="metric-profit">${formatMoney(p.profitTotal || 0)}</span>
-      <span class="metric-label">Utilidad</span>
-      <span class="metric-sublabel">Venta − MO − material − indirectos</span>
+      <span class="metric-label">Utilidad total</span>
+      <span class="metric-sublabel">Intercambio 40% + utilidad de flujo</span>
     </div>
     <div class="metric-box">
       <span class="metric-value accent" id="metric-flow-profit">${formatMoney(p.flowProfitTotal || 0)}</span>
       <span class="metric-label">Utilidad de flujo</span>
-      <span class="metric-sublabel">60% inversión − MO − material − indirectos</span>
+      <span class="metric-sublabel">60% venta − MO − material − indirectos</span>
     </div>
   `;
 }
@@ -495,6 +495,7 @@ function projectPayload(project) {
     laborTotal: economics.laborTotal,
     materialTotal: economics.materialTotal,
     profitTotal: economics.profitTotal,
+    intercambioProfitTotal: economics.intercambioProfitTotal,
     flowProfitTotal: economics.flowProfitTotal,
     progressPercent: progress.percent,
     progressDoneM2: progress.doneM2,

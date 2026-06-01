@@ -31,6 +31,10 @@ function conceptProfit(c) {
   return conceptSaleTotal(c) - conceptLaborCost(c) - conceptMaterialCost(c);
 }
 
+function calcIntercambioProfit(saleTotal, rate = 0.4) {
+  return Math.round((Number(saleTotal) || 0) * rate);
+}
+
 function calcFlowProfit(saleTotal, laborTotal, materialTotal, indirectTotal = 0) {
   const sale = Number(saleTotal) || 0;
   const labor = Number(laborTotal) || 0;
@@ -50,18 +54,21 @@ function calcConceptEconomics(concepts, indirectTotal = 0) {
     saleTotal += conceptSaleTotal(c);
   });
   const indirect = Math.round(Number(indirectTotal) || 0);
-  const profitTotal = saleTotal - laborTotal - materialTotal - indirect;
+  const intercambioProfitTotal = calcIntercambioProfit(saleTotal);
+  const flowProfitTotal = calcFlowProfit(
+    saleTotal,
+    laborTotal,
+    materialTotal,
+    indirect
+  );
+  const profitTotal = intercambioProfitTotal + flowProfitTotal;
   return {
     laborTotal,
     materialTotal,
     saleTotal,
     indirectTotal: indirect,
+    intercambioProfitTotal,
+    flowProfitTotal,
     profitTotal,
-    flowProfitTotal: calcFlowProfit(
-      saleTotal,
-      laborTotal,
-      materialTotal,
-      indirect
-    ),
   };
 }
