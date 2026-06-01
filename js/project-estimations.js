@@ -195,14 +195,44 @@ function estimationGrandTotal(est, estimations, projectsOrConcepts) {
   return getEstimationTotal(est.id, projectsOrConcepts || []);
 }
 
+function normalizePaymentStatus(value) {
+  if (value === "paid" || value === "partial" || value === "pending") {
+    return value;
+  }
+  return null;
+}
+
 function getEstimationPayment(est, total) {
   const t = Math.max(0, Math.round(Number(total) || 0));
   let amountPaid = Math.max(0, Math.round(Number(est?.amountPaid) || 0));
-  if (est?.paid && amountPaid === 0 && t > 0) amountPaid = t;
+  if (est?.paid && amountPaid === 0 && t > 0 && !est?.paymentStatus) {
+    amountPaid = t;
+  }
   if (amountPaid > t && t > 0) amountPaid = t;
-  const paid = t > 0 ? amountPaid >= t : !!est?.paid;
-  const partial = amountPaid > 0 && !paid;
-  const status = paid ? "paid" : partial ? "partial" : "pending";
+
+  let status = normalizePaymentStatus(est?.paymentStatus);
+  if (!status) {
+    if (t > 0 && amountPaid >= t) status = "paid";
+    else if (amountPaid > 0) status = "partial";
+    else if (est?.paid) status = "paid";
+    else status = "pending";
+  }
+
+  if (status === "paid" || (t > 0 && amountPaid >= t)) {
+    status = "paid";
+    if (t > 0) amountPaid = t;
+  } else if (status === "partial") {
+    if (t > 0 && amountPaid >= t) {
+      status = "paid";
+      amountPaid = t;
+    }
+  } else {
+    status = "pending";
+    amountPaid = 0;
+  }
+
+  const paid = status === "paid";
+  const partial = status === "partial";
   return {
     total: t,
     amountPaid,
@@ -266,20 +296,39 @@ function estimationPaymentControlsHtml(est, idx, payment, prefix) {
 
 function applyEstimationPaymentToRecord(est, total, patch) {
   const base = getEstimationPayment(est, total);
-  const status = patch.status ?? base.status;
+  const status =
+    normalizePaymentStatus(patch.status) ||
+    normalizePaymentStatus(est.paymentStatus) ||
+    base.status;
   let amountPaid = Math.round(
-    Number(patch.amountPaid !== undefined ? patch.amountPaid : base.amountPaid) || 0
+    Number(
+      patch.amountPaid !== undefined ? patch.amountPaid : est.amountPaid ?? base.amountPaid
+    ) || 0
   );
-  if (status === "pending") amountPaid = 0;
-  else if (status === "paid") amountPaid = base.total;
+  let paymentStatus = status;
+
+  if (status === "pending") {
+    amountPaid = 0;
+  } else if (status === "paid") {
+    amountPaid = base.total;
+    paymentStatus = "paid";
+  } else if (status === "partial") {
+    if (base.total > 0 && amountPaid >= base.total) {
+      amountPaid = base.total;
+      paymentStatus = "paid";
+    }
+  }
+
   if (base.total > 0 && amountPaid > base.total) amountPaid = base.total;
   if (amountPaid < 0) amountPaid = 0;
-  const paid = base.total > 0 ? amountPaid >= base.total : status === "paid";
+
+  const paid = paymentStatus === "paid";
   const paidAt =
     amountPaid > 0 || paid
       ? patch.paidAt || est.paidAt || new Date().toISOString().slice(0, 10)
       : null;
-  return { amountPaid, paid, paidAt };
+
+  return { amountPaid, paid, paidAt, paymentStatus };
 }
 
 function calcTotalPaid(estimations, projectsOrConcepts) {

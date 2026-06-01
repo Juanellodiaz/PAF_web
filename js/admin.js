@@ -139,6 +139,7 @@ function createQuickEstimation(estimations, fields = {}) {
       `Estimación ${String(list.length + 1).padStart(2, "0")}`,
     date: fields.date || todayIso(),
     amountPaid: 0,
+    paymentStatus: "pending",
     paid: false,
     paidAt: null,
     notes: (fields.notes || "").trim(),
@@ -909,15 +910,78 @@ function syncAdminEstimationProjects(projects) {
   }));
 }
 
-async function applyAdminEstPayment(estId, patch) {
-  const estimations = buildEstimationsListForQuick();
-  const est = estimations.find((item) => item.id === estId);
+let adminPaymentPersistTimer = null;
+
+function scheduleAdminPaymentPersist() {
+  clearTimeout(adminPaymentPersistTimer);
+  adminPaymentPersistTimer = setTimeout(async () => {
+    try {
+      const estimations = buildEstimationsListForQuick();
+      await persistEstimationsToGlobal(estimations);
+      renderAdminMetrics(cachedProjects);
+    } catch (ex) {
+      console.error(ex);
+    }
+  }, 450);
+}
+
+function syncAdminEstimationPaymentSection(idx, est, options = {}) {
+  const card = document.querySelector(`[data-admin-est-idx="${idx}"]`);
+  if (!card) return;
+
+  const total = estimationBreakdownFor(est.id).grandTotal || 0;
+  const payment = getEstimationPayment(est, total);
+  const expanded =
+    options.expanded !== undefined
+      ? options.expanded
+      : !card.classList.contains("is-collapsed");
+
+  card.classList.toggle("is-collapsed", !expanded);
+  card.classList.toggle("is-paid", payment.status === "paid");
+  card.classList.toggle("is-partial", payment.status === "partial");
+
+  const lineCount = estimationBreakdownFor(est.id).lineCount || 0;
+  const projectCount = payment.total > 0 ? (estimationBreakdownFor(est.id).groups?.length || 0) : 0;
+  const label = estimationDisplayLabel(
+    est,
+    (window.__pafAdminEstimationsSorted || []).findIndex((e) => e.id === est.id)
+  );
+  const projectsNote =
+    projectCount > 1 ? ` · ${projectCount} proyectos` : "";
+  const summary = `${label} · ${lineCount} partida(s)${projectsNote} · ${formatMoney(total)} · ${estimationPaymentStatusLabel(payment)}`;
+
+  const summaryEl = card.querySelector(".concept-summary");
+  if (summaryEl) summaryEl.textContent = summary;
+
+  const badge = card.querySelector(".estimation-status-badge");
+  if (badge) {
+    badge.className = `estimation-status-badge ${payment.status}`;
+    badge.textContent = estimationPaymentBadgeText(payment);
+  }
+
+  card.querySelectorAll(`[data-admin-est-toggle-label="${idx}"]`).forEach((btn) => {
+    btn.textContent = expanded ? "Ocultar" : "Ver detalle";
+  });
+  card.querySelectorAll(`[data-admin-est-toggle="${idx}"]`).forEach((btn) => {
+    btn.setAttribute("aria-expanded", String(expanded));
+  });
+
+  const wrap = card.querySelector(`[data-admin-est-payment-wrap="${idx}"]`);
+  if (wrap) {
+    wrap.outerHTML = estimationPaymentControlsHtml(est, idx, payment, "admin-est");
+  }
+}
+
+function applyAdminEstPaymentLocal(idx, patch, options = {}) {
+  const sorted = window.__pafAdminEstimationsSorted || [];
+  const est = sorted[idx];
   if (!est) return;
   const total = estimationBreakdownFor(est.id).grandTotal || 0;
   Object.assign(est, applyEstimationPaymentToRecord(est, total, patch));
-  await persistEstimationsToGlobal(estimations);
-  renderAdminMetrics(cachedProjects);
-  renderAdminEstimationsList(cachedProjects);
+  syncAdminEstimationPaymentSection(idx, est, {
+    expanded: options.expandOnPartial && patch.status === "partial" ? true : undefined,
+  });
+  scheduleAdminPaymentPersist();
 }
 
 function adminEstimationCardHtml(est, idx) {
@@ -977,66 +1041,77 @@ function bindAdminEstimationsList(sorted) {
   const listEl = document.getElementById("admin-estimations-list");
   if (!listEl) return;
 
-  const toggleExpand = (idx) => adminToggleEstimationCard(idx);
+  window.__pafAdminEstimationsSorted = sorted;
 
-  listEl.querySelectorAll("[data-admin-est-toggle]").forEach((btn) => {
-    btn.addEventListener("click", () => toggleExpand(Number(btn.dataset.adminEstToggle)));
-  });
-  listEl.querySelectorAll("[data-admin-est-toggle-label]").forEach((btn) => {
-    btn.addEventListener("click", () => toggleExpand(Number(btn.dataset.adminEstToggleLabel)));
-  });
+  if (listEl.dataset.adminPaymentBound === "1") return;
+  listEl.dataset.adminPaymentBound = "1";
 
-  listEl.querySelectorAll("[data-admin-est-pay-status]").forEach((btn) => {
-    btn.addEventListener("click", async (e) => {
+  listEl.addEventListener("click", (e) => {
+    const payBtn = e.target.closest("[data-admin-est-pay-status]");
+    if (payBtn) {
       e.preventDefault();
-      const idx = Number(btn.dataset.adminEstPayStatus);
-      const est = sorted[idx];
-      if (!est) return;
-      const status = btn.dataset.status;
-      try {
-        if (status === "partial") {
-          await applyAdminEstPayment(est.id, { status: "partial", amountPaid: 0 });
-          document
-            .querySelector(
-              `[data-admin-est-idx="${idx}"] .estimation-payment-amount`
-            )
-            ?.classList.remove("hidden");
-          document.querySelector(`[data-admin-est-amount-paid="${idx}"]`)?.focus();
-          return;
-        }
-        await applyAdminEstPayment(est.id, { status });
-      } catch (ex) {
-        alert(ex.message || "No se pudo actualizar el estado de pago.");
-      }
-    });
-  });
-
-  listEl.querySelectorAll("[data-admin-est-amount-paid]").forEach((input) => {
-    input.addEventListener("change", async () => {
-      const idx = Number(input.dataset.adminEstAmountPaid);
-      const est = sorted[idx];
-      if (!est) return;
-      try {
-        await applyAdminEstPayment(est.id, {
-          status: "partial",
-          amountPaid: Math.round(Number(input.value) || 0),
-        });
-      } catch (ex) {
-        alert(ex.message || "No se pudo guardar el abono.");
-      }
-    });
-  });
-
-  listEl.querySelectorAll("[data-admin-est-download]").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
       e.stopPropagation();
-      const idx = Number(btn.dataset.adminEstDownload);
-      const est = sorted[idx];
+      const idx = Number(payBtn.dataset.adminEstPayStatus);
+      const status = payBtn.dataset.status;
+      if (status === "partial") {
+        applyAdminEstPaymentLocal(
+          idx,
+          {
+            status: "partial",
+            amountPaid:
+              window.__pafAdminEstimationsSorted[idx]?.amountPaid || 0,
+          },
+          { expandOnPartial: true }
+        );
+        requestAnimationFrame(() => {
+          document.querySelector(`[data-admin-est-amount-paid="${idx}"]`)?.focus();
+        });
+      } else {
+        applyAdminEstPaymentLocal(idx, { status });
+      }
+      return;
+    }
+
+    const toggleBtn = e.target.closest("[data-admin-est-toggle]");
+    if (toggleBtn) {
+      adminToggleEstimationCard(Number(toggleBtn.dataset.adminEstToggle));
+      return;
+    }
+
+    const toggleLabel = e.target.closest("[data-admin-est-toggle-label]");
+    if (toggleLabel) {
+      adminToggleEstimationCard(Number(toggleLabel.dataset.adminEstToggleLabel));
+      return;
+    }
+
+    const dlBtn = e.target.closest("[data-admin-est-download]");
+    if (dlBtn) {
+      e.stopPropagation();
+      const idx = Number(dlBtn.dataset.adminEstDownload);
+      const est = window.__pafAdminEstimationsSorted[idx];
       if (!est) return;
       syncAdminEstimationProjects(cachedProjects);
-      refreshEstimationBreakdowns(sorted);
+      refreshEstimationBreakdowns(window.__pafAdminEstimationsSorted);
       downloadEstimation(est, "Administración");
-    });
+    }
+  });
+
+  listEl.addEventListener("input", (e) => {
+    const input = e.target.closest("[data-admin-est-amount-paid]");
+    if (!input) return;
+    const idx = Number(input.dataset.adminEstAmountPaid);
+    const est = window.__pafAdminEstimationsSorted[idx];
+    if (!est) return;
+    const total = estimationBreakdownFor(est.id).grandTotal || 0;
+    Object.assign(
+      est,
+      applyEstimationPaymentToRecord(est, total, {
+        status: "partial",
+        amountPaid: Math.round(Number(input.value) || 0),
+      })
+    );
+    syncAdminEstimationPaymentSection(idx, est);
+    scheduleAdminPaymentPersist();
   });
 }
 
@@ -1074,6 +1149,7 @@ function renderAdminEstimationsList(projects) {
   listEl.innerHTML = sorted
     .map((est, idx) => adminEstimationCardHtml(est, idx))
     .join("");
+  window.__pafAdminEstimationsSorted = sorted;
   bindAdminEstimationsList(sorted);
 }
 

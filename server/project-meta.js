@@ -82,6 +82,7 @@ function buildPaidByEstimationId(estimations) {
       paid: !!e.paid,
       paidAt: e.paidAt || null,
       amountPaid,
+      paymentStatus: e.paymentStatus || (e.paid ? "paid" : amountPaid > 0 ? "partial" : "pending"),
     };
   });
   return paidByEstimationId;
@@ -98,7 +99,8 @@ function applyPaidFromMeta(estimations, paidByEstimationId) {
       ...e,
       amountPaid: Math.max(0, Math.round(Number(flags.amountPaid) || 0)),
       paid: !!flags.paid,
-      paidAt: flags.paid ? e.paidAt || flags.paidAt || null : null,
+      paymentStatus: flags.paymentStatus || e.paymentStatus,
+      paidAt: flags.paid || Number(flags.amountPaid) > 0 ? e.paidAt || flags.paidAt || null : null,
     };
   });
 }
@@ -127,6 +129,8 @@ function buildMetaPayload(project) {
       date: e.date || "",
       amountPaid: Math.max(0, Math.round(Number(e.amountPaid) || 0)),
       paid: !!e.paid,
+      paymentStatus:
+        e.paymentStatus || (e.paid ? "paid" : Number(e.amountPaid) > 0 ? "partial" : "pending"),
       paidAt: e.paid || Number(e.amountPaid) > 0 ? e.paidAt || null : null,
       notes: e.notes || "",
     }));

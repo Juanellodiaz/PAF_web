@@ -4,15 +4,27 @@ const GLOBAL_PROJECT_ID = "_paf_system";
 const GLOBAL_DOC_ID = "_paf_global_estimations";
 const GLOBAL_TITLE = "_PAF_GLOBAL_ESTIMATIONS";
 
+function normalizePaymentStatus(value) {
+  if (value === "paid" || value === "partial" || value === "pending") {
+    return value;
+  }
+  return null;
+}
+
 function normalizeEstimation(e) {
   const amountPaid = Math.max(0, Math.round(Number(e.amountPaid) || 0));
   const paid = !!e.paid;
+  let paymentStatus = normalizePaymentStatus(e.paymentStatus);
+  if (!paymentStatus) {
+    paymentStatus = paid ? "paid" : amountPaid > 0 ? "partial" : "pending";
+  }
   return {
     id: e.id,
     label: (e.label || "").trim(),
     date: e.date || new Date().toISOString().slice(0, 10),
     amountPaid,
     paid,
+    paymentStatus,
     paidAt: amountPaid > 0 || paid ? e.paidAt || null : null,
     notes: (e.notes || "").trim(),
   };
@@ -28,9 +40,13 @@ function mergeEstimationPaymentFields(prev, next, opts = {}) {
   if (opts.incomingWins) {
     const amountPaid = nextAmt;
     const paid = !!next?.paid;
+    const paymentStatus =
+      normalizePaymentStatus(next?.paymentStatus) ||
+      (paid ? "paid" : amountPaid > 0 ? "partial" : "pending");
     return {
       amountPaid,
       paid,
+      paymentStatus,
       paidAt:
         amountPaid > 0 || paid
           ? next?.paidAt || prev?.paidAt || null
@@ -39,9 +55,14 @@ function mergeEstimationPaymentFields(prev, next, opts = {}) {
   }
   const amountPaid = Math.max(prevAmt, nextAmt);
   const paid = !!prev?.paid || !!next?.paid;
+  const paymentStatus =
+    normalizePaymentStatus(next?.paymentStatus) ||
+    normalizePaymentStatus(prev?.paymentStatus) ||
+    (paid ? "paid" : amountPaid > 0 ? "partial" : "pending");
   return {
     amountPaid,
     paid,
+    paymentStatus,
     paidAt:
       amountPaid > 0 || paid
         ? (nextAmt >= prevAmt ? next?.paidAt : null) ||
