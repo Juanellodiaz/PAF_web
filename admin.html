@@ -319,6 +319,24 @@
       </p>
       <div class="admin-list" id="admin-projects"></div>
     </div>
+
+    <section class="admin-estimations-panel" aria-label="Estimaciones globales">
+      <div class="admin-projects-head">
+        <p class="panel-label">Estimaciones</p>
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm"
+          id="admin-add-estimation"
+          title="Nueva estimación"
+        >
+          + Estimación
+        </button>
+      </div>
+      <p class="admin-section-hint admin-estimations-hint">
+        Estimaciones globales con partidas de todos los proyectos. Expande una fila para ver el detalle.
+      </p>
+      <div class="estimations-editor admin-estimations-list" id="admin-estimations-list"></div>
+    </section>
   </main>
 
   <div class="admin-dialog-backdrop" id="admin-folder-dialog-backdrop" hidden aria-hidden="true">
@@ -345,6 +363,6 @@
   <script src="js/indirect-costs.js"></script>
   <script src="js/project-estimations.js?v=40"></script>
   <script src="js/concept-costs.js"></script>
-  <script src="js/admin.js?v=66"></script>
+  <script src="js/admin.js?v=67"></script>
 </body>
 </html>

@@ -887,6 +887,11 @@ async function onSubmitQuickAdvance(e) {
   fillProjectSelects();
   renderAdminMetrics(projects);
   await loadProjects(projects);
+  renderAdminEstimationsList(projects);
+
+  document.getElementById("admin-add-estimation")?.addEventListener("click", () => {
+    openQuickPanel("estimation");
+  });
 
   document.getElementById("project-form").addEventListener("submit", onSubmit);
   document.getElementById("form-reset").addEventListener("click", () => {
@@ -894,6 +899,139 @@ async function onSubmitQuickAdvance(e) {
     closeQuickPanel();
   });
 })();
+
+function syncAdminEstimationProjects(projects) {
+  window.__pafProjectsForEstimations = (projects || []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    concepts: p.concepts || [],
+  }));
+}
+
+function adminEstimationCardHtml(est, idx) {
+  const breakdown = estimationBreakdownFor(est.id);
+  const total = breakdown.grandTotal || 0;
+  const lineCount = breakdown.lineCount || 0;
+  const projectCount = breakdown.groups?.length || 0;
+  const label = estimationDisplayLabel(est, idx);
+  const paid = !!est.paid;
+  const projectsNote =
+    projectCount > 1 ? ` · ${projectCount} proyectos` : "";
+  const summary = `${label} · ${lineCount} partida(s)${projectsNote} · ${formatMoney(total)} · ${paid ? "Pagada" : "Pendiente"}`;
+
+  return `
+    <div class="estimation-card concept-row is-collapsed ${paid ? "is-paid" : ""}" data-admin-est-idx="${idx}" data-admin-est-id="${escapeAttr(est.id)}">
+      <div class="concept-row-top estimation-card-head">
+        <button type="button" class="concept-toggle" data-admin-est-toggle="${idx}" aria-expanded="false">
+          <span class="concept-chevron" aria-hidden="true"></span>
+          <span class="concept-row-num">EST ${String(idx + 1).padStart(2, "0")}</span>
+          <span class="concept-summary">${escapeHtml(summary)}</span>
+        </button>
+        <div class="estimation-head-actions">
+          <button type="button" class="est-paid-toggle ${paid ? "is-paid" : ""}" data-admin-est-paid="${escapeAttr(est.id)}" aria-pressed="${paid}" aria-label="Estado de pago">
+            <span class="est-paid-toggle-track" aria-hidden="true"><span class="est-paid-toggle-thumb"></span></span>
+            <span class="est-paid-toggle-text">${paid ? "Pagada" : "Pendiente"}</span>
+          </button>
+          <span class="estimation-total">${formatMoney(total)}</span>
+          <button type="button" class="btn btn-ghost btn-sm" data-admin-est-toggle-label="${idx}">Ver detalle</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-admin-est-download="${idx}">Descargar</button>
+        </div>
+      </div>
+      <div class="concept-row-body estimation-detail">
+        ${est.notes ? `<p class="estimation-notes-readonly">${escapeHtml(est.notes)}</p>` : ""}
+        <p class="admin-section-hint admin-estimation-meta">Fecha de estimación: ${formatDate(est.date)}</p>
+        ${estimationLinesGroupedHtml(breakdown)}
+      </div>
+    </div>`;
+}
+
+function adminToggleEstimationCard(idx) {
+  const card = document.querySelector(`[data-admin-est-idx="${idx}"]`);
+  if (!card) return;
+  const collapsed = card.classList.toggle("is-collapsed");
+  const expanded = !collapsed;
+  const toggle = card.querySelector("[data-admin-est-toggle]");
+  if (toggle) toggle.setAttribute("aria-expanded", String(expanded));
+  card.querySelectorAll(`[data-admin-est-toggle-label="${idx}"]`).forEach((btn) => {
+    btn.textContent = expanded ? "Ocultar" : "Ver detalle";
+  });
+}
+
+function bindAdminEstimationsList(sorted) {
+  const listEl = document.getElementById("admin-estimations-list");
+  if (!listEl) return;
+
+  const toggleExpand = (idx) => adminToggleEstimationCard(idx);
+
+  listEl.querySelectorAll("[data-admin-est-toggle]").forEach((btn) => {
+    btn.addEventListener("click", () => toggleExpand(Number(btn.dataset.adminEstToggle)));
+  });
+  listEl.querySelectorAll("[data-admin-est-toggle-label]").forEach((btn) => {
+    btn.addEventListener("click", () => toggleExpand(Number(btn.dataset.adminEstToggleLabel)));
+  });
+
+  listEl.querySelectorAll("[data-admin-est-paid]").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const estId = btn.dataset.adminEstPaid;
+      const estimations = buildEstimationsListForQuick();
+      const est = estimations.find((item) => item.id === estId);
+      if (!est) return;
+      btn.disabled = true;
+      try {
+        est.paid = !est.paid;
+        est.paidAt = est.paid ? todayIso() : null;
+        await persistEstimationsToGlobal(estimations);
+        renderAdminMetrics(cachedProjects);
+        renderAdminEstimationsList(cachedProjects);
+      } catch (ex) {
+        alert(ex.message || "No se pudo actualizar el estado de pago.");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+
+  listEl.querySelectorAll("[data-admin-est-download]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const idx = Number(btn.dataset.adminEstDownload);
+      const est = sorted[idx];
+      if (!est) return;
+      syncAdminEstimationProjects(cachedProjects);
+      refreshEstimationBreakdowns(sorted);
+      downloadEstimation(est, "Administración");
+    });
+  });
+}
+
+function renderAdminEstimationsList(projects) {
+  const listEl = document.getElementById("admin-estimations-list");
+  if (!listEl) return;
+
+  syncAdminEstimationProjects(projects);
+  const list = mergeEstimationsFromConcepts(
+    cachedGlobalEstimations,
+    (projects || []).flatMap((p) => p.concepts || [])
+  );
+  refreshEstimationBreakdowns(list);
+
+  if (!list.length) {
+    listEl.innerHTML =
+      '<p class="admin-empty">Sin estimaciones. Usa + Estimación o registra avances en un proyecto.</p>';
+    return;
+  }
+
+  const sorted = [...list].sort((a, b) => {
+    if (!!a.paid !== !!b.paid) return a.paid ? 1 : -1;
+    return (b.date || "").localeCompare(a.date || "");
+  });
+
+  listEl.innerHTML = sorted
+    .map((est, idx) => adminEstimationCardHtml(est, idx))
+    .join("");
+  bindAdminEstimationsList(sorted);
+}
 
 async function refreshDashboard() {
   const [{ settings: settingsRes }, { projects }] = await Promise.all([
@@ -917,6 +1055,7 @@ async function refreshDashboard() {
   fillProjectSelects();
   renderAdminMetrics(projects);
   await loadProjects(projects);
+  renderAdminEstimationsList(projects);
 }
 
 function actionButtonHtml(action, projectId, label) {

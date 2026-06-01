@@ -1318,6 +1318,28 @@ body.page-enter {
   min-width: 0;
 }
 
+.admin-estimations-panel {
+  margin-top: 2.5rem;
+  min-width: 0;
+}
+
+.admin-estimations-panel .admin-projects-head {
+  margin-bottom: 0.35rem;
+}
+
+.admin-estimations-hint {
+  margin: 0 0 1rem;
+}
+
+.admin-estimation-meta {
+  margin: 0 0 0.75rem;
+  font-size: 0.75rem;
+}
+
+.admin-estimations-list .estimation-card {
+  margin: 0;
+}
+
 @media (max-width: 900px) {
   .admin-dashboard {
     flex-direction: column;
