@@ -62,6 +62,18 @@ function formatMoney(n) {
   }).format(Number(n) || 0);
 }
 
+/** Precio unitario con hasta 2 decimales (p. ej. precio especial por m²). */
+function formatUnitPrice(n) {
+  const num = Number(n);
+  if (!Number.isFinite(num)) return formatMoney(0);
+  return new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(num);
+}
+
 function formatQuantity(n, maxDecimals = 2) {
   const num = Number(n);
   if (!Number.isFinite(num)) return "0";

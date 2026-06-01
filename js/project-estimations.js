@@ -10,9 +10,15 @@ function advanceUsesSpecialPrice(advance) {
   );
 }
 
+function parseSpecialUnitPrice(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.round(n * 100) / 100;
+}
+
 function advanceEffectiveUnitPrice(advance, concept) {
   if (advanceUsesSpecialPrice(advance)) {
-    return Number(advance.specialUnitPrice);
+    return parseSpecialUnitPrice(advance.specialUnitPrice);
   }
   return Number(concept?.unitPrice) || 0;
 }
@@ -28,7 +34,7 @@ const ADVANCE_PE_LABEL = "PE";
 function advanceSpecialListNote(advance, concept) {
   if (!advanceUsesSpecialPrice(advance)) return "";
   const unit = advanceEffectiveUnitPrice(advance, concept);
-  return ` · ${ADVANCE_PE_LABEL} ${formatMoney(unit)}/m²`;
+  return ` · ${ADVANCE_PE_LABEL} ${formatUnitPrice(unit)}/m²`;
 }
 
 function advanceSpecialPeTagHtml() {
@@ -45,7 +51,7 @@ function serializeAdvance(advance) {
   };
   if (advanceUsesSpecialPrice(advance)) {
     out.useSpecialPrice = true;
-    out.specialUnitPrice = Number(advance.specialUnitPrice);
+    out.specialUnitPrice = parseSpecialUnitPrice(advance.specialUnitPrice);
   }
   return out;
 }
@@ -556,7 +562,7 @@ function estimationLinesGroupedHtml(breakdown) {
         <tr>
           <td>${escapeHtml(l.conceptName)}${l.useSpecialPrice ? ` ${advanceSpecialPeTagHtml()}` : ""}</td>
           <td>${l.m2}</td>
-          <td>${formatMoney(l.unitPrice)}</td>
+          <td>${l.useSpecialPrice ? formatUnitPrice(l.unitPrice) : formatMoney(l.unitPrice)}</td>
           <td>${formatMoney(l.amount)}</td>
           <td>${l.date ? formatDate(l.date) : "—"}</td>
         </tr>`
@@ -705,7 +711,7 @@ function buildEstimationExportHtml(estimation, breakdown, clientName, estimation
       <tr>
         <td>${escapeHtml(l.conceptName)}${l.useSpecialPrice ? ` ${advanceSpecialPeTagHtml()}` : ""}</td>
         <td class="num">${l.m2}</td>
-        <td class="num">${formatMoney(l.unitPrice)}</td>
+        <td class="num">${l.useSpecialPrice ? formatUnitPrice(l.unitPrice) : formatMoney(l.unitPrice)}</td>
         <td class="num">${formatMoney(l.amount)}</td>
         <td>${l.date ? formatDate(l.date) : "—"}</td>
       </tr>`

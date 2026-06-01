@@ -523,7 +523,9 @@ function readQuickAdvanceSpecial(concept) {
   const toggle = document.getElementById("quick-advance-special-toggle");
   const input = document.getElementById("quick-advance-special-price");
   const useSpecialPrice = !!toggle?.checked;
-  const specialUnitPrice = useSpecialPrice ? Number(input?.value) || 0 : 0;
+  const specialUnitPrice = useSpecialPrice
+    ? parseSpecialUnitPrice(input?.value)
+    : 0;
   const unitPrice =
     useSpecialPrice && specialUnitPrice > 0
       ? specialUnitPrice
@@ -624,7 +626,7 @@ function updateAdvanceQuickPreview() {
     return;
   }
   previewEl.textContent = useSpecialPrice
-    ? `Importe (PE ${formatMoney(unitPrice)}/m²): ${formatMoney(amount)}`
+    ? `Importe (PE ${formatUnitPrice(unitPrice)}/m²): ${formatMoney(amount)}`
     : `Importe del avance: ${formatMoney(amount)}`;
 }
 

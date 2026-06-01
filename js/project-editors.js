@@ -271,7 +271,9 @@ function readAdvanceSpecialFromDom(conceptIndex, concept) {
     `[data-advance-special-price="${conceptIndex}"]`
   );
   const useSpecialPrice = !!toggle?.checked;
-  const specialUnitPrice = useSpecialPrice ? Number(input?.value) || 0 : 0;
+  const specialUnitPrice = useSpecialPrice
+    ? parseSpecialUnitPrice(input?.value)
+    : 0;
   const unitPrice =
     useSpecialPrice && specialUnitPrice > 0
       ? specialUnitPrice
@@ -849,7 +851,7 @@ function updateAdvanceAmountPreview(conceptIndex) {
     return;
   }
   preview.textContent = useSpecialPrice
-    ? `Importe (PE ${formatMoney(unitPrice)}/m²): ${formatMoney(amount)}`
+    ? `Importe (PE ${formatUnitPrice(unitPrice)}/m²): ${formatMoney(amount)}`
     : `Importe del avance: ${formatMoney(amount)}`;
 }
 
@@ -920,7 +922,8 @@ function conceptAdvancesBlock(c, i) {
             <input
               type="number"
               min="0"
-              step="1"
+              step="0.01"
+              inputmode="decimal"
               data-advance-special-price="${i}"
               disabled
               placeholder="Precio del concepto"
