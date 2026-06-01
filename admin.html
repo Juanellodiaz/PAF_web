@@ -76,6 +76,21 @@
         <button
           type="button"
           class="admin-quick-btn"
+          data-quick-mode="estimation"
+          aria-expanded="false"
+          aria-controls="admin-quick-panel"
+          title="Nueva estimación"
+        >
+          <svg class="admin-quick-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+            <rect x="9" y="3" width="6" height="4" rx="1"/>
+            <path d="M9 12h6M9 16h6"/>
+          </svg>
+          <span class="admin-quick-label">Estimación</span>
+        </button>
+        <button
+          type="button"
+          class="admin-quick-btn"
           data-quick-mode="indirect"
           aria-expanded="false"
           aria-controls="admin-quick-panel"
@@ -223,6 +238,27 @@
         </div>
       </form>
 
+      <form class="admin-form admin-form--simple quick-panel-form" id="estimation-quick-form" data-quick-form="estimation" hidden>
+        <p class="admin-section-hint">La estimación queda disponible en todos los proyectos. Asigna avances desde cada concepto o al registrar un avance rápido.</p>
+        <div class="form-group">
+          <label for="quick-estimation-label">Nombre</label>
+          <input type="text" id="quick-estimation-label" placeholder="Ej. Estimación 03 (opcional)">
+        </div>
+        <div class="form-group">
+          <label for="quick-estimation-date">Fecha</label>
+          <input type="date" id="quick-estimation-date" required>
+        </div>
+        <div class="form-group">
+          <label for="quick-estimation-notes">Notas (opcional)</label>
+          <textarea id="quick-estimation-notes" rows="2" placeholder="Observaciones internas…"></textarea>
+        </div>
+        <p class="form-error" id="estimation-quick-error"></p>
+        <div class="portal-actions">
+          <button type="submit" class="btn btn-primary btn-sm">Crear estimación</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="estimation-quick-cancel">Cancelar</button>
+        </div>
+      </form>
+
       <form class="admin-form admin-form--simple quick-panel-form" id="indirect-quick-form" data-quick-form="indirect" hidden>
         <p class="admin-section-hint">Registra gastos no incluidos en partidas: protección de mobiliario, material auxiliar, etc.</p>
         <div class="form-group">
@@ -309,6 +345,6 @@
   <script src="js/indirect-costs.js"></script>
   <script src="js/project-estimations.js?v=40"></script>
   <script src="js/concept-costs.js"></script>
-  <script src="js/admin.js?v=65"></script>
+  <script src="js/admin.js?v=66"></script>
 </body>
 </html>

@@ -119,17 +119,46 @@ function estimationOptionsHtml(estimations, selectedId) {
   return `${opts}<option value="__new__"${selectedId === "__new__" ? " selected" : ""}>+ Crear nueva estimación</option>`;
 }
 
-function resolveQuickEstimationId(selectValue, estimations) {
-  if (selectValue !== "__new__") return selectValue;
+function allCachedConcepts() {
+  return (cachedProjects || []).flatMap((p) => p.concepts || []);
+}
+
+function buildEstimationsListForQuick() {
+  return mergeEstimationsFromConcepts(
+    cachedGlobalEstimations,
+    allCachedConcepts()
+  );
+}
+
+function createQuickEstimation(estimations, fields = {}) {
+  const list = estimations || [];
   const est = {
     id: newQuickId("est"),
-    label: `Estimación ${String(estimations.length + 1).padStart(2, "0")}`,
-    date: todayIso(),
+    label:
+      (fields.label || "").trim() ||
+      `Estimación ${String(list.length + 1).padStart(2, "0")}`,
+    date: fields.date || todayIso(),
     paid: false,
     paidAt: null,
-    notes: "",
+    notes: (fields.notes || "").trim(),
   };
-  estimations.push(est);
+  list.push(est);
+  return est;
+}
+
+async function persistEstimationsToGlobal(estimations) {
+  if (!cachedProjects?.length) {
+    throw new Error("Registra al menos un proyecto antes de crear estimaciones.");
+  }
+  const anchor = await fetchFullProject(cachedProjects[0].id);
+  anchor.estimations = estimations;
+  await putProject(anchor);
+  cachedGlobalEstimations = estimations;
+}
+
+function resolveQuickEstimationId(selectValue, estimations) {
+  if (selectValue !== "__new__") return selectValue;
+  const est = createQuickEstimation(estimations);
   return est.id;
 }
 
@@ -341,6 +370,7 @@ const QUICK_PANEL_TITLES = {
   project: "Nuevo proyecto",
   concept: "Nuevo concepto",
   advance: "Nuevo avance",
+  estimation: "Nueva estimación",
   indirect: "Gasto indirecto",
 };
 
@@ -369,6 +399,7 @@ function openQuickPanel(mode) {
   if (mode === "project") syncProjectFormCompletionUi();
   if (mode === "concept") resetConceptQuickForm();
   if (mode === "advance") resetAdvanceQuickForm();
+  if (mode === "estimation") resetEstimationQuickForm();
   if (mode === "indirect") resetIndirectQuickForm();
 
   setQuickPanelMode(mode);
@@ -558,6 +589,7 @@ function bindQuickPanel() {
   document.getElementById("quick-panel-close").addEventListener("click", closeQuickPanel);
   document.getElementById("concept-quick-cancel").addEventListener("click", closeQuickPanel);
   document.getElementById("advance-quick-cancel").addEventListener("click", closeQuickPanel);
+  document.getElementById("estimation-quick-cancel").addEventListener("click", closeQuickPanel);
   formBackdrop().addEventListener("click", closeQuickPanel);
 
   document.addEventListener("keydown", (e) => {
@@ -597,6 +629,9 @@ function bindQuickPanel() {
     .getElementById("advance-quick-form")
     .addEventListener("submit", onSubmitQuickAdvance);
   document
+    .getElementById("estimation-quick-form")
+    .addEventListener("submit", onSubmitQuickEstimation);
+  document
     .getElementById("indirect-quick-form")
     .addEventListener("submit", onSubmitQuickIndirect);
   document
@@ -611,12 +646,45 @@ function bindQuickPanel() {
     ?.addEventListener("input", syncProjectFormCompletionUi);
 }
 
+function resetEstimationQuickForm() {
+  const form = document.getElementById("estimation-quick-form");
+  form.reset();
+  document.getElementById("estimation-quick-error").textContent = "";
+  document.getElementById("quick-estimation-date").value = todayIso();
+  const list = buildEstimationsListForQuick();
+  const labelEl = document.getElementById("quick-estimation-label");
+  if (labelEl) {
+    labelEl.placeholder = `Estimación ${String(list.length + 1).padStart(2, "0")} (opcional)`;
+  }
+}
+
 function resetIndirectQuickForm() {
   const form = document.getElementById("indirect-quick-form");
   form.reset();
   document.getElementById("indirect-quick-error").textContent = "";
   document.getElementById("quick-indirect-date").value = todayIso();
   fillProjectSelects();
+}
+
+async function onSubmitQuickEstimation(e) {
+  e.preventDefault();
+  const err = document.getElementById("estimation-quick-error");
+  err.textContent = "";
+
+  const label = document.getElementById("quick-estimation-label").value.trim();
+  const date =
+    document.getElementById("quick-estimation-date").value || todayIso();
+  const notes = document.getElementById("quick-estimation-notes").value.trim();
+
+  try {
+    const estimations = buildEstimationsListForQuick();
+    createQuickEstimation(estimations, { label, date, notes });
+    await persistEstimationsToGlobal(estimations);
+    closeQuickPanel();
+    await refreshDashboard();
+  } catch (ex) {
+    err.textContent = ex.message;
+  }
 }
 
 async function onSubmitQuickIndirect(e) {
