@@ -545,7 +545,8 @@ body.page-enter {
   margin-top: 0.5rem;
 }
 
-.metric-box--completed .metric-sublabel + .metric-sublabel {
+.metric-box--completed .metric-sublabel + .metric-sublabel,
+.metric-box--utility .metric-sublabel + .metric-sublabel {
   margin-top: 0.2rem;
 }
 

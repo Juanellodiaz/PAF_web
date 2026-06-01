@@ -192,6 +192,18 @@ function computeAdminDashboardSummary(projects) {
   const completedFlujo = Math.round(completedMoney * FLUJO_RATE);
   const completedIntercambio = Math.round(completedMoney * INTERCAMBIO_RATE);
 
+  let totalProfit = 0;
+  let totalFlowProfit = 0;
+  let totalIntercambioProfit = 0;
+  list.forEach((p) => {
+    const indirectTotal =
+      Number(p.indirectTotal) || calcIndirectTotal(p.indirectCosts || []);
+    const econ = calcConceptEconomics(p.concepts || [], indirectTotal);
+    totalProfit += econ.profitTotal;
+    totalFlowProfit += econ.flowProfitTotal;
+    totalIntercambioProfit += econ.profitTotal - econ.flowProfitTotal;
+  });
+
   return {
     activeCount: active.length,
     activeMoney: sumConceptsTotal(active),
@@ -206,6 +218,9 @@ function computeAdminDashboardSummary(projects) {
     activeTotalM2: Math.round(totalM2 * 100) / 100,
     portfolioIndirect,
     portfolioIndirectPercent,
+    totalProfit,
+    totalFlowProfit,
+    totalIntercambioProfit,
   };
 }
 
@@ -276,6 +291,12 @@ function adminSummaryHtml(summary) {
       <span class="metric-value">${summary.portfolioIndirectPercent}%</span>
       <span class="metric-label">Gastos indirectos</span>
       <span class="metric-sublabel">${formatMoney(summary.portfolioIndirect)} del portafolio activo</span>
+    </div>
+    <div class="metric-box metric-box--utility">
+      <span class="metric-value accent">${formatMoney(summary.totalProfit)}</span>
+      <span class="metric-label">Utilidad total</span>
+      <span class="metric-sublabel metric-sublabel--emph">Intercambio: ${formatMoney(summary.totalIntercambioProfit)}</span>
+      <span class="metric-sublabel">Flujo: ${formatMoney(summary.totalFlowProfit)}</span>
     </div>`;
 }
 
