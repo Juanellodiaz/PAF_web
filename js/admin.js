@@ -123,11 +123,51 @@ function allCachedConcepts() {
   return (cachedProjects || []).flatMap((p) => p.concepts || []);
 }
 
+function mergeLiveAdminEstimationPayments(baseList) {
+  const live = window.__pafAdminEstimationsSorted;
+  if (!live?.length) return baseList;
+  const byId = new Map(live.map((e) => [e.id, e]));
+  return (baseList || []).map((e) => {
+    const patch = byId.get(e.id);
+    if (!patch) return e;
+    return {
+      ...e,
+      amountPaid: patch.amountPaid,
+      paymentStatus: patch.paymentStatus,
+      paid: patch.paid,
+      paidAt: patch.paidAt,
+      sortOrder: patch.sortOrder ?? e.sortOrder,
+      label: patch.label ?? e.label,
+      date: patch.date ?? e.date,
+      notes: patch.notes ?? e.notes,
+    };
+  });
+}
+
 function buildEstimationsListForQuick() {
-  return mergeEstimationsFromConcepts(
-    cachedGlobalEstimations,
-    allCachedConcepts()
+  return mergeLiveAdminEstimationPayments(
+    mergeEstimationsFromConcepts(cachedGlobalEstimations, allCachedConcepts())
   );
+}
+
+function estimationRecordForPersist(e) {
+  const total = estimationBreakdownFor(e.id).grandTotal || 0;
+  const payment = getEstimationPayment(e, total);
+  return {
+    id: e.id,
+    label: (e.label || "").trim(),
+    date: e.date || todayIso(),
+    amountPaid: payment.amountPaid,
+    paymentStatus: payment.paymentStatus,
+    paid: payment.paid,
+    paidAt: payment.paidAt,
+    notes: (e.notes || "").trim(),
+    ...(Number.isFinite(Number(e.sortOrder)) ? { sortOrder: Number(e.sortOrder) } : {}),
+  };
+}
+
+function buildEstimationsListForPersist() {
+  return buildEstimationsListForQuick().map(estimationRecordForPersist);
 }
 
 function createQuickEstimation(estimations, fields = {}) {
@@ -218,13 +258,17 @@ function computeAdminDashboardSummary(projects) {
   );
 
   const allConcepts = list.flatMap((p) => p.concepts || []);
-  const estimationsList = mergeEstimationsFromConcepts(
-    cachedGlobalEstimations,
-    allConcepts
+  const estimationsList = mergeLiveAdminEstimationPayments(
+    mergeEstimationsFromConcepts(cachedGlobalEstimations, allConcepts)
   );
   window.__pafProjectsForEstimations = list;
-  const paidEstimationsMoney = calcTotalPaid(cachedGlobalEstimations, list);
-  const paidEstimationsCount = estimationsList.filter((e) => e.paid).length;
+  refreshEstimationBreakdowns(estimationsList);
+  const paidEstimationsMoney = calcTotalPaid(estimationsList, list);
+  const paidEstimationsCount = estimationsList.filter((e) => {
+    const total = estimationBreakdownFor(e.id).grandTotal || 0;
+    const pay = getEstimationPayment(e, total);
+    return pay.status === "paid" || pay.amountPaid > 0;
+  }).length;
   const paidEstimationsFlujo = Math.round(paidEstimationsMoney * FLUJO_RATE);
   const paidEstimationsIntercambio = Math.round(
     paidEstimationsMoney * INTERCAMBIO_RATE
@@ -682,7 +726,7 @@ async function onSubmitQuickEstimation(e) {
   try {
     const estimations = buildEstimationsListForQuick();
     createQuickEstimation(estimations, { label, date, notes });
-    await persistEstimationsToGlobal(estimations);
+    await persistEstimationsToGlobal(buildEstimationsListForPersist());
     closeQuickPanel();
     await refreshDashboard();
   } catch (ex) {
@@ -917,8 +961,9 @@ function scheduleAdminPaymentPersist() {
   clearTimeout(adminPaymentPersistTimer);
   adminPaymentPersistTimer = setTimeout(async () => {
     try {
-      const estimations = buildEstimationsListForQuick();
+      const estimations = buildEstimationsListForPersist();
       await persistEstimationsToGlobal(estimations);
+      window.__pafAdminEstimationsSorted = sortEstimationsList(estimations);
       renderAdminMetrics(cachedProjects);
     } catch (ex) {
       console.error(ex);
@@ -990,6 +1035,7 @@ function applyAdminEstPaymentLocal(idx, patch, options = {}) {
   syncAdminEstimationPaymentSection(idx, est, {
     expanded: options.expandOnPartial && patch.status === "partial" ? true : undefined,
   });
+  renderAdminMetrics(cachedProjects);
   scheduleAdminPaymentPersist();
 }
 
@@ -1124,6 +1170,7 @@ function bindAdminEstimationsList(sorted) {
       })
     );
     syncAdminEstimationPaymentSection(idx, est, { preserveAmountInput: true });
+    renderAdminMetrics(cachedProjects);
     scheduleAdminPaymentPersist();
   });
 }
@@ -1161,7 +1208,10 @@ async function applyAdminEstimationReorder(sourceId, targetId, placement) {
     reorderEstimationsInList(sorted, sourceId, targetId, placement)
   );
   try {
-    await persistEstimationsToGlobal(reordered);
+    await persistEstimationsToGlobal(
+      reordered.map(estimationRecordForPersist)
+    );
+    window.__pafAdminEstimationsSorted = sortEstimationsList(reordered);
     renderAdminEstimationsList(cachedProjects);
   } catch (ex) {
     alert(ex.message || "No se pudo guardar el orden de estimaciones");

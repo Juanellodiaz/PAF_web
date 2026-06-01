@@ -210,7 +210,15 @@ function applyMetaToProject(project) {
     estimations = applyPaidFromMeta(estimations, meta.paidByEstimationId);
   } else if (meta.v === 4 && Array.isArray(meta.estimationsArchive)) {
     const paidById = buildPaidByEstimationId(meta.estimationsArchive);
-    estimations = applyPaidFromMeta(estimations, paidById);
+    estimations = estimations.map((e) => {
+      const flags = paidById[e.id];
+      if (!flags) return e;
+      return {
+        ...e,
+        ...flags,
+        ...mergeEstimationPaymentFields(flags, e, { incomingWins: true }),
+      };
+    });
   }
 
   const indirectCosts = Array.isArray(meta.indirectCosts) ? meta.indirectCosts : [];
