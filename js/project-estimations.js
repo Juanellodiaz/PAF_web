@@ -636,15 +636,26 @@ function mergeStoredEstimations(projectEstimations, metaEstimations) {
   return Array.from(byId.values());
 }
 
+function getDeletedEstimationIdSet() {
+  const raw =
+    window.__pafDeletedEstimationIds ||
+    window.__pafProjectData?.deletedEstimationIds ||
+    [];
+  if (raw instanceof Set) return raw;
+  return new Set(Array.isArray(raw) ? raw.filter(Boolean) : []);
+}
+
 function mergeEstimationsFromConcepts(stored, concepts) {
+  const deletedSet = getDeletedEstimationIdSet();
   const byId = new Map();
   (stored || []).forEach((e) => {
-    byId.set(e.id, { ...e });
+    if (e?.id && !deletedSet.has(e.id)) byId.set(e.id, { ...e });
   });
   let n = byId.size;
   (concepts || []).forEach((c) => {
     parseAdvances(c).forEach((a) => {
       if (!a.estimationId || byId.has(a.estimationId)) return;
+      if (deletedSet.has(a.estimationId)) return;
       n += 1;
       byId.set(a.estimationId, {
         id: a.estimationId,

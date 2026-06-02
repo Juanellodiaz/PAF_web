@@ -14,6 +14,10 @@ const {
   normalizeSettings,
   sortProjectsByOrder,
 } = require("./admin-settings");
+const {
+  parseGlobalEstimationStore,
+  mergeDeletedEstimationIds,
+} = require("./global-estimation-store");
 
 const DB_PATH = path.join(__dirname, "..", "data", "db.json");
 
@@ -48,24 +52,52 @@ function listUsers() {
   return readDb().users.map(({ password, ...u }) => u);
 }
 
-function readGlobalEstimationsRaw() {
-  return Promise.resolve(readDb().globalEstimations || []);
+function readGlobalEstimationStoreSync() {
+  return parseGlobalEstimationStore(readDb().globalEstimations);
 }
 
-async function loadGlobalEstimations() {
-  return bootstrapGlobalEstimations(
-    readGlobalEstimationsRaw,
-    saveGlobalEstimations,
-    listAllProjectsForBootstrap,
-    saveProjectStoredBody
+function readGlobalEstimationStore() {
+  return Promise.resolve(readGlobalEstimationStoreSync());
+}
+
+function readGlobalEstimationsRaw() {
+  return readGlobalEstimationStore().then((store) => store.estimations);
+}
+
+function saveGlobalEstimationStore(estimations, deletedIds) {
+  const prev = readGlobalEstimationStoreSync();
+  const store = parseGlobalEstimationStore({
+    v: 2,
+    estimations: estimations !== undefined ? estimations : prev.estimations,
+    deletedIds:
+      deletedIds !== undefined
+        ? mergeDeletedEstimationIds(prev.deletedIds, deletedIds)
+        : prev.deletedIds,
+  });
+  const db = readDb();
+  db.globalEstimations = {
+    v: 2,
+    estimations: store.estimations,
+    deletedIds: store.deletedIds,
+  };
+  writeDb(db);
+  return Promise.resolve(store);
+}
+
+function saveGlobalEstimations(estimations, deletedIds) {
+  return saveGlobalEstimationStore(estimations, deletedIds).then(
+    (store) => store.estimations
   );
 }
 
-function saveGlobalEstimations(estimations) {
-  const db = readDb();
-  db.globalEstimations = estimations;
-  writeDb(db);
-  return Promise.resolve(estimations);
+async function loadGlobalEstimations() {
+  const store = await bootstrapGlobalEstimations(
+    readGlobalEstimationStore,
+    saveGlobalEstimationStore,
+    listAllProjectsForBootstrap,
+    saveProjectStoredBody
+  );
+  return store.estimations;
 }
 
 function loadAdminSettings() {
@@ -90,13 +122,13 @@ async function listProjectsForUser(user) {
       ? db.projects
       : db.projects.filter((p) => p.clientId === user.id);
   const mapped = list.map((p) => applyMetaToProject(p));
-  const global = await bootstrapGlobalEstimations(
-    readGlobalEstimationsRaw,
-    saveGlobalEstimations,
+  const { estimations: global, deletedIds } = await bootstrapGlobalEstimations(
+    readGlobalEstimationStore,
+    saveGlobalEstimationStore,
     listAllProjectsForBootstrap,
     saveProjectStoredBody
   );
-  const enriched = attachGlobalEstimations(mapped, global);
+  const enriched = attachGlobalEstimations(mapped, global, deletedIds);
   if (user.role === "admin") {
     const settings = await loadAdminSettings();
     return sortProjectsByOrder(enriched, settings.projectOrder);
@@ -110,8 +142,8 @@ async function getProject(id) {
   const withMeta = applyMetaToProject(p);
   return enrichProjectWithGlobalEstimations(
     withMeta,
-    readGlobalEstimationsRaw,
-    saveGlobalEstimations,
+    readGlobalEstimationStore,
+    saveGlobalEstimationStore,
     listAllProjectsForBootstrap,
     saveProjectStoredBody
   );
@@ -131,8 +163,8 @@ async function saveProjectStoredBody(project) {
   const withMeta = applyMetaToProject(stored);
   return enrichProjectWithGlobalEstimations(
     withMeta,
-    readGlobalEstimationsRaw,
-    saveGlobalEstimations,
+    readGlobalEstimationStore,
+    saveGlobalEstimationStore,
     listAllProjectsForBootstrap,
     saveProjectStoredBody
   );
@@ -141,8 +173,8 @@ async function saveProjectStoredBody(project) {
 async function saveProject(project) {
   await persistGlobalEstimationsFromProject(
     project,
-    readGlobalEstimationsRaw,
-    saveGlobalEstimations,
+    readGlobalEstimationStore,
+    saveGlobalEstimationStore,
     listAllProjectsForBootstrap,
     saveProjectStoredBody
   );

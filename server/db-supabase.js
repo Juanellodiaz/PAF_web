@@ -24,6 +24,11 @@ const {
   bootstrapGlobalEstimations,
   attachGlobalEstimations,
 } = require("./estimation-store");
+const {
+  parseGlobalEstimationStore,
+  serializeGlobalEstimationStore,
+  mergeDeletedEstimationIds,
+} = require("./global-estimation-store");
 
 let client;
 
@@ -222,34 +227,38 @@ async function ensureGlobalProjectRow() {
   if (error) throw error;
 }
 
-async function readGlobalEstimationsRaw() {
+async function readGlobalEstimationStore() {
   const { data, error } = await getClient()
     .from("project_documents")
     .select("content")
     .eq("id", GLOBAL_DOC_ID)
     .maybeSingle();
   if (error) throw error;
-  if (!data?.content) return [];
+  if (!data?.content) return { estimations: [], deletedIds: [] };
   try {
-    const parsed = JSON.parse(data.content);
-    return Array.isArray(parsed) ? parsed.map(normalizeEstimation) : [];
+    return parseGlobalEstimationStore(JSON.parse(data.content));
   } catch {
-    return [];
+    return { estimations: [], deletedIds: [] };
   }
 }
 
-async function loadGlobalEstimations() {
-  return bootstrapGlobalEstimations(
-    readGlobalEstimationsRaw,
-    saveGlobalEstimations,
-    listAllProjectsForBootstrap,
-    saveProjectStoredBody
-  );
+async function readGlobalEstimationsRaw() {
+  const store = await readGlobalEstimationStore();
+  return store.estimations;
 }
 
-async function saveGlobalEstimations(estimations) {
+async function saveGlobalEstimationStore(estimations, deletedIds) {
   await ensureGlobalProjectRow();
-  const payload = (estimations || []).map(normalizeEstimation);
+  const prev = await readGlobalEstimationStore();
+  const store = parseGlobalEstimationStore({
+    v: 2,
+    estimations: estimations !== undefined ? estimations : prev.estimations,
+    deletedIds:
+      deletedIds !== undefined
+        ? mergeDeletedEstimationIds(prev.deletedIds, deletedIds)
+        : prev.deletedIds,
+  });
+  const content = serializeGlobalEstimationStore(store);
   const { error } = await getClient()
     .from("project_documents")
     .upsert(
@@ -258,12 +267,27 @@ async function saveGlobalEstimations(estimations) {
         project_id: GLOBAL_PROJECT_ID,
         type: "consideration",
         title: GLOBAL_TITLE,
-        content: JSON.stringify(payload),
+        content,
       },
       { onConflict: "id" }
     );
   if (error) throw error;
-  return payload;
+  return store;
+}
+
+async function saveGlobalEstimations(estimations, deletedIds) {
+  const store = await saveGlobalEstimationStore(estimations, deletedIds);
+  return store.estimations;
+}
+
+async function loadGlobalEstimations() {
+  const store = await bootstrapGlobalEstimations(
+    readGlobalEstimationStore,
+    saveGlobalEstimationStore,
+    listAllProjectsForBootstrap,
+    saveProjectStoredBody
+  );
+  return store.estimations;
 }
 
 async function listAllProjectsForBootstrap() {
@@ -321,13 +345,13 @@ async function listProjectsForUser(user) {
   const mapped = (data || [])
     .filter((row) => row.id !== GLOBAL_PROJECT_ID)
     .map(mapProject);
-  const global = await bootstrapGlobalEstimations(
-    readGlobalEstimationsRaw,
-    saveGlobalEstimations,
+  const { estimations: global, deletedIds } = await bootstrapGlobalEstimations(
+    readGlobalEstimationStore,
+    saveGlobalEstimationStore,
     listAllProjectsForBootstrap,
     saveProjectStoredBody
   );
-  const enriched = attachGlobalEstimations(mapped, global);
+  const enriched = attachGlobalEstimations(mapped, global, deletedIds);
   if (user.role === "admin") {
     const settings = await loadAdminSettings();
     return sortProjectsByOrder(enriched, settings.projectOrder);
@@ -348,8 +372,8 @@ async function getProject(id) {
   const mapped = mapProject(data);
   return enrichProjectWithGlobalEstimations(
     mapped,
-    readGlobalEstimationsRaw,
-    saveGlobalEstimations,
+    readGlobalEstimationStore,
+    saveGlobalEstimationStore,
     listAllProjectsForBootstrap,
     saveProjectStoredBody
   );
@@ -408,8 +432,8 @@ async function saveProjectStoredBody(project) {
   });
   return enrichProjectWithGlobalEstimations(
     fallback,
-    readGlobalEstimationsRaw,
-    saveGlobalEstimations,
+    readGlobalEstimationStore,
+    saveGlobalEstimationStore,
     listAllProjectsForBootstrap,
     saveProjectStoredBody
   );
@@ -418,8 +442,8 @@ async function saveProjectStoredBody(project) {
 async function saveProject(project) {
   await persistGlobalEstimationsFromProject(
     project,
-    readGlobalEstimationsRaw,
-    saveGlobalEstimations,
+    readGlobalEstimationStore,
+    saveGlobalEstimationStore,
     listAllProjectsForBootstrap,
     saveProjectStoredBody
   );

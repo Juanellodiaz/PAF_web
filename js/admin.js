@@ -2,6 +2,7 @@ let clients = [];
 let editingId = null;
 let cachedProjects = [];
 let cachedGlobalEstimations = [];
+let cachedDeletedEstimationIds = [];
 let quickPanelMode = "project";
 let advanceProjectCache = null;
 let projectOrder = [];
@@ -73,6 +74,16 @@ function syncGlobalEstimationsFromProjects(projects) {
   if (list[0]?.estimations?.length) {
     cachedGlobalEstimations = list[0].estimations;
   }
+  const deleted = list[0]?.deletedEstimationIds;
+  if (Array.isArray(deleted)) {
+    cachedDeletedEstimationIds = deleted;
+    window.__pafDeletedEstimationIds = new Set(deleted);
+  }
+}
+
+function syncDeletedEstimationIds(ids) {
+  cachedDeletedEstimationIds = [...(ids || [])];
+  window.__pafDeletedEstimationIds = new Set(cachedDeletedEstimationIds);
 }
 
 function projectSelectOptions(selectedId, emptyLabel = "— Seleccionar —") {
@@ -171,13 +182,47 @@ function buildEstimationsListForPersist() {
 }
 
 /** Persiste una lista ya armada (p. ej. tras crear una estimación nueva en memoria). */
-async function persistEstimationList(estimations) {
+async function persistEstimationList(estimations, deletedEstimationIds) {
   const records = (estimations || []).map(estimationRecordForPersist);
-  await persistEstimationsToGlobal(records);
+  const anchor = await fetchFullProject(cachedProjects[0].id);
+  anchor.estimations = records;
+  if (deletedEstimationIds?.length) {
+    anchor.deletedEstimationIds = deletedEstimationIds;
+  }
+  await putProject(anchor);
+  cachedGlobalEstimations = records;
+  if (deletedEstimationIds?.length) {
+    syncDeletedEstimationIds(deletedEstimationIds);
+  }
   window.__pafAdminEstimationsSorted = sortEstimationsList(
     mergeEstimationsFromConcepts(records, allCachedConcepts())
   );
   return records;
+}
+
+async function removeAdminEstimation(idx) {
+  const sorted = window.__pafAdminEstimationsSorted || [];
+  const est = sorted[idx];
+  if (!est?.id) return;
+  if (
+    !confirm(
+      "¿Eliminar esta estimación? Los avances quedarán sin estimación asignada y no volverá a aparecer."
+    )
+  ) {
+    return;
+  }
+  const nextDeleted = [...new Set([...cachedDeletedEstimationIds, est.id])];
+  syncDeletedEstimationIds(nextDeleted);
+  const remaining = buildEstimationsListForQuick().filter((e) => e.id !== est.id);
+  try {
+    await persistEstimationList(
+      remaining.map(estimationRecordForPersist),
+      nextDeleted
+    );
+    await refreshDashboard();
+  } catch (ex) {
+    alert(ex.message || "No se pudo eliminar la estimación");
+  }
 }
 
 function createQuickEstimation(estimations, fields = {}) {
@@ -199,14 +244,8 @@ function createQuickEstimation(estimations, fields = {}) {
   return est;
 }
 
-async function persistEstimationsToGlobal(estimations) {
-  if (!cachedProjects?.length) {
-    throw new Error("Registra al menos un proyecto antes de crear estimaciones.");
-  }
-  const anchor = await fetchFullProject(cachedProjects[0].id);
-  anchor.estimations = estimations;
-  await putProject(anchor);
-  cachedGlobalEstimations = estimations;
+async function persistEstimationsToGlobal(estimations, deletedEstimationIds) {
+  return persistEstimationList(estimations, deletedEstimationIds);
 }
 
 function resolveQuickEstimationId(selectValue, estimations) {
@@ -221,10 +260,14 @@ async function fetchFullProject(id) {
 }
 
 async function putProject(project) {
-  await api(`/projects/${project.id}`, {
+  const { project: saved } = await api(`/projects/${project.id}`, {
     method: "PUT",
     body: JSON.stringify({ ...project, id: project.id }),
   });
+  if (Array.isArray(saved?.deletedEstimationIds)) {
+    syncDeletedEstimationIds(saved.deletedEstimationIds);
+  }
+  return saved;
 }
 
 const FLUJO_RATE = 0.6;
@@ -1084,6 +1127,7 @@ function adminEstimationCardHtml(est, idx) {
           <span class="estimation-total">${formatMoney(total)}</span>
           <button type="button" class="btn btn-ghost btn-sm" data-admin-est-toggle-label="${idx}">Ver detalle</button>
           <button type="button" class="btn btn-ghost btn-sm" data-admin-est-download="${idx}">Descargar</button>
+          <button type="button" class="btn-remove" data-admin-est-remove="${idx}" aria-label="Eliminar estimación">×</button>
         </div>
       </div>
       <div class="concept-row-body estimation-detail">
@@ -1163,6 +1207,13 @@ function bindAdminEstimationsList(sorted) {
       syncAdminEstimationProjects(cachedProjects);
       refreshEstimationBreakdowns(window.__pafAdminEstimationsSorted);
       downloadEstimation(est, "Administración");
+      return;
+    }
+
+    const removeBtn = e.target.closest("[data-admin-est-remove]");
+    if (removeBtn) {
+      e.stopPropagation();
+      removeAdminEstimation(Number(removeBtn.dataset.adminEstRemove));
     }
   });
 

@@ -131,6 +131,9 @@ async function loadEstimationContext() {
     }
   }
   projectData = p;
+  window.__pafDeletedEstimationIds = new Set(
+    Array.isArray(p.deletedEstimationIds) ? p.deletedEstimationIds : []
+  );
   window.__pafProjectId = id;
   window.__pafProjectData = p;
   await loadEstimationContext();
@@ -675,8 +678,8 @@ async function saveProject(options = {}) {
     );
     clearEditorDraft(projectData.id);
     saveEditorDraft(projectData.id);
-    if (window.__pafDeletedEstimationIds) {
-      window.__pafDeletedEstimationIds.clear();
+    if (Array.isArray(project.deletedEstimationIds)) {
+      window.__pafDeletedEstimationIds = new Set(project.deletedEstimationIds);
     }
     markProjectSaved();
 
