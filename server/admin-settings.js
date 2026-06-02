@@ -113,6 +113,56 @@ function sortProjectsByOrder(projects, order) {
   return out;
 }
 
+/** Orden y carpetas del panel admin, filtrados a los proyectos visibles del usuario. */
+function buildProjectLayoutForUser(projects, settings) {
+  const list = projects || [];
+  const normalized = normalizeSettings(settings);
+  const projectIdSet = new Set(list.map((p) => p.id));
+  const order = normalized.projectOrder.filter((id) => projectIdSet.has(id));
+  const sorted = sortProjectsByOrder(list, order);
+  const byId = new Map(sorted.map((p) => [p.id, p]));
+
+  const folders = (normalized.projectFolders || [])
+    .map((f) => ({
+      id: f.id,
+      name: f.name,
+      collapsed: !!f.collapsed,
+      projectIds: (f.projectIds || []).filter((id) => projectIdSet.has(id)),
+    }))
+    .filter((f) => f.projectIds.length > 0);
+
+  const inFolder = new Set(folders.flatMap((f) => f.projectIds));
+  const ungroupedIds = getUngroupedProjectIds(order, folders).filter((id) =>
+    projectIdSet.has(id)
+  );
+  for (const p of sorted) {
+    if (!inFolder.has(p.id) && !ungroupedIds.includes(p.id)) {
+      ungroupedIds.push(p.id);
+    }
+  }
+
+  const sections = [];
+  for (const folder of folders) {
+    sections.push({
+      type: "folder",
+      id: folder.id,
+      name: folder.name,
+      collapsed: folder.collapsed,
+      projects: folder.projectIds.map((id) => byId.get(id)).filter(Boolean),
+    });
+  }
+
+  const ungrouped = ungroupedIds.map((id) => byId.get(id)).filter(Boolean);
+  if (ungrouped.length) {
+    sections.push({ type: "ungrouped", projects: ungrouped });
+  }
+  if (!sections.length && sorted.length) {
+    sections.push({ type: "ungrouped", projects: sorted });
+  }
+
+  return { projects: sorted, sections };
+}
+
 function mergeProjectOrder(order, projectIds) {
   const ids = Array.isArray(projectIds) ? projectIds : [];
   const merged = [];
@@ -193,6 +243,7 @@ module.exports = {
   deriveFlatProjectOrder,
   reconcileProjectLayout,
   sortProjectsByOrder,
+  buildProjectLayoutForUser,
   mergeProjectOrder,
   appendProjectToOrder,
   appendProjectToLayout,

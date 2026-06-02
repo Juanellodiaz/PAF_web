@@ -352,11 +352,11 @@ async function listProjectsForUser(user) {
     saveProjectStoredBody
   );
   const enriched = attachGlobalEstimations(mapped, global, deletedIds);
-  if (user.role === "admin") {
-    const settings = await loadAdminSettings();
-    return sortProjectsByOrder(enriched, settings.projectOrder);
-  }
-  return enriched;
+  const settings = await loadAdminSettings();
+  const order = settings.projectOrder.filter((id) =>
+    enriched.some((p) => p.id === id)
+  );
+  return sortProjectsByOrder(enriched, order);
 }
 
 async function getProject(id) {

@@ -14,6 +14,7 @@ const {
   appendProjectToLayout,
   removeProjectFromLayout,
   reconcileProjectLayout,
+  buildProjectLayoutForUser,
 } = require("./admin-settings");
 const {
   rebuildEstimationsFromOrphanAdvances,
@@ -245,8 +246,11 @@ app.put("/api/admin/settings", requireAuth, requireAdmin, async (req, res) => {
 
 app.get("/api/projects", requireAuth, async (req, res) => {
   try {
-    const projects = (await db.listProjectsForUser(req.user)).map(projectPayload);
-    res.json({ projects });
+    const raw = await db.listProjectsForUser(req.user);
+    const projects = raw.map(projectPayload);
+    const settings = await db.loadAdminSettings();
+    const layout = buildProjectLayoutForUser(projects, settings);
+    res.json({ projects: layout.projects, layout: { sections: layout.sections } });
   } catch (err) {
     handleError(res, err);
   }
