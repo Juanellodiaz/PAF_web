@@ -27,10 +27,11 @@ function scrubConceptsEstimationIds(concepts, removedIds) {
 }
 
 function estimationsFingerprint(estimations) {
+  const normalized = (estimations || [])
+    .map((e) => normalizeEstimation(e))
+    .filter((e) => e?.id);
   return JSON.stringify(
-    (estimations || []).map((e) => normalizeEstimation(e)).sort((a, b) =>
-      a.id.localeCompare(b.id)
-    )
+    normalized.sort((a, b) => a.id.localeCompare(b.id))
   );
 }
 
@@ -138,7 +139,9 @@ async function persistGlobalEstimationsFromProject(
   listAllProjectsForBootstrap,
   saveProjectForScrub
 ) {
-  const incoming = (project.estimations || []).map(normalizeEstimation);
+  const incoming = (project.estimations || [])
+    .map(normalizeEstimation)
+    .filter(Boolean);
   const { estimations: previous, deletedIds: prevDeleted } = await loadStore();
   const allDeleted = mergeDeletedEstimationIds(
     prevDeleted,

@@ -12,6 +12,7 @@ function normalizePaymentStatus(value) {
 }
 
 function normalizeEstimation(e) {
+  if (!e || typeof e !== "object" || !e.id) return null;
   const amountPaid = Math.max(0, Math.round(Number(e.amountPaid) || 0));
   const paid = !!e.paid;
   let paymentStatus = normalizePaymentStatus(e.paymentStatus);
@@ -79,12 +80,15 @@ function mergeEstimationPaymentFields(prev, next, opts = {}) {
 function mergeEstimationRecords(existing, incoming, opts = {}) {
   const byId = new Map();
   (existing || []).forEach((e) => {
-    if (e?.id) byId.set(e.id, normalizeEstimation(e));
+    if (!e?.id) return;
+    const norm = normalizeEstimation(e);
+    if (norm) byId.set(e.id, norm);
   });
   (incoming || []).forEach((e) => {
     if (!e?.id) return;
     const prev = byId.get(e.id);
     const next = normalizeEstimation(e);
+    if (!next) return;
     if (!prev) {
       byId.set(e.id, next);
       return;

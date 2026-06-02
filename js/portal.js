@@ -177,4 +177,14 @@ function navigateWithFade(url) {
   }, 450);
 }
 
+function escapeHtml(s) {
+  const d = document.createElement("div");
+  d.textContent = s ?? "";
+  return d.innerHTML;
+}
+
+function escapeAttr(s) {
+  return escapeHtml(s).replace(/"/g, "&quot;");
+}
+
 document.body.classList.add("page-enter");

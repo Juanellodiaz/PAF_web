@@ -75,6 +75,7 @@ async function loadClientEstimationContext(projects) {
     return;
   }
 
+  empty.hidden = true;
   grid.innerHTML = projects
     .map(
       (p) => `
@@ -95,9 +96,3 @@ async function loadClientEstimationContext(projects) {
     )
     .join("");
 })();
-
-function escapeHtml(s) {
-  const d = document.createElement("div");
-  d.textContent = s;
-  return d.innerHTML;
-}
