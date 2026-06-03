@@ -359,6 +359,96 @@ body.page-enter {
   border: 1px solid var(--border);
 }
 
+.project-notes-section {
+  margin-bottom: 2rem;
+}
+
+.project-notes-section.dashboard-panel {
+  padding: 1.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+
+.department-notes-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.department-notes-composer label {
+  display: block;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 0.5rem;
+}
+
+.department-notes-composer textarea {
+  width: 100%;
+  min-height: 5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+  margin-bottom: 0.75rem;
+}
+
+.department-notes-composer textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.department-notes-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+}
+
+.department-note-item {
+  padding: 1rem 1.25rem;
+  background: var(--bg-card);
+}
+
+.department-note-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.department-note-author {
+  color: var(--accent);
+}
+
+.department-note-remove {
+  margin-left: auto;
+}
+
+.department-note-text {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  color: var(--text);
+}
+
+.department-notes-empty {
+  margin: 0;
+}
+
 /* Project cards grid */
 .projects-grid {
   display: grid;

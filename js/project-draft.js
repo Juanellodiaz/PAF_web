@@ -23,6 +23,10 @@ function saveEditorDraft(projectId) {
         typeof syncIndirectCostsFromDom === "function"
           ? syncIndirectCostsFromDom()
           : editorIndirectCosts || [],
+      departmentNotes:
+        typeof collectDepartmentNotes === "function"
+          ? collectDepartmentNotes()
+          : editorDepartmentNotes || [],
     };
     sessionStorage.setItem(draftKey(projectId), JSON.stringify(payload));
   } catch {
@@ -70,7 +74,11 @@ function mergeProjectWithDraft(project, draft) {
   );
   const indirectCosts =
     draft.indirectCosts != null ? draft.indirectCosts : project.indirectCosts || [];
-  return { ...project, concepts, estimations, indirectCosts };
+  const departmentNotes =
+    draft.departmentNotes != null
+      ? draft.departmentNotes
+      : project.departmentNotes || [];
+  return { ...project, concepts, estimations, indirectCosts, departmentNotes };
 }
 
 function projectNeedsDraftRestore(project, draft) {

@@ -1,5 +1,6 @@
 let projectData = null;
 let isAdmin = false;
+let currentUserName = "Departamento";
 let clientDisplayName = "";
 let savedProjectSnapshot = null;
 let projectDirtyFlag = false;
@@ -24,6 +25,7 @@ function projectStateSnapshot() {
     documents: body.documents || [],
     estimations: (body.estimations || []).map(normalizeEstimationForSnapshot),
     indirectCosts: body.indirectCosts || [],
+    departmentNotes: body.departmentNotes || [],
   });
 }
 
@@ -94,6 +96,10 @@ async function loadEstimationContext() {
 (async () => {
   const user = await requireAuth();
   isAdmin = user.role === "admin";
+  currentUserName = user.name || "Departamento";
+  if (typeof setDepartmentNotesAuthor === "function") {
+    setDepartmentNotesAuthor(currentUserName);
+  }
   document.getElementById("logout-btn").addEventListener("click", logout);
 
   const params = new URLSearchParams(window.location.search);
@@ -257,6 +263,14 @@ function renderAdminView(p) {
       ${adminProjectMetricsHtml(payload)}
     </div>
 
+    <section class="admin-section project-edit-section project-notes-section">
+      <div class="admin-section-head">
+        <p class="admin-section-label">Notas</p>
+      </div>
+      <p class="admin-section-hint">Bitácora del departamento. Las notas también las ve el cliente en su portal.</p>
+      <div id="department-notes-editor" class="department-notes-editor"></div>
+    </section>
+
     <section class="admin-section project-edit-section">
       <div class="admin-section-head">
         <p class="admin-section-label">Conceptos a trabajar</p>
@@ -340,6 +354,10 @@ function renderAdminView(p) {
     p.estimations,
     indirectCostsSource
   );
+  if (typeof initDepartmentNotes === "function") {
+    initDepartmentNotes(p.departmentNotes || []);
+    renderDepartmentNotesEditor();
+  }
   if (typeof hydrateEstimationsFromProject === "function") {
     hydrateEstimationsFromProject(p);
   }
@@ -512,6 +530,7 @@ function buildReadonlyHtml(p) {
       <p class="portal-user">${statusLabel(p.status)} · Culminación ${formatDate(p.completionDate)}</p>
     </div>
     <div class="metrics-row" style="margin-bottom:2rem">${metricsHtml(p)}</div>
+    ${typeof buildDepartmentNotesSectionReadonly === "function" ? buildDepartmentNotesSectionReadonly(p.departmentNotes || []) : ""}
     <div class="dashboard-grid">
       <div class="dashboard-panel full">
         <p class="panel-label">Conceptos a trabajar</p>
@@ -619,6 +638,8 @@ function buildSaveBody() {
   delete base.indirectCosts;
   const indirectCosts =
     typeof collectIndirectCosts === "function" ? collectIndirectCosts() : [];
+  const departmentNotes =
+    typeof collectDepartmentNotes === "function" ? collectDepartmentNotes() : [];
   return {
     ...base,
     zone3dImage: zoneInput?.value.trim() || projectData.zone3dImage,
@@ -626,6 +647,7 @@ function buildSaveBody() {
     documents: collectDocuments(),
     estimations,
     indirectCosts,
+    departmentNotes,
     deletedEstimationIds: [
       ...(window.__pafDeletedEstimationIds || []),
     ],
@@ -659,6 +681,10 @@ async function saveProject(options = {}) {
       project.estimations,
       project.indirectCosts
     );
+    if (typeof initDepartmentNotes === "function") {
+      initDepartmentNotes(project.departmentNotes || []);
+      renderDepartmentNotesEditor();
+    }
     if (typeof hydrateEstimationsFromProject === "function") {
       hydrateEstimationsFromProject(project);
     }

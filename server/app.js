@@ -81,6 +81,10 @@ function mergeProjectUpdate(existing, body) {
     documents: preserveProjectArray(patch.documents, existing.documents),
     estimations: preserveProjectArray(patch.estimations, existing.estimations),
     indirectCosts: preserveProjectArray(patch.indirectCosts, existing.indirectCosts),
+    departmentNotes: preserveProjectArray(
+      patch.departmentNotes,
+      existing.departmentNotes
+    ),
   };
 }
 

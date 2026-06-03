@@ -147,6 +147,21 @@ function buildMetaPayload(project) {
       note: item.note || "",
     })),
     estimationsArchive,
+    departmentNotes: (project.departmentNotes || [])
+      .map((n) => normalizeDepartmentNoteForMeta(n))
+      .filter(Boolean),
+  };
+}
+
+function normalizeDepartmentNoteForMeta(note) {
+  if (!note || typeof note !== "object") return null;
+  const text = (note.text || "").trim();
+  if (!text) return null;
+  return {
+    id: note.id || `note-${Date.now()}`,
+    text,
+    createdAt: note.createdAt || new Date().toISOString(),
+    author: (note.author || "").trim() || "Departamento",
   };
 }
 
@@ -222,6 +237,9 @@ function applyMetaToProject(project) {
   }
 
   const indirectCosts = Array.isArray(meta.indirectCosts) ? meta.indirectCosts : [];
+  const departmentNotes = Array.isArray(meta.departmentNotes)
+    ? meta.departmentNotes.map(normalizeDepartmentNoteForMeta).filter(Boolean)
+    : [];
 
   return {
     ...project,
@@ -229,6 +247,7 @@ function applyMetaToProject(project) {
     estimations,
     documents: visibleDocs,
     indirectCosts,
+    departmentNotes,
   };
 }
 

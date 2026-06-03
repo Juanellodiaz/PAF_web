@@ -4,6 +4,7 @@ let cachedProjects = [];
 let cachedGlobalEstimations = [];
 let cachedDeletedEstimationIds = [];
 let quickPanelMode = "project";
+let adminUserName = "Departamento";
 let advanceProjectCache = null;
 let projectOrder = [];
 let projectFolders = [];
@@ -103,7 +104,7 @@ function projectSelectOptions(selectedId, emptyLabel = "— Seleccionar —") {
 }
 
 function fillProjectSelects() {
-  ["quick-concept-project", "quick-advance-project", "quick-indirect-project"].forEach((id) => {
+  ["quick-concept-project", "quick-advance-project", "quick-indirect-project", "quick-note-project"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = projectSelectOptions(el.value);
   });
@@ -472,6 +473,7 @@ const QUICK_PANEL_TITLES = {
   advance: "Nuevo avance",
   estimation: "Nueva estimación",
   indirect: "Gasto indirecto",
+  note: "Nota de bitácora",
 };
 
 function setQuickPanelMode(mode) {
@@ -501,6 +503,7 @@ function openQuickPanel(mode) {
   if (mode === "advance") resetAdvanceQuickForm();
   if (mode === "estimation") resetEstimationQuickForm();
   if (mode === "indirect") resetIndirectQuickForm();
+  if (mode === "note") resetNoteQuickForm();
 
   setQuickPanelMode(mode);
   panel.hidden = false;
@@ -739,6 +742,12 @@ function bindQuickPanel() {
   document
     .getElementById("indirect-quick-cancel")
     ?.addEventListener("click", closeQuickPanel);
+  document
+    .getElementById("note-quick-form")
+    .addEventListener("submit", onSubmitQuickNote);
+  document
+    .getElementById("note-quick-cancel")
+    ?.addEventListener("click", closeQuickPanel);
 
   document
     .getElementById("completionDate")
@@ -766,6 +775,46 @@ function resetIndirectQuickForm() {
   document.getElementById("indirect-quick-error").textContent = "";
   document.getElementById("quick-indirect-date").value = todayIso();
   fillProjectSelects();
+}
+
+function resetNoteQuickForm() {
+  const form = document.getElementById("note-quick-form");
+  form.reset();
+  document.getElementById("note-quick-error").textContent = "";
+  fillProjectSelects();
+}
+
+async function onSubmitQuickNote(e) {
+  e.preventDefault();
+  const err = document.getElementById("note-quick-error");
+  err.textContent = "";
+
+  const projectId = document.getElementById("quick-note-project").value;
+  const text = document.getElementById("quick-note-text").value.trim();
+
+  if (!projectId) {
+    err.textContent = "Selecciona un proyecto.";
+    return;
+  }
+  if (!text) {
+    err.textContent = "Escribe el contenido de la nota.";
+    return;
+  }
+
+  try {
+    const project = await fetchFullProject(projectId);
+    const note = createDepartmentNote(text, adminUserName);
+    if (!note) {
+      err.textContent = "No se pudo crear la nota.";
+      return;
+    }
+    project.departmentNotes = [note, ...normalizeDepartmentNotesList(project.departmentNotes)];
+    await putProject(project);
+    closeQuickPanel();
+    await refreshDashboard();
+  } catch (ex) {
+    err.textContent = ex.message;
+  }
 }
 
 async function onSubmitQuickEstimation(e) {
@@ -952,6 +1001,7 @@ async function onSubmitQuickAdvance(e) {
   }
 
   document.getElementById("user-greeting").textContent = `${user.name} — Administrador`;
+  adminUserName = user.name || "Departamento";
   document.getElementById("logout-btn").addEventListener("click", logout);
 
   bindQuickPanel();
