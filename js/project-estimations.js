@@ -75,6 +75,36 @@ function calcProjectProgress(concepts) {
   return { totalM2, doneM2, percent };
 }
 
+function conceptM2Progress(concept) {
+  const totalM2 = Number(concept?.m2) || 0;
+  const doneM2 = conceptAdvanceM2(concept);
+  const pendingM2 = Math.max(0, totalM2 - doneM2);
+  return { totalM2, doneM2, pendingM2 };
+}
+
+function enrichEstimationLine(line, concept) {
+  const { doneM2, pendingM2 } = conceptM2Progress(concept);
+  return {
+    ...line,
+    conceptDoneM2: doneM2,
+    conceptPendingM2: pendingM2,
+  };
+}
+
+function estimationLineTableRowHtml(l, { exportStyle = false } = {}) {
+  const num = exportStyle ? ' class="num"' : "";
+  return `
+        <tr>
+          <td>${escapeHtml(l.conceptName)}${l.useSpecialPrice ? ` ${advanceSpecialPeTagHtml()}` : ""}</td>
+          <td${num}>${formatM2(l.m2)}</td>
+          <td${num}>${formatM2(l.conceptDoneM2 ?? 0)}</td>
+          <td${num}>${formatM2(l.conceptPendingM2 ?? 0)}</td>
+          <td${num}>${l.useSpecialPrice ? formatUnitPrice(l.unitPrice) : formatMoney(l.unitPrice)}</td>
+          <td${num}>${formatMoney(l.amount)}</td>
+          <td>${l.date ? formatDate(l.date) : "—"}</td>
+        </tr>`;
+}
+
 function getEstimationLines(estimationId, concepts) {
   const lines = [];
   (concepts || []).forEach((c) => {
@@ -138,11 +168,17 @@ function getEstimationBreakdown(estimationId, projects) {
   let grandTotal = 0;
   (projects || []).forEach((project) => {
     const lines = getEstimationLines(estimationId, project.concepts || []).map(
-      (l) => ({
-        ...l,
-        projectId: project.id,
-        projectName: project.name,
-      })
+      (l) => {
+        const concept = (project.concepts || []).find((c) => c.id === l.conceptId);
+        return enrichEstimationLine(
+          {
+            ...l,
+            projectId: project.id,
+            projectName: project.name,
+          },
+          concept
+        );
+      }
     );
     if (!lines.length) return;
     const subtotal = lines.reduce((s, l) => s + l.amount, 0);
@@ -556,24 +592,13 @@ function estimationLinesGroupedHtml(breakdown) {
   }
   const sections = breakdown.groups
     .map((g) => {
-      const rows = g.lines
-        .map(
-          (l) => `
-        <tr>
-          <td>${escapeHtml(l.conceptName)}${l.useSpecialPrice ? ` ${advanceSpecialPeTagHtml()}` : ""}</td>
-          <td>${l.m2}</td>
-          <td>${l.useSpecialPrice ? formatUnitPrice(l.unitPrice) : formatMoney(l.unitPrice)}</td>
-          <td>${formatMoney(l.amount)}</td>
-          <td>${l.date ? formatDate(l.date) : "—"}</td>
-        </tr>`
-        )
-        .join("");
+      const rows = g.lines.map((l) => estimationLineTableRowHtml(l)).join("");
       return `
       <div class="estimation-project-group">
         <p class="estimation-project-group-label">${escapeHtml(g.projectName)}</p>
         <table class="estimation-lines-table">
           <thead>
-            <tr><th>Concepto</th><th>m²</th><th>P. unit.</th><th>Importe</th><th>Fecha</th></tr>
+            <tr><th>Concepto</th><th>m² periodo</th><th>m² avanzados</th><th>m² pendientes</th><th>P. unit.</th><th>Importe</th><th>Fecha</th></tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
@@ -717,16 +742,7 @@ function buildEstimationExportHtml(estimation, breakdown, clientName, estimation
         Avance durante el periodo de estimación: <strong>+${periodPercent}%</strong> (${periodM2} m² en esta estimación)<br>
         Avance global del proyecto: <strong>${global.percent}%</strong> (${global.doneM2} / ${global.totalM2} m²)`;
       const rows = g.lines
-        .map(
-          (l) => `
-      <tr>
-        <td>${escapeHtml(l.conceptName)}${l.useSpecialPrice ? ` ${advanceSpecialPeTagHtml()}` : ""}</td>
-        <td class="num">${l.m2}</td>
-        <td class="num">${l.useSpecialPrice ? formatUnitPrice(l.unitPrice) : formatMoney(l.unitPrice)}</td>
-        <td class="num">${formatMoney(l.amount)}</td>
-        <td>${l.date ? formatDate(l.date) : "—"}</td>
-      </tr>`
-        )
+        .map((l) => estimationLineTableRowHtml(l, { exportStyle: true }))
         .join("");
       return `
     <h2 class="project-heading">${escapeHtml(g.projectName)}</h2>
@@ -735,7 +751,9 @@ function buildEstimationExportHtml(estimation, breakdown, clientName, estimation
       <thead>
         <tr>
           <th>Concepto</th>
-          <th class="num">m²</th>
+          <th class="num">m² periodo</th>
+          <th class="num">m² avanzados</th>
+          <th class="num">m² pendientes</th>
           <th class="num">Precio unit.</th>
           <th class="num">Importe</th>
           <th>Fecha avance</th>
@@ -744,7 +762,7 @@ function buildEstimationExportHtml(estimation, breakdown, clientName, estimation
       <tbody>${rows}</tbody>
       <tfoot>
         <tr class="subtotal-row">
-          <td colspan="3">Subtotal ${escapeHtml(g.projectName)}</td>
+          <td colspan="5">Subtotal ${escapeHtml(g.projectName)}</td>
           <td class="num">${formatMoney(g.subtotal)}</td>
           <td></td>
         </tr>
